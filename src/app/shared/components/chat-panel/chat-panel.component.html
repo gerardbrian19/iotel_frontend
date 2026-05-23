@@ -1,0 +1,35 @@
+<div class="chat-thread">
+  <div class="thread-header">
+    <h3 class="thread-subject">{{ conversation().subject }}</h3>
+    <p class="thread-meta">{{ conversation().customerName }}</p>
+  </div>
+
+  <div class="messages-area">
+    @for (msg of conversation().messages; track msg.id) {
+      <div class="msg-row" [class.mine]="msg.senderId === currentUserId()">
+        <div class="bubble" [class.my-bubble]="msg.senderId === currentUserId()">
+          @if (msg.senderId !== currentUserId()) {
+            <span class="bubble-sender">{{ msg.senderName }}</span>
+          }
+          <p class="bubble-text">{{ msg.content }}</p>
+          <span class="bubble-time">{{ msg.sentAt | date:'shortTime' }}</span>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="reply-area">
+    <textarea
+      nz-input
+      class="reply-input"
+      placeholder="Type a message..."
+      [ngModel]="replyText()"
+      (ngModelChange)="replyText.set($event)"
+      (keydown)="onKeydown($event)"
+      rows="2"
+    ></textarea>
+    <button nz-button nzType="primary" class="send-btn" (click)="send()">
+      <span nz-icon nzType="send"></span>
+    </button>
+  </div>
+</div>

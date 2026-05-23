@@ -1,0 +1,105 @@
+<div class="dashboard-page">
+  <h1 class="page-title">Dashboard</h1>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <nz-card class="kpi-card">
+      <nz-statistic [nzValue]="totalProducts()" nzTitle="Total Products">
+        <ng-template #nzPrefix><span nz-icon nzType="shop" class="kpi-icon blue-icon"></span></ng-template>
+      </nz-statistic>
+    </nz-card>
+    <nz-card class="kpi-card">
+      <nz-statistic [nzValue]="totalOrders()" nzTitle="Total Orders">
+        <ng-template #nzPrefix><span nz-icon nzType="file-text" class="kpi-icon green-icon"></span></ng-template>
+      </nz-statistic>
+    </nz-card>
+    <nz-card class="kpi-card">
+      <nz-statistic [nzValue]="revenue()" nzTitle="Revenue (Delivered)" nzPrefix="₱">
+        <ng-template #nzPrefix><span nz-icon nzType="rise" class="kpi-icon gold-icon"></span></ng-template>
+      </nz-statistic>
+    </nz-card>
+    <nz-card class="kpi-card">
+      <nz-statistic [nzValue]="lowStockItems().length" nzTitle="Low Stock Items">
+        <ng-template #nzPrefix><span nz-icon nzType="warning" class="kpi-icon red-icon"></span></ng-template>
+      </nz-statistic>
+    </nz-card>
+  </div>
+
+  <div class="dashboard-grid">
+    <!-- Recent Orders -->
+    <nz-card class="dash-card" nzTitle="Recent Orders" [nzExtra]="ordersLink">
+      <ng-template #ordersLink><a routerLink="/admin/orders">View All</a></ng-template>
+      <nz-table [nzData]="recentOrders()" [nzShowPagination]="false" nzSize="small">
+        <thead><tr>
+          <th>Order ID</th><th>Date</th><th>Total</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+          @for (order of recentOrders(); track order.id) {
+            <tr>
+              <td>{{ order.id }}</td>
+              <td>{{ order.createdAt | date:'shortDate' }}</td>
+              <td>{{ order.total | currency:'PHP':'symbol-narrow':'1.0-0' }}</td>
+              <td><nz-tag [nzColor]="statusColors[order.status]">{{ order.status }}</nz-tag></td>
+            </tr>
+          }
+        </tbody>
+      </nz-table>
+    </nz-card>
+
+    <div class="right-col">
+      <!-- Low Stock Alerts -->
+      <nz-card class="dash-card" nzTitle="Low Stock Alerts">
+        @if (lowStockItems().length === 0) {
+          <p class="no-alerts">All products have adequate stock.</p>
+        } @else {
+          @for (p of lowStockItems(); track p.id) {
+            <nz-alert
+              nzType="warning"
+              [nzMessage]="p.name"
+              [nzDescription]="'Only ' + p.stock + ' units remaining'"
+              nzShowIcon
+              class="alert-item"
+            />
+          }
+        }
+      </nz-card>
+
+      <!-- Order Status Distribution -->
+      <nz-card class="dash-card" nzTitle="Order Status">
+        <div class="status-dist">
+          @for (entry of [
+            {label:'Pending', val: statusCounts().Pending, color:'warning'},
+            {label:'Processing', val: statusCounts().Processing, color:'processing'},
+            {label:'Shipped', val: statusCounts().Shipped, color:'blue'},
+            {label:'Delivered', val: statusCounts().Delivered, color:'success'},
+            {label:'Cancelled', val: statusCounts().Cancelled, color:'error'}
+          ]; track entry.label) {
+            <div class="status-row">
+              <nz-tag [nzColor]="entry.color">{{ entry.label }}</nz-tag>
+              <strong>{{ entry.val }}</strong>
+            </div>
+          }
+        </div>
+      </nz-card>
+    </div>
+  </div>
+
+  <!-- Category Stock Summary -->
+  <nz-card class="dash-card" nzTitle="Category Stock Summary">
+    <nz-table [nzData]="categoryStats()" [nzShowPagination]="false" nzSize="small">
+      <thead><tr>
+        <th>Category</th><th>Products</th><th>Total Units</th><th>Stock Value</th>
+      </tr></thead>
+      <tbody>
+        @for (cat of categoryStats(); track cat.category) {
+          <tr>
+            <td>{{ cat.category }}</td>
+            <td>{{ cat.count }}</td>
+            <td>{{ cat.totalUnits }}</td>
+            <td>{{ cat.stockValue | currency:'PHP':'symbol-narrow':'1.0-0' }}</td>
+          </tr>
+        }
+      </tbody>
+    </nz-table>
+  </nz-card>
+</div>

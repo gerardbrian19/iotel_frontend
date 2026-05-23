@@ -1,0 +1,155 @@
+.customer-layout {
+  min-height: 100vh;
+}
+
+.customer-header {
+  background: #1A1A1A;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+  .header-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    height: 64px;
+    gap: 32px;
+  }
+}
+
+.brand-link {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.brand-name {
+  font-size: 22px;
+  font-weight: 900;
+  color: #FFFFFF;
+  letter-spacing: 6px;
+}
+
+.brand-sub {
+  font-size: 9px;
+  color: #C9A84C;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+
+  &:hover {
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &.active-link {
+    color: #C9A84C;
+    background: rgba(201, 168, 76, 0.12);
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-btn {
+  display: flex;
+  align-items: center;
+}
+
+.cart-icon-btn {
+  color: #FFFFFF !important;
+  font-size: 20px;
+  height: 40px;
+  width: 40px;
+}
+
+.user-btn {
+  color: #FFFFFF !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+
+  .user-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Mobile hamburger — hidden on desktop */
+.hamburger-btn {
+  display: none;
+  color: #FFFFFF !important;
+  font-size: 18px;
+}
+
+.drawer-menu { border-right: none; }
+
+.drawer-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-user-name {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.customer-content {
+  background: #F5F5F5;
+  min-height: calc(100vh - 64px - 64px);
+}
+
+.customer-footer {
+  background: #1A1A1A;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  font-size: 13px;
+}
+
+/* Mobile breakpoint */
+@media (max-width: 768px) {
+  .customer-header .header-inner {
+    padding: 0 16px;
+    gap: 12px;
+  }
+
+  .header-nav { display: none; }
+  .desktop-user-menu { display: none; }
+  .hamburger-btn { display: flex; }
+  .header-actions { margin-left: auto; }
+
+  .brand-name { font-size: 18px; letter-spacing: 4px; }
+}

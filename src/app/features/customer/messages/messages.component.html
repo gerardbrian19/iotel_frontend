@@ -1,0 +1,74 @@
+<div class="messages-page">
+  <div class="messages-layout" [class.in-thread]="inThread()">
+    <!-- Left: Conversation List -->
+    <div class="conv-list">
+      <div class="conv-list-header">
+        <h2 class="conv-title">Messages</h2>
+        <button nz-button nzType="primary" nzSize="small" class="new-btn" (click)="newConvVisible.set(true)">
+          <span nz-icon nzType="plus"></span> New
+        </button>
+      </div>
+
+      @if (conversations().length === 0) {
+        <div class="empty-convs">
+          <nz-empty nzDescription="No conversations" />
+        </div>
+      } @else {
+        @for (conv of conversations(); track conv.id) {
+          <div
+            class="conv-item"
+            [class.active]="activeConversation()?.id === conv.id"
+            (click)="selectConversation(conv)"
+          >
+            <div class="conv-item-header">
+              <span class="conv-subject">{{ conv.subject }}</span>
+              @if (conv.unreadCount > 0) {
+                <nz-badge [nzCount]="conv.unreadCount" />
+              }
+            </div>
+            <p class="conv-last-msg">{{ conv.lastMessage }}</p>
+            <p class="conv-time">{{ conv.lastMessageAt | date:'shortDate' }}</p>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- Right: Chat Thread -->
+    <div class="thread-area">
+      @if (activeConversation()) {
+        <button class="back-btn" (click)="inThread.set(false)">
+          <span nz-icon nzType="arrow-left"></span> Back
+        </button>
+        <app-chat-panel
+          [conversation]="activeConversation()!"
+          [currentUserId]="user()!.id"
+          (messageSent)="sendMessage($event)"
+        />
+      } @else {
+        <div class="empty-thread">
+          <nz-empty nzDescription="Select a conversation" />
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<!-- New Conversation Modal -->
+<nz-modal [(nzVisible)]="newConvVisible" nzTitle="New Conversation" [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <form nz-form [formGroup]="newConvForm" nzLayout="vertical" (ngSubmit)="createConversation()">
+      <nz-form-item>
+        <nz-form-label nzRequired>Subject</nz-form-label>
+        <nz-form-control><input nz-input formControlName="subject" placeholder="What is your concern?" /></nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzRequired>Message</nz-form-label>
+        <nz-form-control><textarea nz-input formControlName="firstMessage" rows="4" placeholder="Describe your concern..."></textarea></nz-form-control>
+      </nz-form-item>
+      <div class="modal-footer">
+        <button nz-button type="button" (click)="newConvVisible.set(false)">Cancel</button>
+        <button nz-button nzType="primary" type="submit" class="send-btn">Send</button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>

@@ -1,0 +1,99 @@
+<div class="cart-page">
+  <div class="cart-container">
+    <h1 class="page-title">Shopping Cart</h1>
+
+    @if (items().length === 0) {
+      <div class="empty-cart">
+        <nz-empty nzDescription="Your cart is empty">
+          <button *nzSpaceItem nz-button nzType="primary" routerLink="/customer/catalog" class="shop-btn">
+            Continue Shopping
+          </button>
+        </nz-empty>
+        <div class="mt-6 text-center">
+          <a routerLink="/customer/catalog" nz-button nzType="primary" class="shop-btn">
+            Continue Shopping
+          </a>
+        </div>
+      </div>
+    } @else {
+      <div class="cart-layout">
+        <div class="cart-items">
+          @if (freeShippingLeft() > 0) {
+            <nz-alert
+              nzType="info"
+              [nzMessage]="'Add ' + (freeShippingLeft() | currency:'PHP':'symbol-narrow':'1.0-0') + ' more for FREE shipping!'"
+              nzShowIcon
+              class="mb-4"
+            />
+          } @else {
+            <nz-alert nzType="success" nzMessage="🎉 You qualify for FREE shipping!" nzShowIcon class="mb-4" />
+          }
+
+          <div class="items-list">
+            @for (item of items(); track item.productId) {
+              <div class="cart-item">
+                <img [src]="item.imageUrl" [alt]="item.name" class="item-img" />
+                <div class="item-info">
+                  <h3 class="item-name">{{ item.name }}</h3>
+                  <p class="item-price">{{ item.price | currency:'PHP':'symbol-narrow':'1.0-0' }}</p>
+                </div>
+                <div class="item-qty">
+                  <button nz-button nzShape="circle" nzSize="small"
+                    (click)="cart.updateQty(item.productId, item.qty - 1)">
+                    <span nz-icon nzType="minus"></span>
+                  </button>
+                  <span class="qty-val">{{ item.qty }}</span>
+                  <button nz-button nzShape="circle" nzSize="small"
+                    (click)="cart.updateQty(item.productId, item.qty + 1)">
+                    <span nz-icon nzType="plus"></span>
+                  </button>
+                </div>
+                <div class="item-total">
+                  {{ (item.price * item.qty) | currency:'PHP':'symbol-narrow':'1.0-0' }}
+                </div>
+                <button nz-button nzType="text" nzDanger nzShape="circle"
+                  (click)="confirmRemove(item.productId)">
+                  <span nz-icon nzType="delete"></span>
+                </button>
+              </div>
+            }
+          </div>
+
+          <div class="cart-actions">
+            <button nz-button nzDanger (click)="confirmClear()">
+              <span nz-icon nzType="delete"></span> Clear Cart
+            </button>
+            <a routerLink="/customer/catalog" nz-button>
+              <span nz-icon nzType="arrow-left"></span> Continue Shopping
+            </a>
+          </div>
+        </div>
+
+        <div class="order-summary">
+          <h2 class="summary-title">Order Summary</h2>
+          <nz-divider />
+          <div class="summary-row">
+            <span>Subtotal</span>
+            <span>{{ subtotal() | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+          </div>
+          <div class="summary-row">
+            <span>Shipping</span>
+            @if (shippingFee() === 0) {
+              <span class="free-tag">FREE</span>
+            } @else {
+              <span>{{ shippingFee() | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+            }
+          </div>
+          <nz-divider />
+          <div class="summary-row total-row">
+            <span>Total</span>
+            <span>{{ total() | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+          </div>
+          <a routerLink="/customer/checkout" nz-button nzType="primary" nzBlock class="checkout-btn">
+            Proceed to Checkout
+          </a>
+        </div>
+      </div>
+    }
+  </div>
+</div>

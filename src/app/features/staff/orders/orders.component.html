@@ -1,0 +1,52 @@
+<div class="page-wrap">
+  <h1 class="page-title">Prepare Orders</h1>
+
+  <div class="tabs-bar">
+    @for (tab of tabs; track tab) {
+      <button class="tab" [class.active]="activeTab() === tab" (click)="activeTab.set(tab)">
+        {{ tab }} <span class="tab-count">{{ tabCount(tab) }}</span>
+      </button>
+    }
+  </div>
+
+  <div class="orders-grid">
+    @for (order of filtered(); track order.id) {
+      <nz-card [nzTitle]="order.id" class="order-card">
+        <ng-template nz-card-extra>
+          <nz-tag [nzColor]="order.status === 'Pending' ? 'warning' : 'processing'">{{ order.status }}</nz-tag>
+        </ng-template>
+        <p class="customer-info">{{ order.address.fullName }} · {{ order.address.city }}</p>
+        <p class="payment-info">{{ order.paymentMethod }} @if (order.referenceNumber) { · Ref: {{ order.referenceNumber }} }</p>
+
+        <div class="items-checklist">
+          @for (item of order.items; track item.productId) {
+            <div class="checklist-item" [class.removed]="isRemoved(order.id, item.productId)">
+              <label nz-checkbox [ngModel]="!isRemoved(order.id, item.productId)" (ngModelChange)="toggleRemoveItem(order.id, item.productId)">
+                <img [src]="item.imageUrl" [alt]="item.name" class="item-thumb" />
+                <span class="item-name">{{ item.name }}</span>
+                <span class="item-qty">x{{ item.qty }}</span>
+                <span class="item-price">{{ (item.price * item.qty) | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+              </label>
+            </div>
+          }
+        </div>
+
+        @if (isRemoved(order.id, order.items[0]?.productId)) {
+          <nz-alert nzType="warning" nzMessage="Some items removed — inform customer before processing" nzShowIcon style="margin-bottom:12px" />
+        }
+
+        <div class="order-actions">
+          <span class="order-total">Total: {{ order.total | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+          @if (order.status === 'Pending') {
+            <button nz-button nzType="primary" class="process-btn" (click)="prepareOrder(order)">Mark Processing</button>
+          } @else if (order.status === 'Processing') {
+            <button nz-button nzType="primary" class="ready-btn" (click)="confirmReady(order)">Confirm Ready / Ship</button>
+          }
+        </div>
+      </nz-card>
+    }
+    @if (!filtered().length) {
+      <div class="no-orders">No orders in this queue</div>
+    }
+  </div>
+</div>

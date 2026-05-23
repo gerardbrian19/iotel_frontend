@@ -1,0 +1,43 @@
+.messages-layout { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+.conv-sidebar { width: 300px; background: #FFFFFF; border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; overflow-y: auto; }
+.sidebar-header { padding: 20px 16px 12px; border-bottom: 1px solid #f0f0f0; h2 { margin: 0; font-size: 18px; font-weight: 700; color: #1A1A1A; } }
+.conv-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background .2s; &:hover { background: #F5F5F5; } &.active { background: #fff5f5; border-left: 3px solid #CC2020; } }
+.conv-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.conv-subject { font-weight: 600; font-size: 14px; color: #1A1A1A; }
+.conv-preview { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.conv-customer { font-size: 11px; color: #aaa; }
+.chat-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.empty-chat { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #aaa; gap: 12px; p { font-size: 16px; margin: 0; } }
+
+.back-btn { display: none; }
+
+@media (max-width: 992px) {
+  .messages-layout {
+    flex-direction: column;
+
+    .chat-area { display: none; }
+
+    &.in-thread {
+      .conv-sidebar { display: none; }
+      .chat-area { display: flex; flex: 1; }
+    }
+  }
+
+  .conv-sidebar { width: 100%; flex-shrink: 0; }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #FFFFFF;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #CC2020;
+    cursor: pointer;
+    width: 100%;
+    flex-shrink: 0;
+  }
+}

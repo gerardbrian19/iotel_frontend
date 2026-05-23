@@ -1,0 +1,63 @@
+<div class="page-wrap">
+  <h1 class="page-title">Inventory Management</h1>
+
+  <div class="kpi-grid">
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="totalSKUs()" nzTitle="Total SKUs" /></nz-card>
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="lowStockCount()" nzTitle="Low Stock" /></nz-card>
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="outOfStockCount()" nzTitle="Out of Stock" /></nz-card>
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="totalUnits()" nzTitle="Total Units" /></nz-card>
+  </div>
+
+  <div class="filters-bar">
+    <nz-input-group [nzPrefix]="searchIcon" style="width: 280px">
+      <input nz-input placeholder="Search products..." [ngModel]="search()" (ngModelChange)="search.set($event)" />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+    <nz-select [ngModel]="stockFilter()" (ngModelChange)="stockFilter.set($event)" style="width: 180px">
+      <nz-option nzValue="All" nzLabel="All Stock Levels"></nz-option>
+      <nz-option nzValue="Low Stock" nzLabel="Low Stock (≤5)"></nz-option>
+      <nz-option nzValue="Out of Stock" nzLabel="Out of Stock"></nz-option>
+    </nz-select>
+  </div>
+
+  <nz-table [nzData]="filtered()" nzSize="middle" [nzPageSize]="15">
+    <thead><tr>
+      <th>Product</th><th>Category</th><th>Current Stock</th><th>Status</th><th>Adjust Stock</th>
+    </tr></thead>
+    <tbody>
+      @for (p of filtered(); track p.id) {
+        <tr>
+          <td>
+            <div class="product-cell">
+              <img [src]="p.imageUrl" [alt]="p.name" class="product-thumb" />
+              <span>{{ p.name }}</span>
+            </div>
+          </td>
+          <td><nz-tag>{{ p.category }}</nz-tag></td>
+          <td>
+            <span class="stock-num" [class.low]="p.stock <= 5 && p.stock > 0" [class.zero]="p.stock === 0">
+              {{ p.stock }}
+            </span>
+          </td>
+          <td><nz-tag [nzColor]="stockLevel(p.stock).color">{{ stockLevel(p.stock).label }}</nz-tag></td>
+          <td>
+            <div class="adjust-row">
+              <nz-input-number
+                [ngModel]="editingStock()[p.id] ?? p.stock"
+                (ngModelChange)="setEditStock(p.id, $event)"
+                [nzMin]="0"
+                style="width: 80px"
+                nzSize="small"
+              />
+              <button nz-button nzSize="small" nzType="primary" class="save-btn"
+                [disabled]="editingStock()[p.id] === undefined || editingStock()[p.id] === p.stock"
+                (click)="saveStock(p.id)">
+                Save
+              </button>
+            </div>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+</div>

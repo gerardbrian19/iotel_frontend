@@ -1,0 +1,10 @@
+.page-wrap { padding: 28px 24px; max-width: 1200px; margin: 0 auto; }
+.page-title { font-size: 24px; font-weight: 800; color: #1A1A1A; margin-bottom: 20px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); } }
+.kpi-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.content-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; @media (max-width: 900px) { grid-template-columns: 1fr; } }
+.action-card, .alert-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.queue-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; &:last-child { border-bottom: 0; } }
+.queue-sub { display: block; font-size: 12px; color: #888; margin-top: 2px; }
+.alert-item { margin-bottom: 8px; &:last-child { margin-bottom: 0; } }
+.no-alerts { color: #52c41a; font-size: 13px; text-align: center; padding: 8px 0; }

@@ -1,0 +1,42 @@
+<div class="page-wrap">
+  <h1 class="page-title">Staff Dashboard</h1>
+
+  <div class="kpi-grid">
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="pendingOrders()" nzTitle="Pending Orders" nzPrefix="🕐" /></nz-card>
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="processingOrders()" nzTitle="Processing" nzPrefix="⚙️" /></nz-card>
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="unreadMessages()" nzTitle="Unread Messages" nzPrefix="💬" /></nz-card>
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="lowStock()" nzTitle="Low / Out of Stock" nzPrefix="⚠️" /></nz-card>
+  </div>
+
+  <div class="content-grid">
+    <nz-card class="action-card" nzTitle="Pending Order Queue">
+      @for (order of pendingOrderList(); track order.id) {
+        <div class="queue-item">
+          <div>
+            <strong>{{ order.id }}</strong>
+            <span class="queue-sub">{{ order.address.fullName }} · {{ order.items.length }} items</span>
+          </div>
+          <nz-tag nzColor="warning">{{ order.status }}</nz-tag>
+        </div>
+      }
+      @if (!pendingOrderList().length) {
+        <p style="color:#52c41a; text-align:center; padding: 12px 0;">All orders are up to date!</p>
+      }
+    </nz-card>
+
+    <nz-card class="alert-card" nzTitle="Low Stock Alerts">
+      @for (p of lowStockItems(); track p.id) {
+        <nz-alert
+          class="alert-item"
+          [nzType]="p.stock === 0 ? 'error' : 'warning'"
+          [nzMessage]="p.name"
+          [nzDescription]="p.stock === 0 ? 'Out of stock' : 'Only ' + p.stock + ' units left'"
+          nzShowIcon
+        />
+      }
+      @if (!lowStockItems().length) {
+        <p class="no-alerts">All stock levels are healthy</p>
+      }
+    </nz-card>
+  </div>
+</div>

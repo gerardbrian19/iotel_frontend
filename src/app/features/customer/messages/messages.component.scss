@@ -1,0 +1,49 @@
+.messages-page { height: calc(100vh - 64px - 64px); overflow: hidden; }
+.messages-layout { display: grid; grid-template-columns: 300px 1fr; height: 100%; }
+.conv-list { border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; background: #FFFFFF; overflow: hidden; }
+.conv-list-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f0; }
+.conv-title { font-size: 18px; font-weight: 700; color: #1A1A1A; margin: 0; }
+.new-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
+.empty-convs { flex: 1; display: flex; align-items: center; justify-content: center; }
+.conv-item { padding: 14px 16px; border-bottom: 1px solid #f5f5f5; cursor: pointer; transition: background .15s; &:hover { background: #fafafa; } &.active { background: #fff8f8; border-left: 3px solid #CC2020; } }
+.conv-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.conv-subject { font-size: 13px; font-weight: 600; color: #1A1A1A; }
+.conv-last-msg { font-size: 12px; color: #888; margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-time { font-size: 11px; color: #bbb; margin: 0; }
+.thread-area { display: flex; flex-direction: column; overflow: hidden; height: 100%; }
+.empty-thread { flex: 1; display: flex; align-items: center; justify-content: center; background: #F5F5F5; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.send-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
+
+.back-btn { display: none; }
+
+@media (max-width: 768px) {
+  .messages-page { height: calc(100vh - 64px); }
+
+  .messages-layout {
+    grid-template-columns: 1fr;
+
+    .thread-area { display: none; }
+
+    &.in-thread {
+      .conv-list { display: none; }
+      .thread-area { display: flex; }
+    }
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #FFFFFF;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #CC2020;
+    cursor: pointer;
+    width: 100%;
+    flex-shrink: 0;
+  }
+}

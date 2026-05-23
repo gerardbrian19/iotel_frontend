@@ -1,0 +1,11 @@
+.page-wrap { padding: 28px 24px; max-width: 1280px; margin: 0 auto; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-title { font-size: 24px; font-weight: 800; color: #1A1A1A; margin: 0; }
+.add-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
+.filters-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.product-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+.action-row { display: flex; gap: 8px; }
+.form-row { display: flex; gap: 12px; }
+.flex-1 { flex: 1; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.save-btn { background: #CC2020 !important; border-color: #CC2020 !important; }

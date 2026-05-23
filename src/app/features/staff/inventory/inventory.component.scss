@@ -1,0 +1,8 @@
+.page-wrap { padding: 28px 24px; max-width: 1200px; margin: 0 auto; }
+.page-title { font-size: 24px; font-weight: 800; color: #1A1A1A; margin-bottom: 20px; }
+.filters-bar { margin-bottom: 20px; }
+.product-cell { display: flex; align-items: center; gap: 10px; }
+.product-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+.stock-num { font-weight: 700; font-size: 15px; color: #52c41a; &.low { color: #fa8c16; } &.zero { color: #CC2020; } }
+
+::ng-deep .ant-table-pagination { justify-content: center !important; }

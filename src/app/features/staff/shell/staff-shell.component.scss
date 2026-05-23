@@ -1,0 +1,50 @@
+.shell-layout { min-height: 100vh; }
+.staff-body-layout { flex: 1; min-height: 0; }
+.sidebar { background: #1A1A1A !important; display: flex; flex-direction: column; }
+.brand { padding: 20px 16px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.brand-name { display: block; font-size: 22px; font-weight: 900; color: #FFFFFF; letter-spacing: 2px; }
+.brand-sub { font-size: 11px; color: #C9A84C; letter-spacing: 1px; text-transform: uppercase; }
+.user-section { padding: 16px; margin-top: auto; border-top: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: row; align-items: center; justify-content: space-between; }
+.user-name { color: rgba(255,255,255,.7); font-size: 13px; }
+.main-content { background: #F5F5F5; min-height: 100vh; overflow-y: auto; }
+
+/* Mobile header — hidden on desktop */
+.mobile-header {
+  display: none;
+  background: #1A1A1A;
+  padding: 0 16px;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.hamburger-btn { color: #FFFFFF !important; font-size: 18px; }
+
+.mobile-brand {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.drawer-menu { border-right: none; }
+
+.drawer-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-user-name { font-size: 13px; color: rgba(0, 0, 0, 0.45); }
+
+/* Responsive breakpoint — hide desktop sider, show mobile header */
+@media (max-width: 992px) {
+  .mobile-header { display: flex; }
+  .desktop-sider { display: none !important; }
+}

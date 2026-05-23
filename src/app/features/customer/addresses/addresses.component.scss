@@ -1,0 +1,16 @@
+.addr-page { padding: 32px 24px; }
+.addr-container { max-width: 900px; margin: 0 auto; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.page-title { font-size: 28px; font-weight: 800; color: #1A1A1A; margin: 0; }
+.add-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
+.addr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.addr-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); position: relative; }
+.default-card { border: 2px solid #C9A84C !important; }
+.default-tag { position: absolute; top: 12px; right: 12px; }
+.addr-name { font-size: 15px; font-weight: 700; color: #1A1A1A; margin-bottom: 4px; }
+.addr-line { font-size: 13px; color: #555; margin-bottom: 2px; }
+.addr-actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+.form-row { display: flex; gap: 12px; }
+.flex-1 { flex: 1; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.save-btn { background: #CC2020 !important; border-color: #CC2020 !important; }

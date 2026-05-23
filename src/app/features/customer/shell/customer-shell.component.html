@@ -1,0 +1,115 @@
+<nz-layout class="customer-layout">
+  <nz-header class="customer-header">
+    <div class="header-inner">
+      <div class="brand">
+        <a routerLink="/customer/catalog" class="brand-link">
+          <span class="brand-name">IOTEL</span>
+          <span class="brand-sub">by Goldcomm</span>
+        </a>
+      </div>
+
+      <!-- Desktop nav -->
+      <nav class="header-nav">
+        <a routerLink="/customer/catalog" routerLinkActive="active-link" class="nav-link">
+          <span nz-icon nzType="shop"></span>
+          Catalog
+        </a>
+        <a routerLink="/customer/services" routerLinkActive="active-link" class="nav-link">
+          <span nz-icon nzType="tool"></span>
+          Services
+        </a>
+        <a routerLink="/customer/orders" routerLinkActive="active-link" class="nav-link">
+          <span nz-icon nzType="file-text"></span>
+          Orders
+        </a>
+        <a routerLink="/customer/messages" routerLinkActive="active-link" class="nav-link">
+          <span nz-icon nzType="message"></span>
+          Messages
+        </a>
+      </nav>
+
+      <div class="header-actions">
+        <a routerLink="/customer/cart" class="cart-btn">
+          <nz-badge [nzCount]="cartCount()" [nzOverflowCount]="99">
+            <button nz-button nzType="text" class="cart-icon-btn">
+              <span nz-icon nzType="shopping-cart" nzTheme="outline"></span>
+            </button>
+          </nz-badge>
+        </a>
+
+        <!-- Desktop user dropdown -->
+        <div nz-dropdown [nzDropdownMenu]="userMenu" nzPlacement="bottomRight" class="user-menu desktop-user-menu">
+          <button nz-button nzType="text" class="user-btn">
+            <span nz-icon nzType="user"></span>
+            <span class="user-name">{{ user()?.name }}</span>
+            <span nz-icon nzType="down"></span>
+          </button>
+        </div>
+        <nz-dropdown-menu #userMenu="nzDropdownMenu">
+          <ul nz-menu>
+            <li nz-menu-item>
+              <a routerLink="/customer/addresses">
+                <span nz-icon nzType="environment"></span> My Addresses
+              </a>
+            </li>
+            <li nz-menu-divider></li>
+            <li nz-menu-item nzDanger (click)="logout()">
+              <span nz-icon nzType="logout"></span> Sign Out
+            </li>
+          </ul>
+        </nz-dropdown-menu>
+
+        <!-- Mobile hamburger -->
+        <button nz-button nzType="text" class="hamburger-btn" (click)="openDrawer()">
+          <span nz-icon nzType="menu"></span>
+        </button>
+      </div>
+    </div>
+  </nz-header>
+
+  <!-- Mobile nav drawer -->
+  <nz-drawer
+    [nzVisible]="drawerVisible()"
+    nzPlacement="left"
+    nzTitle="IOTEL"
+    [nzWidth]="260"
+    (nzOnClose)="closeDrawer()"
+  >
+    <ng-container *nzDrawerContent>
+      <ul nz-menu nzMode="inline" class="drawer-menu">
+        <li nz-menu-item routerLink="/customer/catalog" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="shop"></span><span>Catalog</span>
+        </li>
+        <li nz-menu-item routerLink="/customer/services" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="tool"></span><span>Services</span>
+        </li>
+        <li nz-menu-item routerLink="/customer/orders" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="file-text"></span><span>Orders</span>
+        </li>
+        <li nz-menu-item routerLink="/customer/messages" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="message"></span><span>Messages</span>
+        </li>
+        <li nz-menu-item routerLink="/customer/addresses" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="environment"></span><span>My Addresses</span>
+        </li>
+      </ul>
+      <div class="drawer-footer">
+        <span class="drawer-user-name">{{ user()?.name }}</span>
+        <button nz-button nzType="primary" nzDanger nzBlock (click)="logout()">
+          <span nz-icon nzType="logout"></span> Sign Out
+        </button>
+      </div>
+    </ng-container>
+  </nz-drawer>
+
+  <nz-content class="customer-content">
+    <router-outlet />
+  </nz-content>
+
+  <nz-footer class="customer-footer">
+    IOTEL &copy; 2026 Goldcomm Corporation. All rights reserved.
+  </nz-footer>
+</nz-layout>
+
+<app-chatbot-widget />
+

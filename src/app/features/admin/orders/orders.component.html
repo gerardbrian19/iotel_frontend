@@ -1,0 +1,72 @@
+<div class="page-wrap">
+  <h1 class="page-title">Orders Management</h1>
+
+  <div class="top-bar">
+    <div class="status-tabs">
+      @for (tab of tabs; track tab) {
+        <button class="status-tab" [class.active]="activeTab() === tab" (click)="activeTab.set(tab)">
+          {{ tab }} <span class="tab-count">{{ countTab(tab) }}</span>
+        </button>
+      }
+    </div>
+    <nz-input-group [nzPrefix]="searchIcon" style="width: 280px">
+      <input nz-input placeholder="Search by order ID or customer..." [ngModel]="search()" (ngModelChange)="search.set($event)" />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+  </div>
+
+  <nz-table [nzData]="filtered()" nzSize="middle" [nzShowPagination]="true" [nzPageSize]="10">
+    <thead><tr>
+      <th></th><th>Order ID</th><th>Customer</th><th>Date</th>
+      <th>Items</th><th>Total</th><th>Status</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+      @for (order of filtered(); track order.id) {
+        <tr>
+          <td>
+            <button nz-button nzType="text" nzSize="small" (click)="toggleExpand(order.id)">
+              <span nz-icon [nzType]="expandedOrders().has(order.id) ? 'up' : 'down'"></span>
+            </button>
+          </td>
+          <td><strong>{{ order.id }}</strong></td>
+          <td>{{ order.address.fullName }}</td>
+          <td>{{ order.createdAt | date:'shortDate' }}</td>
+          <td>{{ order.items.length }}</td>
+          <td>{{ order.total | currency:'PHP':'symbol-narrow':'1.0-0' }}</td>
+          <td><nz-tag [nzColor]="STATUS_COLORS[order.status]">{{ order.status }}</nz-tag></td>
+          <td>
+            <div class="action-row">
+              <nz-select [ngModel]="pendingStatus()[order.id] ?? order.status" (ngModelChange)="setPendingStatus(order.id, $event)" nzSize="small" style="width: 140px">
+                @for (s of statuses; track s) {
+                  <nz-option [nzValue]="s" [nzLabel]="s"></nz-option>
+                }
+              </nz-select>
+              <button nz-button nzType="primary" nzSize="small" class="update-btn" [disabled]="!pendingStatus()[order.id] || pendingStatus()[order.id] === order.status" (click)="updateStatus(order)">Update</button>
+            </div>
+          </td>
+        </tr>
+        @if (expandedOrders().has(order.id)) {
+          <tr class="expanded-row">
+            <td colspan="8">
+              <div class="expanded-content">
+                @for (item of order.items; track item.productId) {
+                  <div class="exp-item">
+                    <img [src]="item.imageUrl" [alt]="item.name" class="exp-img" />
+                    <span class="exp-name">{{ item.name }}</span>
+                    <span>x{{ item.qty }}</span>
+                    <span class="exp-total">{{ (item.price * item.qty) | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+                  </div>
+                }
+                <div class="exp-meta">
+                  <span><strong>Payment:</strong> {{ order.paymentMethod }}</span>
+                  @if (order.referenceNumber) { <span><strong>Ref:</strong> {{ order.referenceNumber }}</span> }
+                  <span><strong>Address:</strong> {{ order.address.addressLine }}, {{ order.address.city }}</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </nz-table>
+</div>

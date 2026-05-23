@@ -1,0 +1,86 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-logo">
+        <span class="logo-text">IOTEL</span>
+        <span class="logo-sub">by Goldcomm</span>
+      </div>
+    </div>
+
+    <h2 class="login-title">Sign in to your account</h2>
+
+    @if (error()) {
+      <nz-alert nzType="error" [nzMessage]="error()!" nzShowIcon class="mb-4" />
+    }
+
+    <form nz-form [formGroup]="form" (ngSubmit)="submit()" nzLayout="vertical">
+      <nz-form-item>
+        <nz-form-label nzRequired>Email</nz-form-label>
+        <nz-form-control nzErrorTip="Please enter a valid email address">
+          <nz-input-group nzPrefixIcon="mail">
+            <input
+              nz-input
+              type="email"
+              placeholder="you@example.com"
+              formControlName="email"
+              autocomplete="email"
+            />
+          </nz-input-group>
+        </nz-form-control>
+      </nz-form-item>
+
+      <nz-form-item>
+        <nz-form-label nzRequired>Password</nz-form-label>
+        <nz-form-control nzErrorTip="Password must be at least 6 characters">
+          <nz-input-group nzPrefixIcon="lock" [nzSuffix]="suffixTemplate">
+            <input
+              nz-input
+              [type]="passwordVisible() ? 'text' : 'password'"
+              placeholder="••••••••"
+              formControlName="password"
+              autocomplete="current-password"
+            />
+          </nz-input-group>
+          <ng-template #suffixTemplate>
+            <span
+              nz-icon
+              [nzType]="passwordVisible() ? 'eye' : 'eye-invisible'"
+              (click)="passwordVisible.set(!passwordVisible())"
+              class="cursor-pointer"
+            ></span>
+          </ng-template>
+        </nz-form-control>
+      </nz-form-item>
+
+      <button
+        nz-button
+        nzType="primary"
+        nzBlock
+        [nzLoading]="loading()"
+        type="submit"
+        class="login-btn"
+      >
+        Sign In
+      </button>
+    </form>
+
+    <div class="demo-credentials">
+      <p class="demo-title">Demo credentials</p>
+      <div class="demo-grid">
+        <div class="demo-item">
+          <span class="demo-role customer-role">Customer</span>
+          <span>customer&#64;demo.com</span>
+        </div>
+        <div class="demo-item">
+          <span class="demo-role admin-role">Admin</span>
+          <span>admin&#64;demo.com</span>
+        </div>
+        <div class="demo-item">
+          <span class="demo-role staff-role">Staff</span>
+          <span>staff&#64;demo.com</span>
+        </div>
+      </div>
+      <p class="demo-note">Any password with 6+ characters works.</p>
+    </div>
+  </div>
+</div>

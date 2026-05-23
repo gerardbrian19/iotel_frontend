@@ -1,0 +1,66 @@
+<div class="orders-page">
+  <div class="orders-container">
+    <h1 class="page-title">My Orders</h1>
+
+    <!-- Search -->
+    <nz-input-group [nzPrefix]="searchIcon" class="search-bar">
+      <input nz-input placeholder="Search by order ID or product..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+
+    <!-- Status Tabs -->
+    <div class="status-tabs">
+      @for (tab of tabs; track tab) {
+        <button class="status-tab" [class.active]="activeTab() === tab" (click)="activeTab.set(tab)">
+          {{ tab }} <span class="tab-count">{{ countForStatus(tab) }}</span>
+        </button>
+      }
+    </div>
+
+    @if (filteredOrders().length === 0) {
+      <nz-empty nzDescription="No orders found" />
+    } @else {
+      <div class="orders-list">
+        @for (order of filteredOrders(); track order.id) {
+          <nz-collapse class="order-collapse">
+            <nz-collapse-panel [nzHeader]="orderHeader">
+              <ng-template #orderHeader>
+                <div class="order-header">
+                  <div class="order-header-left">
+                    <strong class="order-id">{{ order.id }}</strong>
+                    <span class="order-date">{{ order.createdAt | date:'mediumDate' }}</span>
+                  </div>
+                  <div class="order-header-right">
+                    <nz-tag [nzColor]="STATUS_COLORS[order.status]">{{ order.status }}</nz-tag>
+                    <strong class="order-total">{{ order.total | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong>
+                  </div>
+                </div>
+              </ng-template>
+              <div class="order-body">
+                <div class="order-items-list">
+                  @for (item of order.items; track item.productId) {
+                    <div class="order-line-item">
+                      <img [src]="item.imageUrl" [alt]="item.name" class="line-img" />
+                      <span class="line-name">{{ item.name }}</span>
+                      <span class="line-qty">x{{ item.qty }}</span>
+                      <span class="line-total">{{ (item.price * item.qty) | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+                    </div>
+                  }
+                </div>
+                <div class="order-meta">
+                  <span><strong>Payment:</strong> {{ order.paymentMethod }}</span>
+                  @if (order.estimatedDelivery) {
+                    <span><strong>ETA:</strong> {{ order.estimatedDelivery | date:'mediumDate' }}</span>
+                  }
+                </div>
+                <a [routerLink]="['/customer/orders', order.id, 'confirmation']" nz-button nzSize="small">
+                  <span nz-icon nzType="eye"></span> View Details
+                </a>
+              </div>
+            </nz-collapse-panel>
+          </nz-collapse>
+        }
+      </div>
+    }
+  </div>
+</div>

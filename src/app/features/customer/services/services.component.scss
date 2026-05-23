@@ -1,0 +1,22 @@
+.services-page { padding: 32px 24px; }
+.services-container { max-width: 1100px; margin: 0 auto; }
+.page-title { font-size: 28px; font-weight: 800; color: #1A1A1A; margin-bottom: 24px; }
+.services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding-top: 16px; }
+.svc-card { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); transition: box-shadow .2s; &:hover { box-shadow: 0 8px 24px rgba(0,0,0,.12); } }
+.svc-icon { font-size: 32px; margin-bottom: 12px; }
+.svc-title { font-size: 16px; font-weight: 700; color: #1A1A1A; margin-bottom: 8px; }
+.svc-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 16px; }
+.svc-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.svc-price { font-size: 14px; font-weight: 700; color: #C9A84C; }
+.book-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
+.bookings-list { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; }
+.booking-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.booking-header { display: flex; justify-content: space-between; align-items: flex-start; }
+.booking-title { font-size: 15px; font-weight: 700; color: #1A1A1A; margin-bottom: 4px; }
+.booking-date { font-size: 13px; color: #888; display: flex; align-items: center; gap: 6px; margin: 0; }
+.booking-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.form-row { display: flex; gap: 12px; }
+.flex-1 { flex: 1; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.text-center { text-align: center; }

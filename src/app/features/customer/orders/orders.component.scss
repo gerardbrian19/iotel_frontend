@@ -1,0 +1,24 @@
+.orders-page { padding: 32px 24px; }
+.orders-container { max-width: 900px; margin: 0 auto; }
+.page-title { font-size: 28px; font-weight: 800; color: #1A1A1A; margin-bottom: 20px; }
+.search-bar { margin-bottom: 20px; max-width: 400px; }
+.status-tabs { display: flex; gap: 8px; margin-bottom: 24px; overflow-x: auto; flex-wrap: wrap; }
+.status-tab { padding: 6px 14px; border-radius: 20px; border: 1px solid #d9d9d9; background: #FFFFFF; cursor: pointer; font-size: 13px; white-space: nowrap; transition: all 0.2s; &:hover { border-color: #CC2020; color: #CC2020; } &.active { background: #CC2020; border-color: #CC2020; color: #FFFFFF; font-weight: 600; } }
+.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; background: rgba(0,0,0,.1); border-radius: 10px; font-size: 11px; margin-left: 4px; padding: 0 5px; }
+.status-tab.active .tab-count { background: rgba(255,255,255,.25); }
+.orders-list { display: flex; flex-direction: column; gap: 12px; }
+.order-collapse { border-radius: 10px !important; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.order-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; }
+.order-header-left { display: flex; flex-direction: column; gap: 2px; }
+.order-id { font-size: 14px; color: #1A1A1A; }
+.order-date { font-size: 12px; color: #888; font-weight: 400; }
+.order-header-right { display: flex; align-items: center; gap: 12px; }
+.order-total { font-size: 15px; color: #CC2020; }
+.order-body { padding: 4px 0; }
+.order-items-list { margin-bottom: 12px; }
+.order-line-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; &:last-child { border-bottom: none; } }
+.line-img { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; }
+.line-name { flex: 1; font-size: 13px; }
+.line-qty { font-size: 13px; color: #888; }
+.line-total { font-size: 13px; font-weight: 600; color: #CC2020; }
+.order-meta { display: flex; gap: 20px; font-size: 13px; color: #555; margin-bottom: 12px; }

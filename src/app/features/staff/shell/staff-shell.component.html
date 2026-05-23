@@ -1,0 +1,89 @@
+<nz-layout class="shell-layout">
+  <!-- Mobile header — visible only below lg breakpoint -->
+  <nz-header class="mobile-header">
+    <button nz-button nzType="text" class="hamburger-btn" (click)="openDrawer()">
+      <span nz-icon nzType="menu"></span>
+    </button>
+    <div class="mobile-brand">
+      <span class="brand-name">IOTEL</span>
+      <span class="brand-sub">Staff Portal</span>
+    </div>
+  </nz-header>
+
+  <!-- Mobile nav drawer -->
+  <nz-drawer
+    [nzVisible]="drawerVisible()"
+    nzPlacement="left"
+    nzTitle="IOTEL Staff"
+    [nzWidth]="220"
+    (nzOnClose)="closeDrawer()"
+  >
+    <ng-container *nzDrawerContent>
+      <ul nz-menu nzMode="inline" class="drawer-menu">
+        <li nz-menu-item routerLink="dashboard" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="dashboard"></span><span>Dashboard</span>
+        </li>
+        <li nz-menu-item routerLink="orders" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="shopping-cart"></span><span>Orders</span>
+        </li>
+        <li nz-menu-item routerLink="inventory" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="inbox"></span><span>Inventory</span>
+        </li>
+        <li nz-menu-item routerLink="messages" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="message"></span><span>Messages</span>
+        </li>
+      </ul>
+      <div class="drawer-footer">
+        <span class="drawer-user-name">{{ user()?.name }}</span>
+        <button nz-button nzType="text" nzDanger (click)="logout()">
+          <span nz-icon nzType="logout"></span> Sign Out
+        </button>
+      </div>
+    </ng-container>
+  </nz-drawer>
+
+  <!-- Body row: sider + content -->
+  <nz-layout class="staff-body-layout">
+
+    <!-- Desktop sidebar -->
+    <nz-sider
+      nzCollapsible
+      nzWidth="220px"
+      [nzBreakpoint]="'lg'"
+      [(nzCollapsed)]="siderCollapsed"
+      class="sidebar desktop-sider"
+    >
+      <div class="brand">
+        <span class="brand-name">IOTEL</span>
+        <span class="brand-sub">Staff Portal</span>
+      </div>
+      <ul nz-menu nzMode="inline" nzTheme="dark">
+        <li nz-menu-item routerLink="dashboard" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="dashboard"></span><span>Dashboard</span>
+        </li>
+        <li nz-menu-item routerLink="orders" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="shopping-cart"></span><span>Orders</span>
+        </li>
+        <li nz-menu-item routerLink="inventory" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="inbox"></span><span>Inventory</span>
+        </li>
+        <li nz-menu-item routerLink="messages" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="message"></span><span>Messages</span>
+        </li>
+      </ul>
+      <div class="user-section">
+        <span class="user-name">{{ user()?.name }}</span>
+        <button nz-button nzType="text" nzDanger (click)="logout()">
+          <span nz-icon nzType="logout"></span>
+        </button>
+      </div>
+    </nz-sider>
+
+    <nz-layout>
+      <nz-content class="main-content">
+        <router-outlet />
+      </nz-content>
+    </nz-layout>
+
+  </nz-layout>
+</nz-layout>

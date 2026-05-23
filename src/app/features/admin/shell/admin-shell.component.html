@@ -1,0 +1,96 @@
+<nz-layout class="admin-layout">
+  <!-- Mobile header — visible only below lg breakpoint -->
+  <nz-header class="mobile-header">
+    <button nz-button nzType="text" class="hamburger-btn" (click)="openDrawer()">
+      <span nz-icon nzType="menu"></span>
+    </button>
+    <div class="mobile-brand">
+      <span class="brand-name">IOTEL</span>
+      <span class="brand-role">Admin</span>
+    </div>
+  </nz-header>
+
+  <!-- Mobile nav drawer -->
+  <nz-drawer
+    [nzVisible]="drawerVisible()"
+    nzPlacement="left"
+    nzTitle="IOTEL Admin"
+    [nzWidth]="220"
+    (nzOnClose)="closeDrawer()"
+  >
+    <ng-container *nzDrawerContent>
+      <ul nz-menu nzMode="inline" class="drawer-menu">
+        <li nz-menu-item routerLink="/admin/dashboard" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="dashboard"></span><span>Dashboard</span>
+        </li>
+        <li nz-menu-item routerLink="/admin/orders" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="file-text"></span><span>Orders</span>
+        </li>
+        <li nz-menu-item routerLink="/admin/products" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="shop"></span><span>Products</span>
+        </li>
+        <li nz-menu-item routerLink="/admin/inventory" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="database"></span><span>Inventory</span>
+        </li>
+        <li nz-menu-item routerLink="/admin/messages" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="message"></span><span>Messages</span>
+        </li>
+      </ul>
+      <div class="drawer-footer">
+        <span class="drawer-user-name">{{ user()?.name }}</span>
+        <button nz-button nzType="text" nzDanger (click)="logout()">
+          <span nz-icon nzType="logout"></span> Sign Out
+        </button>
+      </div>
+    </ng-container>
+  </nz-drawer>
+
+  <!-- Body row: sider + content -->
+  <nz-layout class="admin-body-layout">
+
+    <!-- Desktop sidebar -->
+    <nz-sider
+      nzCollapsible
+      nzWidth="220px"
+      [nzBreakpoint]="'lg'"
+      [nzCollapsedWidth]="0"
+      [(nzCollapsed)]="siderCollapsed"
+      class="admin-sider desktop-sider"
+    >
+      <div class="sider-brand">
+        <span class="brand-name">IOTEL</span>
+        <span class="brand-role">Admin</span>
+      </div>
+      <ul nz-menu nzTheme="dark" nzMode="inline" class="admin-menu">
+        <li nz-menu-item routerLink="/admin/dashboard" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="dashboard"></span><span>Dashboard</span>
+        </li>
+        <li nz-menu-item routerLink="/admin/orders" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="file-text"></span><span>Orders</span>
+        </li>
+        <li nz-menu-item routerLink="/admin/products" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="shop"></span><span>Products</span>
+        </li>
+        <li nz-menu-item routerLink="/admin/inventory" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="database"></span><span>Inventory</span>
+        </li>
+        <li nz-menu-item routerLink="/admin/messages" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="message"></span><span>Messages</span>
+        </li>
+      </ul>
+      <div class="sider-footer">
+        <span class="user-name">{{ user()?.name }}</span>
+        <button nz-button nzType="text" nzDanger (click)="logout()">
+          <span nz-icon nzType="logout"></span>
+        </button>
+      </div>
+    </nz-sider>
+
+    <nz-layout>
+      <nz-content class="admin-content">
+        <router-outlet />
+      </nz-content>
+    </nz-layout>
+
+  </nz-layout>
+</nz-layout>

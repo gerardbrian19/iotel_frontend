@@ -1,0 +1,102 @@
+<div class="catalog-page">
+  <!-- Hero Banner -->
+  <div class="hero-banner">
+    <div class="hero-content">
+      <h1 class="hero-title">Professional Radio Equipment</h1>
+      <p class="hero-subtitle">Two-way radios, marine systems, and accessories for every need</p>
+      <div class="hero-actions">
+        <a routerLink="/customer/catalog" class="hero-btn primary">Shop Now</a>
+        <a routerLink="/customer/services" class="hero-btn secondary">Book a Service</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="catalog-container">
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="category-tabs">
+        @for (cat of categories; track cat) {
+          <button
+            class="cat-tab"
+            [class.active]="selectedCategory() === cat"
+            (click)="selectedCategory.set(cat)"
+          >{{ cat }}</button>
+        }
+      </div>
+
+      <div class="filter-controls">
+        <nz-input-group [nzPrefix]="searchIcon" class="search-input">
+          <input
+            nz-input
+            placeholder="Search products..."
+            [ngModel]="searchQuery()"
+            (ngModelChange)="onSearch($event)"
+          />
+        </nz-input-group>
+        <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+
+        <nz-select
+          [ngModel]="sortBy()"
+          (ngModelChange)="sortBy.set($event)"
+          class="sort-select"
+          nzPlaceHolder="Sort by"
+        >
+          <nz-option nzValue="featured" nzLabel="Featured"></nz-option>
+          <nz-option nzValue="price-asc" nzLabel="Price: Low → High"></nz-option>
+          <nz-option nzValue="price-desc" nzLabel="Price: High → Low"></nz-option>
+          <nz-option nzValue="name-asc" nzLabel="Name: A → Z"></nz-option>
+        </nz-select>
+      </div>
+    </div>
+
+    <!-- Results count -->
+    <p class="results-count">{{ filteredProducts().length }} products found</p>
+
+    <!-- Product Grid -->
+    @if (filteredProducts().length === 0) {
+      <nz-empty nzDescription="No products found" />
+    } @else {
+      <div class="product-grid">
+        @for (product of filteredProducts(); track product.id) {
+          <nz-card class="product-card" [nzCover]="coverTemplate" [nzBodyStyle]="{'padding': '16px'}">
+            <ng-template #coverTemplate>
+              <div class="product-img-wrap">
+                <img [src]="product.imageUrl" [alt]="product.name" class="product-img" />
+                @if (!product.inStock) {
+                  <div class="out-of-stock-overlay">Out of Stock</div>
+                }
+                <nz-tag [nzColor]="product.inStock ? 'green' : 'red'" class="stock-badge">
+                  {{ product.inStock ? 'In Stock' : 'Out of Stock' }}
+                </nz-tag>
+              </div>
+            </ng-template>
+            <nz-tag nzColor="default" class="cat-badge">{{ product.category }}</nz-tag>
+            <h3 class="product-name">{{ product.name }}</h3>
+            <p class="product-desc">{{ product.description }}</p>
+            <div class="product-footer">
+              <div>
+                <span class="product-price">{{ product.price | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+                @if (product.inStock) {
+                  <span class="stock-count">{{ product.stock }} left</span>
+                }
+              </div>
+              <button
+                nz-button
+                [nzType]="product.inStock ? 'primary' : 'default'"
+                [disabled]="!product.inStock"
+                (click)="addToCart(product)"
+                class="add-btn"
+              >
+                @if (product.inStock) {
+                  <span nz-icon nzType="shopping-cart"></span> Add to Cart
+                } @else {
+                  Out of Stock
+                }
+              </button>
+            </div>
+          </nz-card>
+        }
+      </div>
+    }
+  </div>
+</div>

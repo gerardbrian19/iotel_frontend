@@ -1,0 +1,12 @@
+.page-wrap { padding: 28px 24px; max-width: 1280px; margin: 0 auto; }
+.page-title { font-size: 24px; font-weight: 800; color: #1A1A1A; margin-bottom: 20px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); } }
+.kpi-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.filters-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.product-cell { display: flex; align-items: center; gap: 10px; }
+.product-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+.stock-num { font-weight: 700; font-size: 15px; color: #52c41a; &.low { color: #fa8c16; } &.zero { color: #CC2020; } }
+.adjust-row { display: flex; gap: 8px; align-items: center; }
+.save-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
+
+::ng-deep .ant-table-pagination { justify-content: center !important; }

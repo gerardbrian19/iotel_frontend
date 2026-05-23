@@ -1,0 +1,95 @@
+<div class="page-wrap">
+  <div class="page-header">
+    <h1 class="page-title">Products</h1>
+    <button nz-button nzType="primary" class="add-btn" (click)="openAdd()">
+      <span nz-icon nzType="plus"></span> Add Product
+    </button>
+  </div>
+
+  <div class="filters-bar">
+    <nz-input-group [nzPrefix]="searchIcon" style="width: 280px">
+      <input nz-input placeholder="Search products..." [ngModel]="search()" (ngModelChange)="search.set($event)" />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+    <nz-select [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)" style="width: 180px">
+      <nz-option nzValue="All" nzLabel="All Categories"></nz-option>
+      @for (cat of categories; track cat) {
+        <nz-option [nzValue]="cat" [nzLabel]="cat"></nz-option>
+      }
+    </nz-select>
+  </div>
+
+  <nz-table [nzData]="filtered()" nzSize="middle" [nzPageSize]="10">
+    <thead><tr>
+      <th>Image</th><th>Name</th><th>Category</th><th>Price</th>
+      <th>Stock</th><th>In Stock</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+      @for (p of filtered(); track p.id) {
+        <tr>
+          <td><img [src]="p.imageUrl" [alt]="p.name" class="product-thumb" /></td>
+          <td><strong>{{ p.name }}</strong></td>
+          <td><nz-tag>{{ p.category }}</nz-tag></td>
+          <td>{{ p.price | currency:'PHP':'symbol-narrow':'1.0-0' }}</td>
+          <td>{{ p.stock }}</td>
+          <td>
+            <nz-switch [ngModel]="p.inStock" (ngModelChange)="toggleStock(p)" nzCheckedChildren="Yes" nzUnCheckedChildren="No" />
+          </td>
+          <td>
+            <div class="action-row">
+              <button nz-button nzSize="small" (click)="openEdit(p)">
+                <span nz-icon nzType="edit"></span> Edit
+              </button>
+              <button nz-button nzSize="small" nzDanger (click)="confirmDelete(p)">
+                <span nz-icon nzType="delete"></span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+</div>
+
+<nz-modal [(nzVisible)]="modalVisible" [nzTitle]="editingId() ? 'Edit Product' : 'Add Product'" [nzFooter]="null" nzWidth="600px">
+  <ng-container *nzModalContent>
+    <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="save()">
+      <nz-form-item>
+        <nz-form-label nzRequired>Name</nz-form-label>
+        <nz-form-control><input nz-input formControlName="name" /></nz-form-control>
+      </nz-form-item>
+      <div class="form-row">
+        <nz-form-item class="flex-1">
+          <nz-form-label nzRequired>Category</nz-form-label>
+          <nz-form-control>
+            <nz-select formControlName="category">
+              @for (cat of categories; track cat) {
+                <nz-option [nzValue]="cat" [nzLabel]="cat"></nz-option>
+              }
+            </nz-select>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item class="flex-1">
+          <nz-form-label nzRequired>Price (₱)</nz-form-label>
+          <nz-form-control><nz-input-number formControlName="price" [nzMin]="0" style="width:100%" /></nz-form-control>
+        </nz-form-item>
+        <nz-form-item style="width:120px">
+          <nz-form-label nzRequired>Stock</nz-form-label>
+          <nz-form-control><nz-input-number formControlName="stock" [nzMin]="0" style="width:100%" /></nz-form-control>
+        </nz-form-item>
+      </div>
+      <nz-form-item>
+        <nz-form-label nzRequired>Description</nz-form-label>
+        <nz-form-control><textarea nz-input formControlName="description" rows="3"></textarea></nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label>Image URL</nz-form-label>
+        <nz-form-control><input nz-input formControlName="imageUrl" /></nz-form-control>
+      </nz-form-item>
+      <div class="modal-footer">
+        <button nz-button type="button" (click)="modalVisible.set(false)">Cancel</button>
+        <button nz-button nzType="primary" type="submit" class="save-btn">{{ editingId() ? 'Update' : 'Add Product' }}</button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>

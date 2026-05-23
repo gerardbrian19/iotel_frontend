@@ -1,0 +1,35 @@
+<div class="messages-layout" [class.in-thread]="inThread()">
+  <div class="conv-sidebar">
+    <div class="sidebar-header"><h2>Support Inbox</h2></div>
+    @for (c of conversations(); track c.id) {
+      <div class="conv-item" [class.active]="selectedConversation()?.id === c.id" (click)="selectConversation(c)">
+        <div class="conv-top">
+          <span class="conv-subject">{{ c.subject }}</span>
+          <nz-badge [nzCount]="unreadCount(c)" [nzOverflowCount]="9" />
+        </div>
+        <div class="conv-preview">{{ c.lastMessage | slice:0:60 }}</div>
+        <div class="conv-customer">Customer #{{ c.customerId }}</div>
+      </div>
+    }
+    @if (!conversations().length) {
+      <div class="no-convs">No conversations yet</div>
+    }
+  </div>
+  <div class="chat-area">
+    @if (selectedConversation()) {
+      <button class="back-btn" (click)="inThread.set(false)">
+        <span nz-icon nzType="arrow-left"></span> Back
+      </button>
+      <app-chat-panel
+        [conversation]="selectedConversation()!"
+        [currentUserId]="currentUserId"
+        (messageSent)="onMessageSent($event)"
+      />
+    } @else {
+      <div class="empty-chat">
+        <span nz-icon nzType="message" style="font-size:48px; color:#d9d9d9"></span>
+        <p>Select a conversation to reply</p>
+      </div>
+    }
+  </div>
+</div>

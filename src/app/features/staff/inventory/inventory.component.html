@@ -1,0 +1,29 @@
+<div class="page-wrap">
+  <h1 class="page-title">Inventory (Read-only)</h1>
+  <div class="filters-bar">
+    <nz-input-group [nzPrefix]="searchIcon" style="width: 300px">
+      <input nz-input placeholder="Search products..." [ngModel]="search()" (ngModelChange)="search.set($event)" />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+  </div>
+  <nz-table [nzData]="filtered()" nzSize="middle" [nzPageSize]="20">
+    <thead><tr>
+      <th>Product</th><th>Category</th><th>Stock</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+      @for (p of filtered(); track p.id) {
+        <tr>
+          <td>
+            <div class="product-cell">
+              <img [src]="p.imageUrl" [alt]="p.name" class="product-thumb" />
+              <span>{{ p.name }}</span>
+            </div>
+          </td>
+          <td><nz-tag>{{ p.category }}</nz-tag></td>
+          <td><span class="stock-num" [class.low]="p.stock <= 5 && p.stock > 0" [class.zero]="p.stock === 0">{{ p.stock }}</span></td>
+          <td><nz-tag [nzColor]="stockLevel(p.stock).color">{{ stockLevel(p.stock).label }}</nz-tag></td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+</div>
