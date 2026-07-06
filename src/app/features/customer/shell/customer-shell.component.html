@@ -26,6 +26,10 @@
           <span nz-icon nzType="message"></span>
           Messages
         </a>
+        <a routerLink="/customer/about" routerLinkActive="active-link" class="nav-link">
+          <span nz-icon nzType="info-circle"></span>
+          About
+        </a>
       </nav>
 
       <div class="header-actions">
@@ -47,6 +51,11 @@
         </div>
         <nz-dropdown-menu #userMenu="nzDropdownMenu">
           <ul nz-menu>
+            <li nz-menu-item>
+              <a routerLink="/customer/settings">
+                <span nz-icon nzType="setting"></span> Settings
+              </a>
+            </li>
             <li nz-menu-item>
               <a routerLink="/customer/addresses">
                 <span nz-icon nzType="environment"></span> My Addresses
@@ -89,8 +98,14 @@
         <li nz-menu-item routerLink="/customer/messages" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="message"></span><span>Messages</span>
         </li>
+        <li nz-menu-item routerLink="/customer/settings" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="setting"></span><span>Settings</span>
+        </li>
         <li nz-menu-item routerLink="/customer/addresses" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="environment"></span><span>My Addresses</span>
+        </li>
+        <li nz-menu-item routerLink="/customer/about" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="info-circle"></span><span>About</span>
         </li>
       </ul>
       <div class="drawer-footer">

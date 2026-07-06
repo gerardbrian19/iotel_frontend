@@ -47,6 +47,16 @@ export const CUSTOMER_ROUTES: Routes = [
         loadComponent: () =>
           import('./messages/messages.component').then(m => m.MessagesComponent),
       },
+      {
+        path: 'settings',
+        loadChildren: () =>
+          import('./settings/settings.routes').then(m => m.SETTINGS_ROUTES),
+      },
+      {
+        path: 'about',
+        loadComponent: () =>
+          import('./about/about.component').then(m => m.AboutComponent),
+      },
     ],
   },
 ];

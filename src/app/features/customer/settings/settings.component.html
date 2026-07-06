@@ -1,0 +1,49 @@
+<div class="settings-layout">
+  <!-- Sidebar -->
+  <aside class="settings-sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-avatar">
+        <span nz-icon nzType="user" nzTheme="outline"></span>
+      </span>
+      <div class="sidebar-user-info">
+        <span class="sidebar-username">{{ user()?.name }}</span>
+        <a routerLink="/customer/settings/profile" class="sidebar-edit-link">
+          <span nz-icon nzType="edit"></span> Edit Profile
+        </a>
+      </div>
+    </div>
+
+    <nz-divider></nz-divider>
+
+    @for (group of settingsGroups; track group.title) {
+      <div class="settings-group">
+        <p class="settings-group-title">{{ group.title }}</p>
+        <ul nz-menu nzMode="inline" class="settings-menu">
+          @for (item of group.items; track item.label) {
+            <li
+              nz-menu-item
+              [routerLink]="item.route"
+              routerLinkActive="ant-menu-item-selected"
+              class="settings-menu-item"
+            >
+              <span nz-icon [nzType]="item.icon"></span>
+              <span>{{ item.label }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    <nz-divider></nz-divider>
+
+    <button nz-button nzType="primary" nzDanger nzBlock (click)="logout()" class="logout-btn">
+      <span nz-icon nzType="logout"></span>
+      Log Out
+    </button>
+  </aside>
+
+  <!-- Content -->
+  <main class="settings-content">
+    <router-outlet />
+  </main>
+</div>

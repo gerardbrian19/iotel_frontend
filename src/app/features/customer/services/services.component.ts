@@ -14,6 +14,7 @@ import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { BookingService } from '../../../core/services/booking.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Booking, Service } from '../../../core/models';
@@ -31,7 +32,7 @@ const BOOKING_STATUS_COLORS: Record<Booking['status'], string> = {
     CurrencyPipe, DatePipe, FormsModule, ReactiveFormsModule,
     NzCardModule, NzButtonModule, NzModalModule, NzTabsModule,
     NzTagModule, NzFormModule, NzInputModule, NzSelectModule,
-    NzDatePickerModule, NzIconModule, NzEmptyModule,
+    NzDatePickerModule, NzIconModule, NzEmptyModule, NzSpaceModule,
   ],
   templateUrl: './services.component.html',
   styleUrl: './services.component.scss',

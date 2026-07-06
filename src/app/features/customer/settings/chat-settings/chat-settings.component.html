@@ -1,0 +1,57 @@
+<div class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">Chat Settings</h2>
+    <p class="section-desc">Manage your messaging preferences and auto-reply options.</p>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <div class="chat-toggle-row">
+    <div class="chat-info">
+      <p class="chat-label">Chat Notifications</p>
+      <p class="chat-desc">Receive notifications for new messages from support.</p>
+    </div>
+    <nz-switch [ngModel]="chatNotifications()" (ngModelChange)="chatNotifications.set($event)"></nz-switch>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <div class="chat-toggle-row">
+    <div class="chat-info">
+      <p class="chat-label">Read Receipts</p>
+      <p class="chat-desc">Let others know when you've read their messages.</p>
+    </div>
+    <nz-switch [ngModel]="readReceipts()" (ngModelChange)="readReceipts.set($event)"></nz-switch>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <div class="chat-toggle-row">
+    <div class="chat-info">
+      <p class="chat-label">Auto-Reply</p>
+      <p class="chat-desc">Automatically reply to messages when you're unavailable.</p>
+    </div>
+    <nz-switch [ngModel]="autoReply()" (ngModelChange)="autoReply.set($event)"></nz-switch>
+  </div>
+
+  @if (autoReply()) {
+    <div class="auto-reply-form">
+      <form nz-form [nzLayout]="'vertical'">
+        <nz-form-item>
+          <nz-form-label>Auto-Reply Message</nz-form-label>
+          <nz-form-control>
+            <textarea
+              nz-input
+              [ngModel]="autoReplyMessage()"
+              (ngModelChange)="autoReplyMessage.set($event)"
+              name="autoReply"
+              [nzAutosize]="{ minRows: 3, maxRows: 5 }"
+              placeholder="Type your auto-reply message…"
+            ></textarea>
+          </nz-form-control>
+        </nz-form-item>
+        <button nz-button nzType="primary">Save Auto-Reply</button>
+      </form>
+    </div>
+  }
+</div>

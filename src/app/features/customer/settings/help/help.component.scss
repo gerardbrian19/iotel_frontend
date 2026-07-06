@@ -1,0 +1,75 @@
+.settings-section {
+  padding: 24px;
+}
+
+.section-header {
+  padding-bottom: 4px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px;
+}
+
+.section-desc {
+  color: #595959;
+  margin: 0;
+  font-size: 14px;
+}
+
+.help-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.help-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: #fafafa;
+    border-radius: 6px;
+  }
+}
+
+.help-icon {
+  font-size: 22px;
+  color: #c9a84c;
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.help-text {
+  flex: 1;
+}
+
+.help-title {
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+
+.help-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin: 0;
+}
+
+.help-arrow {
+  font-size: 12px;
+  color: #bfbfbf;
+}

@@ -1,0 +1,155 @@
+<div class="about-page">
+
+  <!-- Hero -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <div class="brand-badge">
+        <span nz-icon nzType="radio" nzTheme="outline"></span>
+        Goldcomm Corporation
+      </div>
+      <h1 class="hero-title">Welcome to <span class="highlight">IOTEL</span></h1>
+      <p class="hero-tagline">
+        Your all-in-one platform for two-way radio equipment, professional installations,
+        and technical services — built to keep your teams connected.
+      </p>
+      <a routerLink="/customer/catalog" class="cta-btn">
+        <span nz-icon nzType="shop" nzTheme="outline"></span>
+        Browse Catalog
+      </a>
+    </div>
+  </section>
+
+  <div class="content-wrapper">
+
+    <!-- What We Do -->
+    <section class="section">
+      <h2 class="section-title">What We Do</h2>
+      <p class="section-intro">
+        Goldcomm Corporation has been a trusted provider of two-way radio communication solutions
+        for businesses, public safety agencies, and organizations. IOTEL is our digital storefront
+        and service management platform — making it easy to order equipment, schedule installations,
+        and get support all in one place.
+      </p>
+
+      <div class="feature-grid">
+        <nz-card class="feature-card" [nzBordered]="false">
+          <div class="feature-icon"><span nz-icon nzType="shop" nzTheme="outline"></span></div>
+          <h3>Product Catalog</h3>
+          <p>Browse our curated selection of professional-grade two-way radios, repeaters, antennas, accessories, and more — sourced from leading brands.</p>
+        </nz-card>
+
+        <nz-card class="feature-card" [nzBordered]="false">
+          <div class="feature-icon"><span nz-icon nzType="tool" nzTheme="outline"></span></div>
+          <h3>Installation &amp; Services</h3>
+          <p>Schedule on-site installation, system programming, repairs, and preventive maintenance performed by our certified technicians.</p>
+        </nz-card>
+
+        <nz-card class="feature-card" [nzBordered]="false">
+          <div class="feature-icon"><span nz-icon nzType="file-text" nzTheme="outline"></span></div>
+          <h3>Order Management</h3>
+          <p>Track every purchase from placement to delivery. View itemized receipts, order status updates, and full order history at a glance.</p>
+        </nz-card>
+
+        <nz-card class="feature-card" [nzBordered]="false">
+          <div class="feature-icon"><span nz-icon nzType="message" nzTheme="outline"></span></div>
+          <h3>Support &amp; Messaging</h3>
+          <p>Get real-time assistance from our support team directly within the platform. No emails, no queues — just fast, direct communication.</p>
+        </nz-card>
+      </div>
+    </section>
+
+    <nz-divider></nz-divider>
+
+    <!-- How to Use -->
+    <section class="section">
+      <h2 class="section-title">How to Use IOTEL</h2>
+      <p class="section-intro">Follow these steps to get the most out of the platform:</p>
+
+      <nz-timeline nzMode="left" class="how-to-timeline">
+        <nz-timeline-item nzColor="#C9A84C">
+          <div class="timeline-step">
+            <h4>1. Browse the Catalog</h4>
+            <p>Go to <strong>Catalog</strong> in the top navigation. Filter by category, sort by price or name, and search for specific products. Click any product to see full details, specs, and availability.</p>
+          </div>
+        </nz-timeline-item>
+
+        <nz-timeline-item nzColor="#C9A84C">
+          <div class="timeline-step">
+            <h4>2. Add Items to Your Cart</h4>
+            <p>Click <em>Add to Cart</em> on any product. Adjust quantities in the <strong>Cart</strong> view — accessible via the shopping cart icon in the header. You can remove items or clear the cart at any time.</p>
+          </div>
+        </nz-timeline-item>
+
+        <nz-timeline-item nzColor="#C9A84C">
+          <div class="timeline-step">
+            <h4>3. Checkout &amp; Pay</h4>
+            <p>Proceed to <strong>Checkout</strong> from your cart. Choose a saved shipping address or add a new one. Select a payment method: <em>GCash</em>, <em>Bank Transfer</em>, or <em>Cash on Delivery</em>. Review your order summary and confirm.</p>
+          </div>
+        </nz-timeline-item>
+
+        <nz-timeline-item nzColor="#C9A84C">
+          <div class="timeline-step">
+            <h4>4. Track Your Orders</h4>
+            <p>Visit the <strong>Orders</strong> section to see all your past and active orders. Filter by status (Pending, Processing, Shipped, Delivered) and view itemized receipts for each order.</p>
+          </div>
+        </nz-timeline-item>
+
+        <nz-timeline-item nzColor="#C9A84C">
+          <div class="timeline-step">
+            <h4>5. Book a Service</h4>
+            <p>Go to <strong>Services</strong> to view available service types. Select the service you need, pick a date and time slot, and submit your booking. Our team will confirm and reach out if needed.</p>
+          </div>
+        </nz-timeline-item>
+
+        <nz-timeline-item nzColor="#C9A84C">
+          <div class="timeline-step">
+            <h4>6. Contact Support</h4>
+            <p>Use the <strong>Messages</strong> section for direct communication with our support staff. You can also use the <em>chat bubble</em> in the bottom-right corner for quick questions at any time.</p>
+          </div>
+        </nz-timeline-item>
+
+        <nz-timeline-item nzColor="#C9A84C">
+          <div class="timeline-step">
+            <h4>7. Manage Your Addresses</h4>
+            <p>Access <strong>My Addresses</strong> from the user menu (top-right). Add, edit, or remove shipping addresses so checkout is faster on future orders.</p>
+          </div>
+        </nz-timeline-item>
+      </nz-timeline>
+    </section>
+
+    <nz-divider></nz-divider>
+
+    <!-- Payment Methods -->
+    <section class="section">
+      <h2 class="section-title">Accepted Payment Methods</h2>
+      <div class="payment-methods">
+        <div class="payment-item">
+          <span nz-icon nzType="mobile" nzTheme="outline"></span>
+          <span>GCash</span>
+        </div>
+        <div class="payment-item">
+          <span nz-icon nzType="bank" nzTheme="outline"></span>
+          <span>Bank Transfer</span>
+        </div>
+        <div class="payment-item">
+          <span nz-icon nzType="dollar" nzTheme="outline"></span>
+          <span>Cash on Delivery</span>
+        </div>
+      </div>
+    </section>
+
+    <nz-divider></nz-divider>
+
+    <!-- Contact / Footer Note -->
+    <section class="section contact-section">
+      <h2 class="section-title">Need Help?</h2>
+      <p>
+        Our support team is available through the
+        <a routerLink="/customer/messages" class="inline-link">Messages</a> section
+        or via the live chat widget. For urgent concerns about an active order, please
+        include your order number so we can assist you faster.
+      </p>
+    </section>
+
+  </div>
+</div>

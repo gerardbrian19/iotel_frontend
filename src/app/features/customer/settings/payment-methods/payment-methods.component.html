@@ -1,0 +1,42 @@
+<div class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">Bank Accounts / Cards</h2>
+    <p class="section-desc">Manage your saved payment methods.</p>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  @if (methods().length === 0) {
+    <nz-empty nzDescription="No payment methods saved yet." class="empty-state"></nz-empty>
+  }
+
+  <div class="methods-list">
+    @for (method of methods(); track method.id) {
+      <div class="method-card">
+        <div class="method-icon">
+          <span nz-icon [nzType]="method.type === 'card' ? 'credit-card' : 'bank'" nzTheme="outline"></span>
+        </div>
+        <div class="method-info">
+          <span class="method-label">{{ method.label }}</span>
+          <span class="method-detail">{{ method.detail }}</span>
+        </div>
+        <div class="method-actions">
+          @if (method.isDefault) {
+            <nz-tag nzColor="gold">Default</nz-tag>
+          } @else {
+            <button nz-button nzType="link" nzSize="small" (click)="setDefault(method.id)">Set Default</button>
+          }
+          <button nz-button nzType="text" nzDanger nzSize="small" (click)="remove(method.id)">
+            <span nz-icon nzType="delete"></span>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="add-method-row">
+    <button nz-button nzType="dashed" class="add-btn">
+      <span nz-icon nzType="plus"></span> Add Payment Method
+    </button>
+  </div>
+</div>

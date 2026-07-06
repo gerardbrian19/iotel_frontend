@@ -1,0 +1,63 @@
+.settings-section {
+  padding: 24px;
+}
+
+.section-header {
+  padding-bottom: 4px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px;
+}
+
+.section-desc {
+  color: #595959;
+  margin: 0;
+  font-size: 14px;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  gap: 16px;
+}
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.account-icon {
+  font-size: 24px;
+  color: #bfbfbf;
+
+  &.connected {
+    color: #c9a84c;
+  }
+}
+
+.account-provider {
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+
+.account-detail {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin: 0;
+}
+
+.account-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

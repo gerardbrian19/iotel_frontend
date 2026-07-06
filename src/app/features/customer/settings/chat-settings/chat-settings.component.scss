@@ -1,0 +1,50 @@
+.settings-section {
+  padding: 24px;
+}
+
+.section-header {
+  padding-bottom: 4px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px;
+}
+
+.section-desc {
+  color: #595959;
+  margin: 0;
+  font-size: 14px;
+}
+
+.chat-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.chat-info {
+  flex: 1;
+}
+
+.chat-label {
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+
+.chat-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin: 0;
+}
+
+.auto-reply-form {
+  margin-top: 12px;
+  max-width: 480px;
+}

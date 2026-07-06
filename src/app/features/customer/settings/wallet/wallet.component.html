@@ -1,0 +1,43 @@
+<div class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">My Wallet</h2>
+    <p class="section-desc">View your balance, top up funds, and review transactions.</p>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <!-- Balance Card -->
+  <div class="wallet-card">
+    <p class="wallet-label">Available Balance</p>
+    <p class="wallet-amount">₱ {{ balance() | number: '1.2-2' }}</p>
+    <div class="wallet-actions">
+      <button nz-button nzType="primary">
+        <span nz-icon nzType="plus-circle"></span> Top Up
+      </button>
+      <button nz-button nzType="default">
+        <span nz-icon nzType="arrow-up"></span> Withdraw
+      </button>
+    </div>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <!-- Transactions -->
+  <h3 class="section-subtitle">Recent Transactions</h3>
+  <div class="transactions-list">
+    @for (tx of transactions(); track tx.id) {
+      <div class="tx-row">
+        <div class="tx-icon" [class.credit]="tx.type === 'credit'" [class.debit]="tx.type === 'debit'">
+          <span nz-icon [nzType]="tx.type === 'credit' ? 'arrow-down' : 'arrow-up'"></span>
+        </div>
+        <div class="tx-info">
+          <p class="tx-label">{{ tx.label }}</p>
+          <p class="tx-date">{{ tx.date }}</p>
+        </div>
+        <div class="tx-amount" [class.credit]="tx.type === 'credit'" [class.debit]="tx.type === 'debit'">
+          {{ tx.type === 'credit' ? '+' : '' }}₱{{ tx.amount | number: '1.2-2' }}
+        </div>
+      </div>
+    }
+  </div>
+</div>

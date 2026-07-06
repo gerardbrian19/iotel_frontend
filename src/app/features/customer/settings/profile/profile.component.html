@@ -1,0 +1,59 @@
+<div class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">Profile</h2>
+    <p class="section-desc">Manage your personal information and profile picture.</p>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <!-- Avatar -->
+  <div class="avatar-row">
+    <div class="avatar-circle">
+      <span nz-icon nzType="user" nzTheme="outline" class="avatar-icon"></span>
+    </div>
+    <div class="avatar-info">
+      <p class="avatar-label">Profile Picture</p>
+      <button nz-button nzType="default" nzSize="small">
+        <span nz-icon nzType="upload"></span> Upload Photo
+      </button>
+      <p class="avatar-hint">JPG, PNG or GIF · Max 2 MB</p>
+    </div>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <!-- Form -->
+  <form nz-form [nzLayout]="'vertical'" class="profile-form">
+    <nz-form-item>
+      <nz-form-label>Full Name</nz-form-label>
+      <nz-form-control>
+        <input nz-input [ngModel]="name()" (ngModelChange)="name.set($event)" placeholder="Your full name" />
+      </nz-form-control>
+    </nz-form-item>
+
+    <nz-form-item>
+      <nz-form-label>Email Address</nz-form-label>
+      <nz-form-control>
+        <input nz-input [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="your@email.com" type="email" />
+      </nz-form-control>
+    </nz-form-item>
+
+    <nz-form-item>
+      <nz-form-label>Phone Number</nz-form-label>
+      <nz-form-control>
+        <input nz-input [ngModel]="phone()" (ngModelChange)="phone.set($event)" placeholder="+63 9XX XXX XXXX" />
+      </nz-form-control>
+    </nz-form-item>
+
+    <nz-form-item>
+      <nz-form-label>Bio</nz-form-label>
+      <nz-form-control>
+        <textarea nz-input [ngModel]="bio()" (ngModelChange)="bio.set($event)" placeholder="Tell us a little about yourself…" [nzAutosize]="{ minRows: 3, maxRows: 5 }"></textarea>
+      </nz-form-control>
+    </nz-form-item>
+
+    <div class="form-actions">
+      <button nz-button nzType="primary" [nzLoading]="saving()" (click)="save()">Save Changes</button>
+    </div>
+  </form>
+</div>

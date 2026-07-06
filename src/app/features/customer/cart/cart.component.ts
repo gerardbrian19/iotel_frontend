@@ -8,6 +8,7 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { CartService } from '../../../core/services/cart.service';
 
 @Component({
@@ -23,6 +24,7 @@ import { CartService } from '../../../core/services/cart.service';
     NzAlertModule,
     NzModalModule,
     NzDividerModule,
+    NzSpaceModule,
   ],
   templateUrl: './cart.component.html',
   styleUrl: './cart.component.scss',

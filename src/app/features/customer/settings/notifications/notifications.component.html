@@ -1,0 +1,37 @@
+<div class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">Notifications</h2>
+    <p class="section-desc">Choose how and when you want to be notified.</p>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <div class="notif-header-row">
+    <div class="notif-label-col"></div>
+    <div class="notif-channel-col">Push</div>
+    <div class="notif-channel-col">Email</div>
+    <div class="notif-channel-col">SMS</div>
+  </div>
+
+  @for (setting of settings(); track setting.key) {
+    <div class="notif-row">
+      <div class="notif-info">
+        <span nz-icon [nzType]="setting.icon" class="notif-icon"></span>
+        <div>
+          <p class="notif-label">{{ setting.label }}</p>
+          <p class="notif-desc">{{ setting.description }}</p>
+        </div>
+      </div>
+      <div class="notif-channel-col">
+        <nz-switch [ngModel]="setting.push" (ngModelChange)="toggle(setting.key, 'push', $event)" nzSize="small"></nz-switch>
+      </div>
+      <div class="notif-channel-col">
+        <nz-switch [ngModel]="setting.email" (ngModelChange)="toggle(setting.key, 'email', $event)" nzSize="small"></nz-switch>
+      </div>
+      <div class="notif-channel-col">
+        <nz-switch [ngModel]="setting.sms" (ngModelChange)="toggle(setting.key, 'sms', $event)" nzSize="small"></nz-switch>
+      </div>
+    </div>
+    <nz-divider></nz-divider>
+  }
+</div>

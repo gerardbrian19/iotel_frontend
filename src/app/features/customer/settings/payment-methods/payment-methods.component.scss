@@ -1,0 +1,80 @@
+.settings-section {
+  padding: 24px;
+}
+
+.section-header {
+  padding-bottom: 4px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px;
+}
+
+.section-desc {
+  color: #595959;
+  margin: 0;
+  font-size: 14px;
+}
+
+.methods-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.method-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.method-icon {
+  font-size: 22px;
+  color: #595959;
+  width: 36px;
+  text-align: center;
+}
+
+.method-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.method-label {
+  font-weight: 500;
+  color: #1a1a1a;
+  font-size: 14px;
+}
+
+.method-detail {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.method-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-method-row {
+  margin-top: 8px;
+}
+
+.add-btn {
+  width: 100%;
+}
+
+.empty-state {
+  padding: 32px 0;
+}

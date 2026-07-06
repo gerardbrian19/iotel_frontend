@@ -1,0 +1,54 @@
+.settings-section {
+  padding: 24px;
+}
+
+.section-header {
+  padding-bottom: 4px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px;
+}
+
+.section-desc {
+  color: #595959;
+  margin: 0;
+  font-size: 14px;
+}
+
+.privacy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  gap: 16px;
+}
+
+.privacy-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+}
+
+.privacy-icon {
+  font-size: 18px;
+  color: #c9a84c;
+  padding-top: 2px;
+}
+
+.privacy-label {
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+
+.privacy-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin: 0;
+}

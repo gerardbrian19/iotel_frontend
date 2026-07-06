@@ -1,0 +1,35 @@
+<div class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">Language &amp; Region</h2>
+    <p class="section-desc">Choose your preferred language and regional marketplace.</p>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <form nz-form [nzLayout]="'vertical'" class="lang-form">
+    <nz-form-item>
+      <nz-form-label><span nz-icon nzType="global"></span> App Language</nz-form-label>
+      <nz-form-control>
+        <nz-select [ngModel]="selectedLanguage()" (ngModelChange)="selectedLanguage.set($event)" style="width: 240px;">
+          @for (lang of languages; track lang.value) {
+            <nz-option [nzValue]="lang.value" [nzLabel]="lang.label"></nz-option>
+          }
+        </nz-select>
+      </nz-form-control>
+    </nz-form-item>
+
+    <nz-form-item>
+      <nz-form-label><span nz-icon nzType="flag"></span> Region / Country</nz-form-label>
+      <nz-form-control>
+        <nz-select [ngModel]="selectedRegion()" (ngModelChange)="selectedRegion.set($event)" style="width: 240px;">
+          @for (region of regions; track region.value) {
+            <nz-option [nzValue]="region.value" [nzLabel]="region.label"></nz-option>
+          }
+        </nz-select>
+        <p class="field-hint">Changing region may affect available products and pricing.</p>
+      </nz-form-control>
+    </nz-form-item>
+
+    <button nz-button nzType="primary" (click)="save()">Save Preferences</button>
+  </form>
+</div>

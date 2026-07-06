@@ -1,0 +1,61 @@
+<div class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">Privacy Settings</h2>
+    <p class="section-desc">Control your profile visibility and data preferences.</p>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <div class="privacy-row">
+    <div class="privacy-info">
+      <span nz-icon nzType="eye" class="privacy-icon"></span>
+      <div>
+        <p class="privacy-label">Profile Visibility</p>
+        <p class="privacy-desc">Control who can see your profile and purchase activity.</p>
+      </div>
+    </div>
+    <nz-select [ngModel]="profileVisibility()" (ngModelChange)="profileVisibility.set($event)" style="width: 120px;">
+      <nz-option nzValue="public" nzLabel="Public"></nz-option>
+      <nz-option nzValue="private" nzLabel="Private"></nz-option>
+    </nz-select>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <div class="privacy-row">
+    <div class="privacy-info">
+      <span nz-icon nzType="history" class="privacy-icon"></span>
+      <div>
+        <p class="privacy-label">Activity Visibility</p>
+        <p class="privacy-desc">Show your recently viewed and purchased items to others.</p>
+      </div>
+    </div>
+    <nz-switch [ngModel]="activityVisible()" (ngModelChange)="activityVisible.set($event)"></nz-switch>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <div class="privacy-row">
+    <div class="privacy-info">
+      <span nz-icon nzType="database" class="privacy-icon"></span>
+      <div>
+        <p class="privacy-label">Data Collection</p>
+        <p class="privacy-desc">Allow us to collect usage data to improve your experience.</p>
+      </div>
+    </div>
+    <nz-switch [ngModel]="dataCollection()" (ngModelChange)="dataCollection.set($event)"></nz-switch>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <div class="privacy-row">
+    <div class="privacy-info">
+      <span nz-icon nzType="notification" class="privacy-icon"></span>
+      <div>
+        <p class="privacy-label">Personalized Ads</p>
+        <p class="privacy-desc">Allow us to show you ads tailored to your interests.</p>
+      </div>
+    </div>
+    <nz-switch [ngModel]="personalizedAds()" (ngModelChange)="personalizedAds.set($event)"></nz-switch>
+  </div>
+</div>

@@ -1,0 +1,33 @@
+<div class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">Linked Accounts</h2>
+    <p class="section-desc">Connect social or phone login methods to your account.</p>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  @for (account of accounts(); track account.provider) {
+    <div class="account-row">
+      <div class="account-info">
+        <span nz-icon [nzType]="account.icon" class="account-icon" [class.connected]="account.connected"></span>
+        <div>
+          <p class="account-provider">{{ account.provider }}</p>
+          @if (account.detail) {
+            <p class="account-detail">{{ account.detail }}</p>
+          }
+        </div>
+      </div>
+      <div class="account-action">
+        @if (account.connected) {
+          <nz-tag nzColor="green">Connected</nz-tag>
+          <button nz-button nzType="text" nzDanger nzSize="small" (click)="toggle(account.provider)">Disconnect</button>
+        } @else {
+          <button nz-button nzType="default" nzSize="small" (click)="toggle(account.provider)">
+            <span nz-icon nzType="link"></span> Connect
+          </button>
+        }
+      </div>
+    </div>
+    <nz-divider></nz-divider>
+  }
+</div>

@@ -14,7 +14,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 28500,
     stock: 15,
     inStock: true,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=Radio',
+    imageUrl: '/images/3807.1800.png',
     description: 'Professional digital two-way radio with enhanced audio. Ideal for large enterprise operations.',
   },
   {
@@ -24,7 +24,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 12800,
     stock: 8,
     inStock: true,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=Kenwood',
+    imageUrl: '/images/kenwod.jpg',
     description: 'Compact and durable UHF handheld radio. Perfect for small to medium businesses.',
   },
   {
@@ -34,7 +34,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 18900,
     stock: 5,
     inStock: true,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=Marine',
+    imageUrl: '/images/horizon.jpg',
     description: 'VHF marine radio with AIS receiver and GPS navigator. Waterproof IPX8 rated.',
   },
   {
@@ -44,7 +44,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 24500,
     stock: 3,
     inStock: true,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=Icom',
+    imageUrl: '/images/marine.png',
     description: 'Fixed mount marine VHF radio with Class D DSC and NMEA 2000 connectivity.',
   },
   {
@@ -54,7 +54,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 85000,
     stock: 2,
     inStock: true,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=Repeater',
+    imageUrl: '/images/motorola.png',
     description: 'High-capacity digital repeater for wide-area coverage. Supports analog and digital modes.',
   },
   {
@@ -64,7 +64,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 62000,
     stock: 4,
     inStock: true,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=Base',
+    imageUrl: '/images/vertex.png',
     description: 'Mobile/base station transceiver with wide frequency coverage and powerful output.',
   },
   {
@@ -74,7 +74,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 850,
     stock: 50,
     inStock: true,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=Antenna',
+    imageUrl: '/images/antenna.png',
     description: 'High-gain flexible rubber antenna for UHF handheld radios.',
   },
   {
@@ -84,7 +84,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 1200,
     stock: 30,
     inStock: true,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=Battery',
+    imageUrl: '/images/battery.png',
     description: 'High-capacity replacement battery compatible with most Motorola DP series radios.',
   },
   {
@@ -94,7 +94,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 5500,
     stock: 0,
     inStock: false,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=Charger',
+    imageUrl: '/images/charger.png',
     description: 'Simultaneous 6-slot charger for Kenwood and Motorola handheld radios.',
   },
   {
@@ -104,7 +104,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 35000,
     stock: 0,
     inStock: false,
-    imageUrl: 'https://placehold.co/300x300/1A1A1A/C9A84C?text=DMR',
+    imageUrl: '/images/kenwud.png',
     description: 'NXDN/DMR multi-protocol digital portable radio for mission-critical communications.',
   },
 ];

@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagModule } from 'ng-zorro-antd/tag';
@@ -18,7 +17,7 @@ type StockFilter = 'All' | 'Low Stock' | 'Out of Stock';
 @Component({
   selector: 'app-admin-inventory',
   standalone: true,
-  imports: [CurrencyPipe, FormsModule, NzTableModule, NzTagModule, NzButtonModule, NzInputModule, NzIconModule, NzSelectModule, NzInputNumberModule, NzStatisticModule, NzCardModule],
+  imports: [FormsModule, NzTableModule, NzTagModule, NzButtonModule, NzInputModule, NzIconModule, NzSelectModule, NzInputNumberModule, NzStatisticModule, NzCardModule],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,7 +28,7 @@ export class AdminInventoryComponent {
 
   readonly search = signal('');
   readonly stockFilter = signal<StockFilter>('All');
-  readonly editingStock = signal<Record<number, number>>({});
+  readonly editingStock = signal<Record<number, number | undefined>>({});
 
   readonly products = this.productService.products;
 

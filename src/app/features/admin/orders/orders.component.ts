@@ -32,7 +32,7 @@ export class AdminOrdersComponent {
   readonly activeTab = signal<TabStatus>('All');
   readonly search = signal('');
   readonly expandedOrders = signal<Set<string>>(new Set());
-  readonly pendingStatus = signal<Record<string, OrderStatus>>({});
+  readonly pendingStatus = signal<Record<string, OrderStatus | undefined>>({});
 
   readonly orders = this.orderService.orders;
 
