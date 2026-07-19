@@ -60,7 +60,7 @@
         @for (product of filteredProducts(); track product.id) {
           <nz-card class="product-card" [nzCover]="coverTemplate" [nzBodyStyle]="{'padding': '16px'}">
             <ng-template #coverTemplate>
-              <div class="product-img-wrap">
+              <div class="product-img-wrap clickable" (click)="openDetails(product)">
                 <img [src]="product.imageUrl" [alt]="product.name" class="product-img" />
                 @if (!product.inStock) {
                   <div class="out-of-stock-overlay">Out of Stock</div>
@@ -70,8 +70,26 @@
                 </nz-tag>
               </div>
             </ng-template>
-            <nz-tag nzColor="default" class="cat-badge">{{ product.category }}</nz-tag>
+            <div class="card-header">
+              <nz-tag nzColor="default" class="cat-badge">{{ product.category }}</nz-tag>
+              <div class="card-actions">
+                <button nz-button nzType="default" nzShape="circle" class="action-icon" (click)="toggleLike(product); $event.stopPropagation()">
+                  <span nz-icon nzType="heart" [ngClass]="{ 'liked': likedProducts()[product.id] }"></span>
+                </button>
+                <button nz-button nzType="default" nzShape="circle" class="action-icon" (click)="shareProduct(product); $event.stopPropagation()">
+                  <span nz-icon nzType="share-alt"></span>
+                </button>
+              </div>
+            </div>
             <h3 class="product-name">{{ product.name }}</h3>
+            @if (product.variations?.length) {
+              <div class="variation-summary">
+                <span>{{ getPrimaryVariation(product) }}</span>
+                @if (hasMoreVariations(product)) {
+                  <span class="more-variations">+{{ getMoreVariationCount(product) }} more</span>
+                }
+              </div>
+            }
             <p class="product-desc">{{ product.description }}</p>
             <div class="product-footer">
               <div>
@@ -84,7 +102,7 @@
                 nz-button
                 [nzType]="product.inStock ? 'primary' : 'default'"
                 [disabled]="!product.inStock"
-                (click)="addToCart(product)"
+                (click)="addToCart(product); $event.stopPropagation()"
                 class="add-btn"
               >
                 @if (product.inStock) {
@@ -96,6 +114,82 @@
             </div>
           </nz-card>
         }
+      </div>
+
+      <div class="detail-overlay" *ngIf="selectedProduct()">
+        <div class="detail-panel">
+          <button nz-button nzType="default" nzShape="circle" class="close-button" (click)="closeDetails()">
+            <span nz-icon nzType="close"></span>
+          </button>
+
+          <div class="detail-layout">
+            <div class="detail-gallery" (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)">
+              <img [src]="displayedImage()" [alt]="selectedProduct()?.name" class="detail-image" />
+              @if ((selectedProduct()?.images?.length ?? 0) > 1) {
+                <button nz-button nzType="default" nzShape="circle" class="gallery-nav prev" (click)="prevImage()">
+                  <span nz-icon nzType="left"></span>
+                </button>
+                <button nz-button nzType="default" nzShape="circle" class="gallery-nav next" (click)="nextImage()">
+                  <span nz-icon nzType="right"></span>
+                </button>
+                <div class="gallery-counter">{{ selectedImageIndex() + 1 }} / {{ selectedProduct()?.images?.length }}</div>
+              }
+            </div>
+
+            <div class="detail-info">
+              <div class="detail-head">
+                <nz-tag nzColor="default">{{ selectedProduct()?.category }}</nz-tag>
+                <div class="detail-actions">
+                  <button nz-button nzType="default" nzShape="round" (click)="toggleLike(selectedProduct()!)">
+                    <span nz-icon nzType="heart" [ngClass]="{ 'liked': isLiked() }"></span>
+                    @if (isLiked()) {
+                      Liked
+                    } @else {
+                      Like
+                    }
+                  </button>
+                  <button nz-button nzType="default" nzShape="round" (click)="shareProduct(selectedProduct()!)">
+                    <span nz-icon nzType="share-alt"></span> Share
+                  </button>
+                </div>
+              </div>
+
+              <h2 class="detail-title">{{ selectedProduct()?.name }}</h2>
+              <div class="detail-price-row">
+                <span class="detail-price">{{ selectedProduct()?.price | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+                @if (selectedProduct()?.inStock) {
+                  <span class="detail-stock">{{ selectedProduct()?.stock }} left</span>
+                } @else {
+                  <span class="detail-stock out">Out of stock</span>
+                }
+              </div>
+
+              <p class="detail-description">{{ selectedProduct()?.description }}</p>
+
+              @if (selectedProduct()?.variations?.length) {
+                <div class="variation-selector">
+                  <h4>Select option</h4>
+                  <div class="variation-list">
+                    @for (option of selectedProduct()!.variations!; track option) {
+                      <button
+                        nz-button
+                        nzType="default"
+                        [ngClass]="{ 'selected-option': selectedVariation() === option }"
+                        (click)="selectVariation(option)"
+                      >
+                        {{ option }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+
+              <button nz-button nzType="primary" [disabled]="!selectedProduct()?.inStock" (click)="addToCart(selectedProduct()!)">
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     }
   </div>

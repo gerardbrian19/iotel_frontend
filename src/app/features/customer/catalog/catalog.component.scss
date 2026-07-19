@@ -217,28 +217,241 @@
   color: #888;
 }
 
-.add-btn {
-  background-color: #CC2020 !important;
-  border-color: #CC2020 !important;
-  color: #FFFFFF !important;
-  font-size: 13px;
-
-  &[disabled] {
-    background-color: #d9d9d9 !important;
-    border-color: #d9d9d9 !important;
-    color: rgba(0, 0, 0, 0.25) !important;
-  }
-}
-
-@media (max-width: 640px) {
-  .catalog-container {
-    padding: 20px 16px;
-  }
-
-  .filters-bar {
-    flex-direction: column;
-    align-items: stretch;
+  .card-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
     gap: 12px;
+    margin-bottom: 10px;
+    min-height: 32px;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .action-icon {
+    min-width: 38px;
+    width: 38px;
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cat-badge {
+    margin-bottom: 0;
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.4;
+  }
+
+  .liked {
+    color: #CC2020;
+  }
+
+  .variation-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 8px;
+  }
+
+  .more-variations {
+    opacity: 0.7;
+  }
+
+  .product-img-wrap.clickable {
+    cursor: pointer;
+  }
+
+  .detail-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .detail-panel {
+    width: min(1140px, 100%);
+    max-height: min(90vh, 980px);
+    overflow: hidden;
+    background: #FFFFFF;
+    border-radius: 20px;
+    position: relative;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  }
+
+  .close-button {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    z-index: 2;
+  }
+
+  .detail-layout {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 24px;
+    height: 100%;
+    padding: 32px;
+  }
+
+  .detail-gallery {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #F5F5F5;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .detail-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    max-height: 100%;
+  }
+
+  .gallery-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.9;
+  }
+
+  .gallery-nav:hover {
+    opacity: 1;
+  }
+
+  .gallery-nav.prev {
+    left: 12px;
+  }
+
+  .gallery-nav.next {
+    right: 12px;
+  }
+
+  .gallery-counter {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(26, 26, 26, 0.75);
+    color: #FFFFFF;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+
+  .detail-info {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+    max-height: calc(90vh - 64px);
+  }
+
+  .detail-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .detail-title {
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0;
+    color: #1A1A1A;
+  }
+
+  .detail-price-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .detail-price {
+    font-size: 28px;
+    font-weight: 900;
+    color: #CC2020;
+  }
+
+  .detail-stock {
+    font-size: 14px;
+    color: #555;
+  }
+
+  .detail-stock.out {
+    color: #D0021B;
+  }
+
+  .detail-description {
+    color: #4F4F4F;
+    line-height: 1.8;
+  }
+
+  .variation-selector {
+    display: grid;
+    gap: 12px;
+  }
+
+  .variation-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .selected-option {
+    background: #CC2020 !important;
+    color: #FFFFFF !important;
+  }
+
+  @media (max-width: 960px) {
+    .detail-layout {
+      grid-template-columns: 1fr;
+      padding: 24px;
+    }
+
+    .detail-gallery {
+      min-height: 320px;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .detail-panel {
+      max-height: 100vh;
+      border-radius: 0;
+    }
+
+    .detail-layout {
+      padding: 20px;
+      gap: 16px;
+    }
+
+    .close-button {
+      top: 12px;
+      right: 12px;
   }
 
   .category-tabs {

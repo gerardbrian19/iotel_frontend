@@ -40,7 +40,7 @@ export class DashboardComponent {
   };
 
   readonly categoryStats = computed(() => {
-    const categories = ['Handheld', 'Marine', 'Base Station', 'Accessories'];
+    const categories = ['Handheld', 'Marine', 'Base Station', 'Accessories', 'Land Mobile', 'MOTOTRBO PORTABLE RADIOS', 'Aviation', 'Amateur', 'Receiver'];
     return categories.map(cat => {
       const items = this.products().filter(p => p.category === cat);
       return {

@@ -33,7 +33,7 @@ export class AdminProductsComponent {
   private readonly msg = inject(NzMessageService);
   private readonly fb = inject(FormBuilder);
 
-  readonly categories: ProductCategory[] = ['Handheld', 'Marine', 'Base Station', 'Accessories'];
+  readonly categories: ProductCategory[] = ['Handheld', 'Marine', 'Base Station', 'Accessories', 'Land Mobile', 'MOTOTRBO PORTABLE RADIOS', 'Aviation', 'Amateur', 'Receiver'];
   readonly search = signal('');
   readonly categoryFilter = signal<ProductCategory | 'All'>('All');
   readonly modalVisible = signal(false);

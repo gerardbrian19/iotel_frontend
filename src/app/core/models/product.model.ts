@@ -1,4 +1,4 @@
-export type ProductCategory = 'Handheld' | 'Marine' | 'Base Station' | 'Accessories';
+export type ProductCategory = 'Handheld' | 'Marine' | 'Base Station' | 'Accessories' | 'MOTOTRBO PORTABLE RADIOS' | 'Aviation' | 'Amateur' | 'Receiver' | 'Land Mobile';
 
 export interface Product {
   id: number;
@@ -8,5 +8,8 @@ export interface Product {
   stock: number;
   inStock: boolean;
   imageUrl: string;
+  images?: string[];
+  variations?: string[];
+  likes?: number;
   description: string;
 }
