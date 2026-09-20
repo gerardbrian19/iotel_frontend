@@ -13,6 +13,11 @@ export const CUSTOMER_ROUTES: Routes = [
           import('./catalog/catalog.component').then(m => m.CatalogComponent),
       },
       {
+        path: 'favorites',
+        loadComponent: () =>
+          import('./favorites/favorites.component').then(m => m.FavoritesComponent),
+      },
+      {
         path: 'cart',
         loadComponent: () =>
           import('./cart/cart.component').then(m => m.CartComponent),

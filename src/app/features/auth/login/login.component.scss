@@ -64,65 +64,14 @@
   }
 }
 
-.demo-credentials {
-  margin-top: 28px;
-  padding: 16px;
-  background: #F5F5F5;
-  border-radius: 8px;
-}
-
-.demo-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #1A1A1A;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 10px;
-}
-
-.demo-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.demo-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: #555;
-}
-
-.demo-role {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  min-width: 64px;
+.switch-auth {
+  margin: 24px 0 0;
   text-align: center;
-}
+  font-size: 14px;
+  color: #555555;
 
-.customer-role {
-  background: #e6f4ff;
-  color: #1677ff;
-}
-
-.admin-role {
-  background: #fff1f0;
-  color: #CC2020;
-}
-
-.staff-role {
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.demo-note {
-  font-size: 11px;
-  color: #999;
-  margin-top: 8px;
-  margin-bottom: 0;
+  a {
+    color: #CC2020;
+    font-weight: 600;
+  }
 }

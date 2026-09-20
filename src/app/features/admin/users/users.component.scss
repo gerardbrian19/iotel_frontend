@@ -1,0 +1,37 @@
+.page-wrap {
+  padding: 28px 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.page-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0;
+}
+.add-btn {
+  background: #cc2020 !important;
+  border-color: #cc2020 !important;
+}
+.role-select {
+  width: 130px;
+}
+.you-tag {
+  margin-left: 8px;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.save-btn {
+  background: #cc2020 !important;
+  border-color: #cc2020 !important;
+}

@@ -31,6 +31,39 @@
   }
 }
 
+.booking-strip {
+  padding: 12px 16px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #f0f0f0;
+  max-height: 45%;
+  overflow-y: auto;
+}
+
+.event-row {
+  align-self: center;
+  max-width: 85%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.event-note {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1px solid #C9A84C;
+  color: #1A1A1A;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.event-time {
+  font-size: 11px;
+  color: #666666;
+}
+
 .messages-area {
   flex: 1;
   overflow-y: auto;
@@ -63,7 +96,7 @@
   color: #FFFFFF;
 
   .bubble-sender { display: none; }
-  .bubble-time { color: rgba(255, 255, 255, 0.7); }
+  .bubble-time { color: rgba(255, 255, 255, 0.85); }
 }
 
 .bubble-sender {
@@ -78,6 +111,8 @@
   font-size: 14px;
   line-height: 1.5;
   margin: 0 0 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .bubble-time {

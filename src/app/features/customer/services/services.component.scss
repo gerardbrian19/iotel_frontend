@@ -10,13 +10,14 @@
 .svc-price { font-size: 14px; font-weight: 700; color: #C9A84C; }
 .book-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
 .bookings-list { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; }
-.booking-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-.booking-header { display: flex; justify-content: space-between; align-items: flex-start; }
-.booking-title { font-size: 15px; font-weight: 700; color: #1A1A1A; margin-bottom: 4px; }
-.booking-date { font-size: 13px; color: #888; display: flex; align-items: center; gap: 6px; margin: 0; }
-.booking-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .form-row { display: flex; gap: 12px; }
 .flex-1 { flex: 1; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-.mt-4 { margin-top: 16px; }
-.text-center { text-align: center; }
+.state-box { display: flex; justify-content: center; padding: 48px 0; }
+.load-alert { margin-bottom: 16px; }
+.booking-note { font-size: 12px; color: #666666; margin: 0 0 8px; }
+
+@media (max-width: 576px) {
+  .services-page { padding: 20px 16px; }
+  .form-row { flex-direction: column; gap: 0; }
+}

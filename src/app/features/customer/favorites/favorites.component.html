@@ -1,0 +1,22 @@
+<div class="favorites-page">
+  <h1 class="page-title">My Favorites</h1>
+
+  @if (loading()) {
+    <div class="state-block"><nz-spin nzSimple nzSize="large" /></div>
+  } @else if (products().length === 0) {
+    <nz-empty nzDescription="You haven't liked any products yet">
+      <a nz-button nzType="primary" routerLink="/customer/catalog">Browse the catalog</a>
+    </nz-empty>
+  } @else {
+    <p class="results-count">{{ products().length }} saved {{ products().length === 1 ? 'product' : 'products' }}</p>
+    <div class="product-grid">
+      @for (product of products(); track product.id) {
+        <app-product-card [product]="product" (open)="openDetails($event)" />
+      }
+    </div>
+  }
+</div>
+
+@if (selectedProduct(); as product) {
+  <app-product-detail [product]="product" (closed)="closeDetails()" />
+}

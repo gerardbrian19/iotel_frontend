@@ -33,6 +33,14 @@
       </nav>
 
       <div class="header-actions">
+        <a routerLink="/customer/favorites" class="cart-btn" aria-label="My favorites">
+          <nz-badge [nzCount]="favoritesCount()" [nzOverflowCount]="99">
+            <button nz-button nzType="text" class="cart-icon-btn" type="button" tabindex="-1">
+              <span nz-icon nzType="heart" nzTheme="outline"></span>
+            </button>
+          </nz-badge>
+        </a>
+
         <a routerLink="/customer/cart" class="cart-btn">
           <nz-badge [nzCount]="cartCount()" [nzOverflowCount]="99">
             <button nz-button nzType="text" class="cart-icon-btn">
@@ -54,6 +62,11 @@
             <li nz-menu-item>
               <a routerLink="/customer/settings">
                 <span nz-icon nzType="setting"></span> Settings
+              </a>
+            </li>
+            <li nz-menu-item>
+              <a routerLink="/customer/favorites">
+                <span nz-icon nzType="heart"></span> My Favorites
               </a>
             </li>
             <li nz-menu-item>
@@ -100,6 +113,9 @@
         </li>
         <li nz-menu-item routerLink="/customer/settings" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="setting"></span><span>Settings</span>
+        </li>
+        <li nz-menu-item routerLink="/customer/favorites" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="heart"></span><span>My Favorites</span>
         </li>
         <li nz-menu-item routerLink="/customer/addresses" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="environment"></span><span>My Addresses</span>

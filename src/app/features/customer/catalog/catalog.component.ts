@@ -1,43 +1,52 @@
 import {
-  ChangeDetectionStrategy, Component, computed, inject, signal,
+  ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzTagModule } from 'ng-zorro-antd/tag';
-import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzSelectModule } from 'ng-zorro-antd/select';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
+import { NzPaginationModule } from 'ng-zorro-antd/pagination';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
+import { PRODUCT_CATEGORIES, Product, ProductCategory } from '../../../core/models';
 import { ProductService } from '../../../core/services/product.service';
-import { CartService } from '../../../core/services/cart.service';
-import { Product, ProductCategory } from '../../../core/models';
-import { CurrencyPipe } from '@angular/common';
+import { ProductCardComponent } from '../../../shared/components/product-card/product-card.component';
+import { ProductDetailComponent } from '../../../shared/components/product-detail/product-detail.component';
 
 type SortOption = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
+type CategoryFilter = ProductCategory | 'All';
 
-const CATEGORIES: (ProductCategory | 'All')[] = ['All', 'Handheld', 'Marine', 'Base Station', 'Accessories', 'Land Mobile', 'MOTOTRBO PORTABLE RADIOS', 'Aviation', 'Amateur', 'Receiver'];
+const PAGE_SIZE = 24;
+
+/** Products without a price sort after priced ones in both price directions. */
+function comparePrice(a: Product, b: Product, direction: 1 | -1): number {
+  if (a.price === null || b.price === null) return (a.price === null ? 1 : 0) - (b.price === null ? 1 : 0);
+  return (a.price - b.price) * direction;
+}
 
 @Component({
   selector: 'app-catalog',
   standalone: true,
   imports: [
-    CommonModule,
     RouterLink,
     FormsModule,
-    CurrencyPipe,
-    NzCardModule,
+    NzAlertModule,
     NzButtonModule,
-    NzTagModule,
-    NzInputModule,
-    NzSelectModule,
-    NzIconModule,
-    NzBadgeModule,
     NzEmptyModule,
+    NzIconModule,
+    NzInputModule,
+    NzInputNumberModule,
+    NzPaginationModule,
+    NzSelectModule,
+    NzSpinModule,
+    NzSwitchModule,
+    ProductCardComponent,
+    ProductDetailComponent,
   ],
   templateUrl: './catalog.component.html',
   styleUrl: './catalog.component.scss',
@@ -45,180 +54,139 @@ const CATEGORIES: (ProductCategory | 'All')[] = ['All', 'Handheld', 'Marine', 'B
 })
 export class CatalogComponent {
   private readonly productService = inject(ProductService);
-  private readonly cart = inject(CartService);
-  private readonly message = inject(NzMessageService);
 
-  readonly categories = CATEGORIES;
-  readonly selectedCategory = signal<ProductCategory | 'All'>('All');
+  readonly pageSize = PAGE_SIZE;
+  readonly loading = this.productService.loading;
+  readonly error = this.productService.error;
+  readonly catalogSize = computed(() => this.productService.activeProducts().length);
+
+  readonly selectedCategory = signal<CategoryFilter>('All');
   readonly searchQuery = signal('');
+  readonly minPrice = signal<number | null>(null);
+  readonly maxPrice = signal<number | null>(null);
+  readonly inStockOnly = signal(false);
   readonly sortBy = signal<SortOption>('featured');
-  readonly selectedProduct = signal<Product | null>(null);
-  readonly selectedImageIndex = signal(0);
-  readonly selectedVariation = signal<string | null>(null);
-  readonly likedProducts = signal<Record<number, boolean>>({});
-  readonly touchStartX = signal<number | null>(null);
+  readonly page = signal(1);
+  private readonly selectedId = signal<string | null>(null);
+
+  private readonly grid = viewChild<ElementRef<HTMLElement>>('grid');
+
+  readonly selectedProduct = computed(() => {
+    const id = this.selectedId();
+    return id ? (this.productService.byId().get(id) ?? null) : null;
+  });
+
+  readonly hasActiveFilters = computed(
+    () =>
+      this.selectedCategory() !== 'All' ||
+      this.searchQuery().trim() !== '' ||
+      this.minPrice() !== null ||
+      this.maxPrice() !== null ||
+      this.inStockOnly(),
+  );
+
+  /** Everything except the category, so the category tabs can show how many results each would give. */
+  private readonly matching = computed(() => {
+    const tokens = this.searchQuery().toLowerCase().split(/\s+/).filter(Boolean);
+    let min = this.minPrice();
+    let max = this.maxPrice();
+    if (min !== null && max !== null && min > max) [min, max] = [max, min];
+    const inStockOnly = this.inStockOnly();
+
+    return this.productService.activeProducts().filter(p => {
+      if (inStockOnly && !p.inStock) return false;
+      if (min !== null || max !== null) {
+        if (p.price === null) return false;
+        if (min !== null && p.price < min) return false;
+        if (max !== null && p.price > max) return false;
+      }
+      if (tokens.length) {
+        const haystack = [p.name, p.brand, p.model, ...p.searchKeywords].join(' ').toLowerCase();
+        if (!tokens.every(t => haystack.includes(t))) return false;
+      }
+      return true;
+    });
+  });
+
+  readonly categoryTabs = computed(() => {
+    const counts = new Map<string, number>();
+    for (const p of this.matching()) counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
+    const present = new Set(this.productService.activeProducts().map(p => p.category));
+    return [
+      { name: 'All' as CategoryFilter, count: this.matching().length },
+      ...PRODUCT_CATEGORIES.filter(c => present.has(c)).map(c => ({
+        name: c as CategoryFilter,
+        count: counts.get(c) ?? 0,
+      })),
+    ];
+  });
 
   readonly filteredProducts = computed(() => {
-    let products = this.productService.products();
     const cat = this.selectedCategory();
-    const query = this.searchQuery().toLowerCase();
-
-    if (cat !== 'All') {
-      products = products.filter(p => p.category === cat);
-    }
-    if (query) {
-      products = products.filter(p => p.name.toLowerCase().includes(query));
-    }
-    return this.sort(products);
-  });
-
-  readonly displayedImage = computed(() => {
-    const product = this.selectedProduct();
-    if (!product) {
-      return '';
-    }
-
-    const images = product.images ?? [];
-    return images.length ? images[this.selectedImageIndex()] : product.imageUrl;
-  });
-
-  readonly isLiked = computed(() => {
-    const product = this.selectedProduct();
-    return product ? !!this.likedProducts()[product.id] : false;
-  });
-
-  private sort(products: Product[]): Product[] {
+    const list = cat === 'All' ? [...this.matching()] : this.matching().filter(p => p.category === cat);
     switch (this.sortBy()) {
-      case 'price-asc': return [...products].sort((a, b) => a.price - b.price);
-      case 'price-desc': return [...products].sort((a, b) => b.price - a.price);
-      case 'name-asc': return [...products].sort((a, b) => a.name.localeCompare(b.name));
-      default: return products;
+      case 'price-asc': return list.sort((a, b) => comparePrice(a, b, 1));
+      case 'price-desc': return list.sort((a, b) => comparePrice(a, b, -1));
+      case 'name-asc': return list.sort((a, b) => a.name.localeCompare(b.name));
+      // Featured: what can be bought first, then A → Z.
+      default: return list.sort((a, b) => Number(b.inStock) - Number(a.inStock) || a.name.localeCompare(b.name));
     }
+  });
+
+  readonly pageProducts = computed(() => {
+    const start = (this.page() - 1) * PAGE_SIZE;
+    return this.filteredProducts().slice(start, start + PAGE_SIZE);
+  });
+
+  setCategory(category: CategoryFilter): void {
+    this.selectedCategory.set(category);
+    this.page.set(1);
   }
 
-  addToCart(product: Product): void {
-    this.cart.addItem({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      imageUrl: product.imageUrl,
-    });
-    this.message.success(`${product.name} added to cart`);
+  setSearch(value: string): void {
+    this.searchQuery.set(value);
+    this.page.set(1);
   }
 
-  getPrimaryVariation(product: Product): string {
-    return product.variations?.[0] ?? '';
+  setMinPrice(value: number | null): void {
+    this.minPrice.set(value);
+    this.page.set(1);
   }
 
-  hasMoreVariations(product: Product): boolean {
-    return (product.variations?.length ?? 0) > 1;
+  setMaxPrice(value: number | null): void {
+    this.maxPrice.set(value);
+    this.page.set(1);
   }
 
-  getMoreVariationCount(product: Product): number {
-    return Math.max((product.variations?.length ?? 1) - 1, 0);
+  setInStockOnly(value: boolean): void {
+    this.inStockOnly.set(value);
+    this.page.set(1);
+  }
+
+  setSort(value: SortOption): void {
+    this.sortBy.set(value);
+    this.page.set(1);
+  }
+
+  clearFilters(): void {
+    this.selectedCategory.set('All');
+    this.searchQuery.set('');
+    this.minPrice.set(null);
+    this.maxPrice.set(null);
+    this.inStockOnly.set(false);
+    this.page.set(1);
+  }
+
+  goToPage(page: number): void {
+    this.page.set(page);
+    this.grid()?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   openDetails(product: Product): void {
-    this.selectedProduct.set(product);
-    this.selectedImageIndex.set(0);
-    this.selectedVariation.set(product.variations?.[0] ?? null);
+    this.selectedId.set(product.id);
   }
 
   closeDetails(): void {
-    this.selectedProduct.set(null);
-  }
-
-  prevImage(): void {
-    const product = this.selectedProduct();
-    if (!product) {
-      return;
-    }
-
-    const images = product.images ?? [];
-    if (!images.length) {
-      return;
-    }
-
-    this.selectedImageIndex.update(index => (index === 0 ? images.length - 1 : index - 1));
-  }
-
-  nextImage(): void {
-    const product = this.selectedProduct();
-    if (!product) {
-      return;
-    }
-
-    const images = product.images ?? [];
-    if (!images.length) {
-      return;
-    }
-
-    this.selectedImageIndex.update(index => (index + 1) % images.length);
-  }
-
-  onTouchStart(event: TouchEvent): void {
-    this.touchStartX.set(event.touches[0]?.clientX ?? null);
-  }
-
-  onTouchEnd(event: TouchEvent): void {
-    const start = this.touchStartX();
-    const end = event.changedTouches?.[0]?.clientX ?? null;
-    if (start === null || end === null) {
-      this.touchStartX.set(null);
-      return;
-    }
-
-    const delta = end - start;
-    if (Math.abs(delta) > 50) {
-      if (delta < 0) {
-        this.nextImage();
-      } else {
-        this.prevImage();
-      }
-    }
-    this.touchStartX.set(null);
-  }
-
-  selectVariation(variation: string): void {
-    this.selectedVariation.set(variation);
-  }
-
-  toggleLike(product: Product): void {
-    this.likedProducts.update(state => ({
-      ...state,
-      [product.id]: !state[product.id],
-    }));
-    const liked = !this.likedProducts()[product.id];
-    this.message.success(liked ? 'Added to favorites' : 'Removed from favorites');
-  }
-
-  shareProduct(product: Product): void {
-    const shareText = `${product.name} — ₱${product.price.toLocaleString()}
-Check it out in our catalog.`;
-
-    if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: shareText,
-        url: window.location.href,
-      }).catch(() => {
-        this.copyShareText(shareText);
-      });
-      return;
-    }
-
-    this.copyShareText(shareText);
-  }
-
-  private copyShareText(text: string): void {
-    navigator.clipboard.writeText(text).then(() => {
-      this.message.success('Product details copied to clipboard');
-    }).catch(() => {
-      this.message.error('Unable to share this product right now');
-    });
-  }
-
-  onSearch(value: string): void {
-    this.searchQuery.set(value);
+    this.selectedId.set(null);
   }
 }

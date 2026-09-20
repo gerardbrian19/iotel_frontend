@@ -15,17 +15,9 @@ import { NzTagModule } from 'ng-zorro-antd/tag';
 import { FormsModule } from '@angular/forms';
 import { CartService } from '../../../core/services/cart.service';
 import { OrderService } from '../../../core/services/order.service';
+import { AddressService } from '../../../core/services/address.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { PaymentMethod, ShippingAddress } from '../../../core/models';
-
-const DEFAULT_ADDRESS: ShippingAddress = {
-  fullName: 'John Santos',
-  addressLine: '123 Quezon Blvd',
-  city: 'Quezon City',
-  province: 'Metro Manila',
-  zip: '1100',
-  mobile: '09171234567',
-};
+import { PaymentMethod } from '../../../core/models';
 
 @Component({
   selector: 'app-checkout',
@@ -54,6 +46,7 @@ export class CheckoutComponent {
   private readonly cart = inject(CartService);
   private readonly orderService = inject(OrderService);
   private readonly auth = inject(AuthService);
+  private readonly addresses = inject(AddressService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 
@@ -65,7 +58,9 @@ export class CheckoutComponent {
   readonly selectedPayment = signal<PaymentMethod | null>(null);
   readonly referenceNumber = signal('');
   readonly paymentModalVisible = signal(false);
-  readonly address = signal<ShippingAddress>({ ...DEFAULT_ADDRESS });
+  /** Ships to the customer's default saved address; they change it on the addresses page. */
+  readonly address = this.addresses.defaultAddress;
+  readonly addressLoading = this.addresses.loading;
 
   openPaymentModal(): void {
     this.paymentModalVisible.set(true);
@@ -77,19 +72,24 @@ export class CheckoutComponent {
 
   placeOrder(): void {
     const user = this.auth.currentUser();
-    if (!user || !this.selectedPayment()) return;
-    this.orderService.createOrder(
-      user.id,
-      this.items(),
-      this.address(),
-      this.selectedPayment()!,
-      this.referenceNumber() || undefined,
-      this.subtotal(),
-      this.shippingFee(),
-    ).subscribe(order => {
-      this.cart.clear();
-      this.paymentModalVisible.set(false);
-      this.router.navigate([`/customer/orders/${order.id}/confirmation`]);
-    });
+    const saved = this.address();
+    if (!user || !saved || !this.selectedPayment()) return;
+    // The order keeps a snapshot of the shipping details only, so later edits to the saved address don't alter it.
+    const { fullName, addressLine, city, province, zip, mobile } = saved;
+    this.orderService
+      .createOrder(
+        user.id,
+        this.items(),
+        { fullName, addressLine, city, province, zip, mobile },
+        this.selectedPayment()!,
+        this.referenceNumber() || undefined,
+        this.subtotal(),
+        this.shippingFee(),
+      )
+      .subscribe(order => {
+        this.cart.clear();
+        this.paymentModalVisible.set(false);
+        this.router.navigate([`/customer/orders/${order.id}/confirmation`]);
+      });
   }
 }

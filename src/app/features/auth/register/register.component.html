@@ -1,0 +1,142 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-logo">
+        <span class="logo-text">IOTEL</span>
+        <span class="logo-sub">by Goldcomm</span>
+      </div>
+    </div>
+
+    <h2 class="login-title">Create your account</h2>
+
+    @if (error()) {
+      <nz-alert nzType="error" [nzMessage]="error()!" nzShowIcon class="mb-4" />
+    }
+
+    <form nz-form [formGroup]="form" (ngSubmit)="submit()" nzLayout="vertical" novalidate>
+      <nz-form-item>
+        <nz-form-label nzRequired>Full name</nz-form-label>
+        <nz-form-control [nzErrorTip]="nameErrors">
+          <nz-input-group nzPrefixIcon="user">
+            <input
+              nz-input
+              placeholder="Juan dela Cruz"
+              formControlName="name"
+              autocomplete="name"
+              maxlength="60"
+            />
+          </nz-input-group>
+        </nz-form-control>
+      </nz-form-item>
+
+      <nz-form-item>
+        <nz-form-label nzRequired>Email</nz-form-label>
+        <nz-form-control [nzErrorTip]="emailErrors">
+          <nz-input-group nzPrefixIcon="mail">
+            <input
+              nz-input
+              type="email"
+              placeholder="you@example.com"
+              formControlName="email"
+              autocomplete="email"
+              maxlength="254"
+            />
+          </nz-input-group>
+        </nz-form-control>
+      </nz-form-item>
+
+      <nz-form-item>
+        <nz-form-label nzRequired>Password</nz-form-label>
+        <nz-form-control
+          [nzErrorTip]="passwordErrors"
+          nzExtra="At least 8 characters, with a letter and a number."
+        >
+          <nz-input-group nzPrefixIcon="lock" [nzSuffix]="suffixTemplate">
+            <input
+              nz-input
+              [type]="passwordVisible() ? 'text' : 'password'"
+              placeholder="••••••••"
+              formControlName="password"
+              autocomplete="new-password"
+              maxlength="64"
+            />
+          </nz-input-group>
+          <ng-template #suffixTemplate>
+            <span
+              nz-icon
+              [nzType]="passwordVisible() ? 'eye' : 'eye-invisible'"
+              (click)="passwordVisible.set(!passwordVisible())"
+              class="cursor-pointer"
+            ></span>
+          </ng-template>
+        </nz-form-control>
+      </nz-form-item>
+
+      <nz-form-item>
+        <nz-form-label nzRequired>Confirm password</nz-form-label>
+        <nz-form-control [nzErrorTip]="confirmErrors">
+          <nz-input-group nzPrefixIcon="lock">
+            <input
+              nz-input
+              [type]="passwordVisible() ? 'text' : 'password'"
+              placeholder="••••••••"
+              formControlName="confirmPassword"
+              autocomplete="new-password"
+              maxlength="64"
+            />
+          </nz-input-group>
+        </nz-form-control>
+      </nz-form-item>
+
+      <ng-template #nameErrors let-control>
+        @if (control.hasError('required')) {
+          Please enter your name
+        } @else if (control.hasError('minlength')) {
+          Name must be at least 2 characters
+        } @else if (control.hasError('maxlength')) {
+          Name must be at most 60 characters
+        } @else {
+          Name can only contain letters, spaces, dots, apostrophes and hyphens
+        }
+      </ng-template>
+      <ng-template #emailErrors let-control>
+        @if (control.hasError('required')) {
+          Please enter your email
+        } @else {
+          Please enter a valid email address
+        }
+      </ng-template>
+      <ng-template #passwordErrors let-control>
+        @if (control.hasError('required')) {
+          Please enter a password
+        } @else if (control.hasError('minlength')) {
+          Password must be at least 8 characters
+        } @else if (control.hasError('maxlength')) {
+          Password must be at most 64 characters
+        } @else {
+          Password must contain at least one letter and one number
+        }
+      </ng-template>
+      <ng-template #confirmErrors let-control>
+        @if (control.hasError('required')) {
+          Please confirm your password
+        } @else {
+          Passwords do not match
+        }
+      </ng-template>
+
+      <button
+        nz-button
+        nzType="primary"
+        nzBlock
+        [nzLoading]="loading()"
+        type="submit"
+        class="login-btn"
+      >
+        Create Account
+      </button>
+    </form>
+
+    <p class="switch-auth">Already have an account? <a routerLink="/auth/login">Sign in</a></p>
+  </div>
+</div>

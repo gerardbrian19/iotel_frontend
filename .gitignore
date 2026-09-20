@@ -6,6 +6,10 @@
 /out-tsc
 /bazel-out
 
+# Firebase service-account keys (used by scripts/seed-products.mjs)
+serviceAccount*.json
+*-firebase-adminsdk-*.json
+
 # Node
 /node_modules
 npm-debug.log*

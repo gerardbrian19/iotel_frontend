@@ -29,7 +29,7 @@
         <tr>
           <td>
             <div class="product-cell">
-              <img [src]="p.imageUrl" [alt]="p.name" class="product-thumb" />
+              <img [src]="p.imageUrl || placeholder" [alt]="p.name" class="product-thumb" (error)="onImageError($event)" />
               <span>{{ p.name }}</span>
             </div>
           </td>

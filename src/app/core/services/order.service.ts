@@ -17,12 +17,12 @@ export class OrderService {
     return of(this._orders().find(o => o.id === id));
   }
 
-  getByCustomer(customerId: number): Observable<Order[]> {
+  getByCustomer(customerId: string): Observable<Order[]> {
     return of(this._orders().filter(o => o.customerId === customerId));
   }
 
   createOrder(
-    customerId: number,
+    customerId: string,
     items: CartItem[],
     address: ShippingAddress,
     paymentMethod: Order['paymentMethod'],

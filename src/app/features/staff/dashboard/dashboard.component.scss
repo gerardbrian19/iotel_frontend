@@ -1,6 +1,6 @@
 .page-wrap { padding: 28px 24px; max-width: 1200px; margin: 0 auto; }
 .page-title { font-size: 24px; font-weight: 800; color: #1A1A1A; margin-bottom: 20px; }
-.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); } }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .kpi-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
 .content-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; @media (max-width: 900px) { grid-template-columns: 1fr; } }
 .action-card, .alert-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }

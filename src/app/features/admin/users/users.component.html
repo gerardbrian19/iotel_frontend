@@ -1,0 +1,133 @@
+<div class="page-wrap">
+  <div class="page-header">
+    <h1 class="page-title">Users</h1>
+    <button nz-button nzType="primary" class="add-btn" (click)="openCreate()">
+      <span nz-icon nzType="user-add"></span> Add Account
+    </button>
+  </div>
+
+  @if (loadError()) {
+    <nz-alert nzType="error" [nzMessage]="loadError()!" nzShowIcon class="mb-4" />
+  }
+
+  <nz-table [nzData]="users()" nzSize="middle" [nzPageSize]="10">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (u of users(); track u.id) {
+        <tr>
+          <td>
+            <strong>{{ u.name }}</strong>
+            @if (u.id === currentUserId()) {
+              <nz-tag class="you-tag">You</nz-tag>
+            }
+          </td>
+          <td>{{ u.email }}</td>
+          <td>
+            <nz-select
+              class="role-select"
+              [ngModel]="u.role"
+              (ngModelChange)="changeRole(u, $event)"
+              [nzDisabled]="u.id === currentUserId()"
+            >
+              @for (r of roles; track r) {
+                <nz-option [nzValue]="r" [nzLabel]="r | titlecase"></nz-option>
+              }
+            </nz-select>
+          </td>
+          <td>{{ u.createdAt ? (u.createdAt | date: 'mediumDate') : '—' }}</td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+</div>
+
+<nz-modal [(nzVisible)]="modalVisible" nzTitle="Add Account" [nzFooter]="null" nzWidth="480px">
+  <ng-container *nzModalContent>
+    @if (formError()) {
+      <nz-alert nzType="error" [nzMessage]="formError()!" nzShowIcon class="mb-4" />
+    }
+    <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="create()" novalidate>
+      <nz-form-item>
+        <nz-form-label nzRequired>Full name</nz-form-label>
+        <nz-form-control [nzErrorTip]="nameErrors">
+          <input nz-input formControlName="name" maxlength="60" autocomplete="off" />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzRequired>Email</nz-form-label>
+        <nz-form-control [nzErrorTip]="emailErrors">
+          <input nz-input type="email" formControlName="email" maxlength="254" autocomplete="off" />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzRequired>Initial password</nz-form-label>
+        <nz-form-control
+          [nzErrorTip]="passwordErrors"
+          nzExtra="At least 8 characters, with a letter and a number. Share it with the user securely."
+        >
+          <input
+            nz-input
+            type="password"
+            formControlName="password"
+            maxlength="64"
+            autocomplete="new-password"
+          />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzRequired>Role</nz-form-label>
+        <nz-form-control nzErrorTip="Please choose a role">
+          <nz-select formControlName="role">
+            @for (r of roles; track r) {
+              <nz-option [nzValue]="r" [nzLabel]="r | titlecase"></nz-option>
+            }
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
+
+      <ng-template #nameErrors let-control>
+        @if (control.hasError('required')) {
+          Please enter a name
+        } @else if (control.hasError('minlength')) {
+          Name must be at least 2 characters
+        } @else if (control.hasError('maxlength')) {
+          Name must be at most 60 characters
+        } @else {
+          Name can only contain letters, spaces, dots, apostrophes and hyphens
+        }
+      </ng-template>
+      <ng-template #emailErrors let-control>
+        @if (control.hasError('required')) {
+          Please enter an email
+        } @else {
+          Please enter a valid email address
+        }
+      </ng-template>
+      <ng-template #passwordErrors let-control>
+        @if (control.hasError('required')) {
+          Please enter a password
+        } @else if (control.hasError('minlength')) {
+          Password must be at least 8 characters
+        } @else if (control.hasError('maxlength')) {
+          Password must be at most 64 characters
+        } @else {
+          Password must contain at least one letter and one number
+        }
+      </ng-template>
+
+      <div class="modal-footer">
+        <button nz-button type="button" (click)="modalVisible.set(false)">Cancel</button>
+        <button nz-button nzType="primary" type="submit" class="save-btn" [nzLoading]="saving()">
+          Create Account
+        </button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>

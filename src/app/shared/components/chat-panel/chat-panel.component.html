@@ -4,17 +4,30 @@
     <p class="thread-meta">{{ conversation().customerName }}</p>
   </div>
 
-  <div class="messages-area">
-    @for (msg of conversation().messages; track msg.id) {
-      <div class="msg-row" [class.mine]="msg.senderId === currentUserId()">
-        <div class="bubble" [class.my-bubble]="msg.senderId === currentUserId()">
-          @if (msg.senderId !== currentUserId()) {
-            <span class="bubble-sender">{{ msg.senderName }}</span>
-          }
-          <p class="bubble-text">{{ msg.content }}</p>
-          <span class="bubble-time">{{ msg.sentAt | date:'shortTime' }}</span>
+  @if (booking(); as b) {
+    <div class="booking-strip">
+      <app-booking-panel [booking]="b" />
+    </div>
+  }
+
+  <div #scroller class="messages-area">
+    @for (msg of messages(); track msg.id) {
+      @if (msg.kind === 'event') {
+        <div class="event-row">
+          <span class="event-note">{{ msg.content }}</span>
+          <span class="event-time">{{ msg.senderName }} · {{ msg.sentAt | date: 'MMM d, h:mm a' }}</span>
         </div>
-      </div>
+      } @else {
+        <div class="msg-row" [class.mine]="msg.senderId === currentUserId()">
+          <div class="bubble" [class.my-bubble]="msg.senderId === currentUserId()">
+            @if (msg.senderId !== currentUserId()) {
+              <span class="bubble-sender">{{ msg.senderName }}</span>
+            }
+            <p class="bubble-text">{{ msg.content }}</p>
+            <span class="bubble-time">{{ msg.sentAt | date: 'shortTime' }}</span>
+          </div>
+        </div>
+      }
     }
   </div>
 
@@ -23,12 +36,13 @@
       nz-input
       class="reply-input"
       placeholder="Type a message..."
+      maxlength="2000"
       [ngModel]="replyText()"
       (ngModelChange)="replyText.set($event)"
       (keydown)="onKeydown($event)"
       rows="2"
     ></textarea>
-    <button nz-button nzType="primary" class="send-btn" (click)="send()">
+    <button nz-button nzType="primary" class="send-btn" aria-label="Send message" (click)="send()">
       <span nz-icon nzType="send"></span>
     </button>
   </div>

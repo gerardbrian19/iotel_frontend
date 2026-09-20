@@ -11,7 +11,9 @@ export const ADMIN_ROUTES: Routes = [
       { path: 'orders', loadComponent: () => import('./orders/orders.component').then(m => m.AdminOrdersComponent) },
       { path: 'products', loadComponent: () => import('./products/products.component').then(m => m.AdminProductsComponent) },
       { path: 'inventory', loadComponent: () => import('./inventory/inventory.component').then(m => m.AdminInventoryComponent) },
+      { path: 'bookings', loadComponent: () => import('../../shared/components/bookings-board/bookings-board.component').then(m => m.BookingsBoardComponent) },
       { path: 'messages', loadComponent: () => import('./messages/messages.component').then(m => m.AdminMessagesComponent) },
+      { path: 'users', loadComponent: () => import('./users/users.component').then(m => m.AdminUsersComponent) },
     ],
   },
 ];

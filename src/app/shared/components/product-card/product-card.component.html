@@ -1,0 +1,62 @@
+<nz-card class="product-card" [class.unavailable]="!product().inStock" [nzCover]="cover" [nzBodyStyle]="{ padding: '16px' }">
+  <ng-template #cover>
+    <div class="product-img-wrap" role="button" tabindex="0"
+      (click)="open.emit(product())" (keydown.enter)="open.emit(product())">
+      <img [src]="product().imageUrl || placeholder" [alt]="product().name" class="product-img"
+        loading="lazy" (error)="onImageError($event)" />
+      @if (product().price !== null) {
+        <nz-tag [nzColor]="product().inStock ? '#52c41a' : '#CC2020'" class="stock-badge">
+          {{ product().inStock ? 'In Stock' : 'Out of Stock' }}
+        </nz-tag>
+      }
+    </div>
+  </ng-template>
+
+  <div class="card-header">
+    <nz-tag class="cat-badge">{{ product().category }}</nz-tag>
+    <div class="card-actions">
+      <button nz-button nzShape="circle" class="action-icon" type="button"
+        [attr.aria-label]="liked() ? 'Remove from favorites' : 'Add to favorites'"
+        [attr.aria-pressed]="liked()"
+        (click)="actions.toggleFavorite(product())">
+        <span nz-icon nzType="heart" [nzTheme]="liked() ? 'fill' : 'outline'" [class.liked]="liked()"></span>
+      </button>
+      <button nz-button nzShape="circle" class="action-icon" type="button" aria-label="Share"
+        (click)="actions.share(product())">
+        <span nz-icon nzType="share-alt"></span>
+      </button>
+    </div>
+  </div>
+
+  <h3 class="product-name" role="button" tabindex="0"
+    (click)="open.emit(product())" (keydown.enter)="open.emit(product())">{{ product().name }}</h3>
+  <p class="product-desc">{{ product().description }}</p>
+
+  <div class="product-footer">
+    <div>
+      @if (product().price !== null) {
+        <span class="product-price">{{ product().price | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+        @if (product().oldPrice && product().oldPrice! > product().price!) {
+          <span class="old-price">{{ product().oldPrice | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+        }
+        @if (product().inStock) {
+          <span class="stock-count">{{ product().stock }} left</span>
+        }
+      } @else {
+        <span class="product-price on-request">Price on request</span>
+      }
+    </div>
+
+    @if (product().price === null) {
+      <a nz-button nzType="default" routerLink="/customer/messages" class="add-btn">
+        <span nz-icon nzType="message"></span> Ask for price
+      </a>
+    } @else if (product().inStock) {
+      <button nz-button nzType="primary" type="button" class="add-btn" (click)="actions.addToCart(product())">
+        <span nz-icon nzType="shopping-cart"></span> Add to Cart
+      </button>
+    } @else {
+      <button nz-button type="button" class="add-btn" disabled>Out of Stock</button>
+    }
+  </div>
+</nz-card>

@@ -1,0 +1,37 @@
+<div class="slot-picker">
+  <nz-date-picker
+    class="date-input"
+    nzSize="large"
+    nzPlaceHolder="Choose a date"
+    [nzAllowClear]="false"
+    [nzDisabledDate]="disabledDate"
+    [nzDefaultPickerValue]="defaultPickerValue"
+    [ngModel]="pickerValue()"
+    (ngModelChange)="onDateChange($event)"
+  />
+
+  @if (date()) {
+    <div class="slot-grid" role="radiogroup" aria-label="Available times">
+      @for (slot of slots(); track slot.time) {
+        <button
+          type="button"
+          role="radio"
+          class="slot"
+          [class.selected]="time() === slot.time"
+          [disabled]="slot.taken"
+          [attr.aria-checked]="time() === slot.time"
+          (click)="time.set(slot.time)"
+        >
+          {{ slot.label }}
+          @if (slot.taken) {
+            <span class="slot-note">Booked</span>
+          }
+        </button>
+      }
+    </div>
+  } @else {
+    <p class="slot-hint">Pick a date to see the open times.</p>
+  }
+
+  <p class="slot-legend">Open Monday to Saturday, from tomorrow up to {{ horizonDays }} days ahead. Fully booked days can't be selected.</p>
+</div>

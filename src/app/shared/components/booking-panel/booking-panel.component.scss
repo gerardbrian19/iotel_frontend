@@ -1,0 +1,156 @@
+:host {
+  display: block;
+}
+
+.bp {
+  background: #FFFFFF;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+
+  &.cancelled {
+    background: #F5F5F5;
+  }
+}
+
+.bp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.bp-main {
+  min-width: 0;
+}
+
+.bp-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.bp-when,
+.bp-customer {
+  margin: 0;
+  font-size: 13px;
+  color: #595959;
+}
+
+.bp-when [nz-icon] {
+  margin-right: 4px;
+  color: #C9A84C;
+}
+
+.bp-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+
+  nz-tag {
+    margin: 0;
+  }
+}
+
+.bp-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.bp-from {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666666;
+}
+
+.bp-hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: #595959;
+}
+
+.bp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.bp-toggle {
+  margin-left: auto;
+  padding-inline: 4px;
+}
+
+.brand-btn {
+  background: #CC2020 !important;
+  border-color: #CC2020 !important;
+  color: #FFFFFF !important;
+
+  &[disabled] {
+    opacity: 0.5;
+  }
+}
+
+.bp-details {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 13px;
+
+  dt {
+    font-weight: 700;
+    color: #1A1A1A;
+    margin-top: 8px;
+  }
+
+  dt:first-child {
+    margin-top: 0;
+  }
+
+  dd {
+    margin: 2px 0 0;
+    color: #595959;
+    overflow-wrap: anywhere;
+  }
+
+  .pre {
+    white-space: pre-wrap;
+  }
+}
+
+.modal-copy {
+  font-size: 13px;
+  color: #595959;
+  margin: 0 0 12px;
+}
+
+.pay-amount {
+  font-size: 28px;
+  font-weight: 800;
+  color: #1A1A1A;
+  margin: 0 0 4px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+@media (max-width: 480px) {
+  .bp-head {
+    flex-direction: column;
+  }
+
+  .bp-side {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+}

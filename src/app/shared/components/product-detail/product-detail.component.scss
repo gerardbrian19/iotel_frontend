@@ -1,0 +1,166 @@
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.detail-panel {
+  width: min(1040px, 100%);
+  max-height: min(90vh, 900px);
+  overflow-y: auto;
+  background: #FFFFFF;
+  border-radius: 20px;
+  position: relative;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+}
+
+.close-button {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 2;
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+  padding: 32px;
+}
+
+.detail-gallery {
+  border-radius: 20px;
+  overflow: hidden;
+  background: #F5F5F5;
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-image {
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  padding: 16px;
+}
+
+.detail-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  padding-top: 32px;
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.liked {
+  color: #CC2020;
+}
+
+.detail-title {
+  font-size: 26px;
+  font-weight: 800;
+  margin: 0;
+  color: #1A1A1A;
+}
+
+.detail-sub {
+  margin: 4px 0 0;
+  color: #888;
+}
+
+.detail-price-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.detail-price {
+  font-size: 28px;
+  font-weight: 900;
+  color: #CC2020;
+
+  &.on-request {
+    font-size: 20px;
+    font-weight: 700;
+    color: #888;
+  }
+}
+
+.detail-old-price {
+  color: #888;
+  text-decoration: line-through;
+}
+
+.detail-stock {
+  font-size: 14px;
+  color: #555;
+
+  &.out {
+    color: #CC2020;
+  }
+}
+
+.detail-description {
+  color: #4F4F4F;
+  line-height: 1.8;
+  margin: 0;
+}
+
+@media (max-width: 960px) {
+  .detail-layout {
+    grid-template-columns: 1fr;
+    padding: 24px;
+  }
+
+  .detail-gallery {
+    min-height: 260px;
+  }
+
+  .detail-info {
+    padding-top: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .detail-overlay {
+    padding: 0;
+  }
+
+  .detail-panel {
+    max-height: 100vh;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .detail-layout {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .close-button {
+    top: 12px;
+    right: 12px;
+  }
+}

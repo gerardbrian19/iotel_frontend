@@ -11,6 +11,7 @@ import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzStatisticModule } from 'ng-zorro-antd/statistic';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { ProductService } from '../../../core/services/product.service';
+import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
 
 type StockFilter = 'All' | 'Low Stock' | 'Out of Stock';
 
@@ -26,9 +27,11 @@ export class AdminInventoryComponent {
   private readonly productService = inject(ProductService);
   private readonly msg = inject(NzMessageService);
 
+  readonly placeholder = PLACEHOLDER_IMAGE;
+  readonly onImageError = onImageError;
   readonly search = signal('');
   readonly stockFilter = signal<StockFilter>('All');
-  readonly editingStock = signal<Record<number, number | undefined>>({});
+  readonly editingStock = signal<Record<string, number | undefined>>({});
 
   readonly products = this.productService.products;
 
@@ -38,7 +41,7 @@ export class AdminInventoryComponent {
     const q = this.search().toLowerCase();
     if (sf === 'Low Stock') list = list.filter(p => p.stock > 0 && p.stock <= 5);
     else if (sf === 'Out of Stock') list = list.filter(p => p.stock === 0);
-    if (q) list = list.filter(p => p.name.toLowerCase().includes(q));
+    if (q) list = list.filter(p => `${p.name} ${p.brand} ${p.model}`.toLowerCase().includes(q));
     return list;
   });
 
@@ -53,16 +56,19 @@ export class AdminInventoryComponent {
     return { label: 'In Stock', color: 'success' };
   }
 
-  setEditStock(id: number, val: number) {
+  setEditStock(id: string, val: number) {
     this.editingStock.update(m => ({ ...m, [id]: val }));
   }
 
-  saveStock(id: number) {
+  saveStock(id: string) {
     const qty = this.editingStock()[id];
     if (qty === undefined) return;
-    this.productService.adjustStock(id, qty).subscribe(() => {
-      this.msg.success('Stock updated');
-      this.editingStock.update(m => { const n = { ...m }; delete n[id]; return n; });
+    this.productService.adjustStock(id, qty).subscribe({
+      next: () => {
+        this.msg.success('Stock updated');
+        this.editingStock.update(m => { const n = { ...m }; delete n[id]; return n; });
+      },
+      error: () => this.msg.error('Could not update the stock. You may not have permission.'),
     });
   }
 }

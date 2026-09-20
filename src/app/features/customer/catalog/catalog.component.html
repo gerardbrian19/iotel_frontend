@@ -15,12 +15,13 @@
     <!-- Filters -->
     <div class="filters-bar">
       <div class="category-tabs">
-        @for (cat of categories; track cat) {
+        @for (tab of categoryTabs(); track tab.name) {
           <button
+            type="button"
             class="cat-tab"
-            [class.active]="selectedCategory() === cat"
-            (click)="selectedCategory.set(cat)"
-          >{{ cat }}</button>
+            [class.active]="selectedCategory() === tab.name"
+            (click)="setCategory(tab.name)"
+          >{{ tab.name }}<span class="cat-count">{{ tab.count }}</span></button>
         }
       </div>
 
@@ -28,16 +29,40 @@
         <nz-input-group [nzPrefix]="searchIcon" class="search-input">
           <input
             nz-input
-            placeholder="Search products..."
+            placeholder="Search by name, brand or model..."
             [ngModel]="searchQuery()"
-            (ngModelChange)="onSearch($event)"
+            (ngModelChange)="setSearch($event)"
           />
         </nz-input-group>
         <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
 
+        <nz-input-number
+          class="price-input"
+          nzPlaceHolder="Min ₱"
+          aria-label="Minimum price"
+          [nzMin]="0"
+          [nzStep]="500"
+          [ngModel]="minPrice()"
+          (ngModelChange)="setMinPrice($event)"
+        />
+        <nz-input-number
+          class="price-input"
+          nzPlaceHolder="Max ₱"
+          aria-label="Maximum price"
+          [nzMin]="0"
+          [nzStep]="500"
+          [ngModel]="maxPrice()"
+          (ngModelChange)="setMaxPrice($event)"
+        />
+
+        <label class="stock-toggle">
+          <nz-switch nzSize="small" [ngModel]="inStockOnly()" (ngModelChange)="setInStockOnly($event)" />
+          In stock only
+        </label>
+
         <nz-select
           [ngModel]="sortBy()"
-          (ngModelChange)="sortBy.set($event)"
+          (ngModelChange)="setSort($event)"
           class="sort-select"
           nzPlaceHolder="Sort by"
         >
@@ -46,151 +71,51 @@
           <nz-option nzValue="price-desc" nzLabel="Price: High → Low"></nz-option>
           <nz-option nzValue="name-asc" nzLabel="Name: A → Z"></nz-option>
         </nz-select>
+
+        @if (hasActiveFilters()) {
+          <button nz-button nzType="link" type="button" (click)="clearFilters()">Clear filters</button>
+        }
       </div>
     </div>
 
-    <!-- Results count -->
-    <p class="results-count">{{ filteredProducts().length }} products found</p>
+    <div #grid></div>
 
-    <!-- Product Grid -->
-    @if (filteredProducts().length === 0) {
-      <nz-empty nzDescription="No products found" />
+    @if (error(); as message) {
+      <nz-alert nzType="error" nzShowIcon nzMessage="Could not load products" [nzDescription]="message" />
+    } @else if (loading()) {
+      <div class="state-block"><nz-spin nzSimple nzSize="large" /></div>
+    } @else if (catalogSize() === 0) {
+      <nz-empty nzDescription="The catalog is empty. Check back soon." />
     } @else {
-      <div class="product-grid">
-        @for (product of filteredProducts(); track product.id) {
-          <nz-card class="product-card" [nzCover]="coverTemplate" [nzBodyStyle]="{'padding': '16px'}">
-            <ng-template #coverTemplate>
-              <div class="product-img-wrap clickable" (click)="openDetails(product)">
-                <img [src]="product.imageUrl" [alt]="product.name" class="product-img" />
-                @if (!product.inStock) {
-                  <div class="out-of-stock-overlay">Out of Stock</div>
-                }
-                <nz-tag [nzColor]="product.inStock ? 'green' : 'red'" class="stock-badge">
-                  {{ product.inStock ? 'In Stock' : 'Out of Stock' }}
-                </nz-tag>
-              </div>
-            </ng-template>
-            <div class="card-header">
-              <nz-tag nzColor="default" class="cat-badge">{{ product.category }}</nz-tag>
-              <div class="card-actions">
-                <button nz-button nzType="default" nzShape="circle" class="action-icon" (click)="toggleLike(product); $event.stopPropagation()">
-                  <span nz-icon nzType="heart" [ngClass]="{ 'liked': likedProducts()[product.id] }"></span>
-                </button>
-                <button nz-button nzType="default" nzShape="circle" class="action-icon" (click)="shareProduct(product); $event.stopPropagation()">
-                  <span nz-icon nzType="share-alt"></span>
-                </button>
-              </div>
-            </div>
-            <h3 class="product-name">{{ product.name }}</h3>
-            @if (product.variations?.length) {
-              <div class="variation-summary">
-                <span>{{ getPrimaryVariation(product) }}</span>
-                @if (hasMoreVariations(product)) {
-                  <span class="more-variations">+{{ getMoreVariationCount(product) }} more</span>
-                }
-              </div>
-            }
-            <p class="product-desc">{{ product.description }}</p>
-            <div class="product-footer">
-              <div>
-                <span class="product-price">{{ product.price | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-                @if (product.inStock) {
-                  <span class="stock-count">{{ product.stock }} left</span>
-                }
-              </div>
-              <button
-                nz-button
-                [nzType]="product.inStock ? 'primary' : 'default'"
-                [disabled]="!product.inStock"
-                (click)="addToCart(product); $event.stopPropagation()"
-                class="add-btn"
-              >
-                @if (product.inStock) {
-                  <span nz-icon nzType="shopping-cart"></span> Add to Cart
-                } @else {
-                  Out of Stock
-                }
-              </button>
-            </div>
-          </nz-card>
-        }
-      </div>
+      <p class="results-count">
+        {{ filteredProducts().length }} {{ filteredProducts().length === 1 ? 'product' : 'products' }} found
+      </p>
 
-      <div class="detail-overlay" *ngIf="selectedProduct()">
-        <div class="detail-panel">
-          <button nz-button nzType="default" nzShape="circle" class="close-button" (click)="closeDetails()">
-            <span nz-icon nzType="close"></span>
-          </button>
-
-          <div class="detail-layout">
-            <div class="detail-gallery" (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)">
-              <img [src]="displayedImage()" [alt]="selectedProduct()?.name" class="detail-image" />
-              @if ((selectedProduct()?.images?.length ?? 0) > 1) {
-                <button nz-button nzType="default" nzShape="circle" class="gallery-nav prev" (click)="prevImage()">
-                  <span nz-icon nzType="left"></span>
-                </button>
-                <button nz-button nzType="default" nzShape="circle" class="gallery-nav next" (click)="nextImage()">
-                  <span nz-icon nzType="right"></span>
-                </button>
-                <div class="gallery-counter">{{ selectedImageIndex() + 1 }} / {{ selectedProduct()?.images?.length }}</div>
-              }
-            </div>
-
-            <div class="detail-info">
-              <div class="detail-head">
-                <nz-tag nzColor="default">{{ selectedProduct()?.category }}</nz-tag>
-                <div class="detail-actions">
-                  <button nz-button nzType="default" nzShape="round" (click)="toggleLike(selectedProduct()!)">
-                    <span nz-icon nzType="heart" [ngClass]="{ 'liked': isLiked() }"></span>
-                    @if (isLiked()) {
-                      Liked
-                    } @else {
-                      Like
-                    }
-                  </button>
-                  <button nz-button nzType="default" nzShape="round" (click)="shareProduct(selectedProduct()!)">
-                    <span nz-icon nzType="share-alt"></span> Share
-                  </button>
-                </div>
-              </div>
-
-              <h2 class="detail-title">{{ selectedProduct()?.name }}</h2>
-              <div class="detail-price-row">
-                <span class="detail-price">{{ selectedProduct()?.price | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-                @if (selectedProduct()?.inStock) {
-                  <span class="detail-stock">{{ selectedProduct()?.stock }} left</span>
-                } @else {
-                  <span class="detail-stock out">Out of stock</span>
-                }
-              </div>
-
-              <p class="detail-description">{{ selectedProduct()?.description }}</p>
-
-              @if (selectedProduct()?.variations?.length) {
-                <div class="variation-selector">
-                  <h4>Select option</h4>
-                  <div class="variation-list">
-                    @for (option of selectedProduct()!.variations!; track option) {
-                      <button
-                        nz-button
-                        nzType="default"
-                        [ngClass]="{ 'selected-option': selectedVariation() === option }"
-                        (click)="selectVariation(option)"
-                      >
-                        {{ option }}
-                      </button>
-                    }
-                  </div>
-                </div>
-              }
-
-              <button nz-button nzType="primary" [disabled]="!selectedProduct()?.inStock" (click)="addToCart(selectedProduct()!)">
-                Add to Cart
-              </button>
-            </div>
-          </div>
+      @if (filteredProducts().length === 0) {
+        <nz-empty nzDescription="No products match your filters">
+          <button nz-button nzType="primary" type="button" (click)="clearFilters()">Clear filters</button>
+        </nz-empty>
+      } @else {
+        <div class="product-grid">
+          @for (product of pageProducts(); track product.id) {
+            <app-product-card [product]="product" (open)="openDetails($event)" />
+          }
         </div>
-      </div>
+
+        @if (filteredProducts().length > pageSize) {
+          <nz-pagination
+            class="pagination"
+            [nzTotal]="filteredProducts().length"
+            [nzPageSize]="pageSize"
+            [nzPageIndex]="page()"
+            (nzPageIndexChange)="goToPage($event)"
+          />
+        }
+      }
     }
   </div>
 </div>
+
+@if (selectedProduct(); as product) {
+  <app-product-detail [product]="product" (closed)="closeDetails()" />
+}

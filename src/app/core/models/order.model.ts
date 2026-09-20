@@ -2,7 +2,7 @@ export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | '
 export type PaymentMethod = 'GCash' | 'Bank Transfer' | 'Cash on Delivery';
 
 export interface OrderItem {
-  productId: number;
+  productId: string;
   name: string;
   price: number;
   qty: number;
@@ -20,7 +20,7 @@ export interface ShippingAddress {
 
 export interface Order {
   id: string;
-  customerId: number;
+  customerId: string;
   items: OrderItem[];
   status: OrderStatus;
   total: number;

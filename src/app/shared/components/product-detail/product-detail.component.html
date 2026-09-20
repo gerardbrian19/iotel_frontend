@@ -1,0 +1,65 @@
+<div class="detail-overlay" (click)="closed.emit()">
+  <div class="detail-panel" role="dialog" aria-modal="true" [attr.aria-label]="product().name" (click)="$event.stopPropagation()">
+    <button nz-button nzShape="circle" class="close-button" type="button" aria-label="Close" (click)="closed.emit()">
+      <span nz-icon nzType="close"></span>
+    </button>
+
+    <div class="detail-layout">
+      <div class="detail-gallery">
+        <img [src]="product().imageUrl || placeholder" [alt]="product().name" class="detail-image"
+          (error)="onImageError($event)" />
+      </div>
+
+      <div class="detail-info">
+        <div class="detail-head">
+          <nz-tag>{{ product().category }}</nz-tag>
+          <div class="detail-actions">
+            <button nz-button nzShape="round" type="button" (click)="actions.toggleFavorite(product())">
+              <span nz-icon nzType="heart" [nzTheme]="liked() ? 'fill' : 'outline'" [class.liked]="liked()"></span>
+              {{ liked() ? 'Liked' : 'Like' }}
+            </button>
+            <button nz-button nzShape="round" type="button" (click)="actions.share(product())">
+              <span nz-icon nzType="share-alt"></span> Share
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="detail-title">{{ product().name }}</h2>
+          @if (product().subcategory) {
+            <p class="detail-sub">{{ product().subcategory }}</p>
+          }
+        </div>
+
+        <div class="detail-price-row">
+          @if (product().price !== null) {
+            <span class="detail-price">{{ product().price | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+            @if (product().oldPrice && product().oldPrice! > product().price!) {
+              <span class="detail-old-price">{{ product().oldPrice | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
+            }
+            @if (product().inStock) {
+              <span class="detail-stock">{{ product().stock }} left</span>
+            } @else {
+              <span class="detail-stock out">Out of stock</span>
+            }
+          } @else {
+            <span class="detail-price on-request">Price on request</span>
+          }
+        </div>
+
+        <p class="detail-description">{{ product().description }}</p>
+
+        @if (product().price === null) {
+          <a nz-button nzType="primary" routerLink="/customer/messages" (click)="closed.emit()">
+            <span nz-icon nzType="message"></span> Ask for price
+          </a>
+        } @else {
+          <button nz-button nzType="primary" type="button" [disabled]="!product().inStock"
+            (click)="actions.addToCart(product())">
+            {{ product().inStock ? 'Add to Cart' : 'Out of Stock' }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+</div>

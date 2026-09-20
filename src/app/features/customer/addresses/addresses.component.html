@@ -2,72 +2,114 @@
   <div class="addr-container">
     <div class="page-header">
       <h1 class="page-title">My Addresses</h1>
-      <button nz-button nzType="primary" class="add-btn" (click)="openAdd()">
-        <span nz-icon nzType="plus"></span> Add Address
-      </button>
-    </div>
-
-    <div class="addr-grid">
-      @for (addr of addresses(); track addr.id) {
-        <nz-card class="addr-card" [class.default-card]="addr.isDefault">
-          @if (addr.isDefault) {
-            <nz-tag nzColor="gold" class="default-tag">Default</nz-tag>
-          }
-          <p class="addr-name">{{ addr.fullName }}</p>
-          <p class="addr-line">{{ addr.addressLine }}</p>
-          <p class="addr-line">{{ addr.city }}, {{ addr.province }} {{ addr.zip }}</p>
-          <p class="addr-line">{{ addr.mobile }}</p>
-          <div class="addr-actions">
-            <button nz-button nzSize="small" (click)="openEdit(addr)">
-              <span nz-icon nzType="edit"></span> Edit
-            </button>
-            @if (!addr.isDefault) {
-              <button nz-button nzSize="small" nzType="link" (click)="setDefault(addr.id)">Set as Default</button>
-              <button nz-button nzSize="small" nzDanger (click)="confirmDelete(addr.id)">
-                <span nz-icon nzType="delete"></span>
-              </button>
-            }
-          </div>
-        </nz-card>
+      @if (isCustomer()) {
+        <button nz-button nzType="primary" class="add-btn" [disabled]="loading() || loadFailed()" (click)="openAdd()">
+          <span nz-icon nzType="plus"></span> Add Address
+        </button>
       }
     </div>
+
+    @if (!isCustomer()) {
+      <nz-empty nzNotFoundContent="Saved addresses are only available to customer accounts." />
+    } @else if (loading()) {
+      <div class="state-box"><nz-spin nzSimple nzSize="large" /></div>
+    } @else if (loadFailed()) {
+      <nz-empty nzNotFoundContent="We couldn't load your addresses. Check your connection and reload the page." />
+    } @else {
+      <div class="addr-grid">
+        @for (addr of addresses(); track addr.id) {
+          <nz-card class="addr-card" [class.default-card]="addr.isDefault">
+            @if (addr.isDefault) {
+              <nz-tag nzColor="gold" class="default-tag">Default</nz-tag>
+            }
+            <p class="addr-name">{{ addr.fullName }}</p>
+            <p class="addr-line">{{ addr.addressLine }}</p>
+            <p class="addr-line">{{ addr.city }}, {{ addr.province }} {{ addr.zip }}</p>
+            <p class="addr-line">{{ addr.mobile }}</p>
+            <div class="addr-actions">
+              <button nz-button nzSize="small" (click)="openEdit(addr)">
+                <span nz-icon nzType="edit"></span> Edit
+              </button>
+              @if (!addr.isDefault) {
+                <button nz-button nzSize="small" nzType="link" (click)="setDefault(addr)">Set as Default</button>
+              }
+              <button nz-button nzSize="small" nzDanger class="delete-btn" aria-label="Delete address" (click)="confirmDelete(addr)">
+                <span nz-icon nzType="delete"></span>
+              </button>
+            </div>
+          </nz-card>
+        } @empty {
+          <div class="empty-box">
+            <nz-empty nzNotFoundContent="You haven't saved any addresses yet.">
+              <div nz-empty-footer>
+                <button nz-button nzType="primary" class="add-btn" (click)="openAdd()">
+                  <span nz-icon nzType="plus"></span> Add your first address
+                </button>
+              </div>
+            </nz-empty>
+          </div>
+        }
+      </div>
+    }
   </div>
 </div>
 
-<nz-modal [(nzVisible)]="modalVisible" [nzTitle]="editingId() ? 'Edit Address' : 'Add New Address'" [nzFooter]="null">
+<nz-modal
+  [(nzVisible)]="modalVisible"
+  [nzTitle]="editingId() ? 'Edit Address' : 'Add New Address'"
+  [nzFooter]="null"
+  [nzClosable]="!saving()"
+  [nzMaskClosable]="!saving()"
+  nzWidth="560px"
+>
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="saveAddress()">
       <div class="form-row">
         <nz-form-item class="flex-1">
           <nz-form-label nzRequired>Full Name</nz-form-label>
-          <nz-form-control><input nz-input formControlName="fullName" /></nz-form-control>
+          <nz-form-control [nzErrorTip]="errorTip('fullName')">
+            <input nz-input formControlName="fullName" autocomplete="name" />
+          </nz-form-control>
         </nz-form-item>
         <nz-form-item class="flex-1">
           <nz-form-label nzRequired>Mobile</nz-form-label>
-          <nz-form-control><input nz-input formControlName="mobile" /></nz-form-control>
+          <nz-form-control [nzErrorTip]="errorTip('mobile')">
+            <input nz-input formControlName="mobile" placeholder="09171234567" autocomplete="tel" />
+          </nz-form-control>
         </nz-form-item>
       </div>
       <nz-form-item>
         <nz-form-label nzRequired>Address Line</nz-form-label>
-        <nz-form-control><input nz-input formControlName="addressLine" /></nz-form-control>
+        <nz-form-control [nzErrorTip]="errorTip('addressLine')">
+          <input nz-input formControlName="addressLine" placeholder="House/unit no., street, barangay" autocomplete="street-address" />
+        </nz-form-control>
       </nz-form-item>
       <div class="form-row">
         <nz-form-item class="flex-1">
           <nz-form-label nzRequired>City</nz-form-label>
-          <nz-form-control><input nz-input formControlName="city" /></nz-form-control>
+          <nz-form-control [nzErrorTip]="errorTip('city')">
+            <input nz-input formControlName="city" autocomplete="address-level2" />
+          </nz-form-control>
         </nz-form-item>
         <nz-form-item class="flex-1">
           <nz-form-label nzRequired>Province</nz-form-label>
-          <nz-form-control><input nz-input formControlName="province" /></nz-form-control>
+          <nz-form-control [nzErrorTip]="errorTip('province')">
+            <input nz-input formControlName="province" autocomplete="address-level1" />
+          </nz-form-control>
         </nz-form-item>
-        <nz-form-item style="width: 100px">
+        <nz-form-item class="zip-field">
           <nz-form-label nzRequired>ZIP</nz-form-label>
-          <nz-form-control><input nz-input formControlName="zip" /></nz-form-control>
+          <nz-form-control [nzErrorTip]="errorTip('zip')">
+            <input nz-input formControlName="zip" inputmode="numeric" maxlength="4" autocomplete="postal-code" />
+          </nz-form-control>
         </nz-form-item>
       </div>
+      <label nz-checkbox formControlName="makeDefault" [nzDisabled]="editingDefault()">
+        Set as my default address
+      </label>
       <div class="modal-footer">
-        <button nz-button (click)="modalVisible.set(false)" type="button">Cancel</button>
-        <button nz-button nzType="primary" type="submit" class="save-btn">Save Address</button>
+        <button nz-button type="button" [disabled]="saving()" (click)="modalVisible.set(false)">Cancel</button>
+        <button nz-button nzType="primary" type="submit" class="save-btn" [nzLoading]="saving()">Save Address</button>
       </div>
     </form>
   </ng-container>

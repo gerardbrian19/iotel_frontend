@@ -9,6 +9,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { AuthService } from '../../../core/services/auth.service';
 import { CartService } from '../../../core/services/cart.service';
+import { FavoritesService } from '../../../core/services/favorites.service';
 import { ChatbotWidgetComponent } from '../../../shared/components/chatbot-widget/chatbot-widget.component';
 
 @Component({
@@ -34,9 +35,11 @@ import { ChatbotWidgetComponent } from '../../../shared/components/chatbot-widge
 export class CustomerShellComponent {
   private readonly auth = inject(AuthService);
   private readonly cart = inject(CartService);
+  private readonly favorites = inject(FavoritesService);
 
   readonly user = this.auth.currentUser;
   readonly cartCount = computed(() => this.cart.count);
+  readonly favoritesCount = this.favorites.count;
   readonly drawerVisible = signal(false);
 
   logout(): void {

@@ -13,14 +13,20 @@
       <div class="checkout-main">
         <!-- Shipping Address -->
         <nz-card class="section-card" nzTitle="Shipping Address">
-          <div class="address-block">
-            <div class="address-text">
-              <strong>{{ address().fullName }}</strong><br />
-              {{ address().addressLine }}, {{ address().city }}, {{ address().province }} {{ address().zip }}<br />
-              {{ address().mobile }}
+          @if (address(); as addr) {
+            <div class="address-block">
+              <div class="address-text">
+                <strong>{{ addr.fullName }}</strong><br />
+                {{ addr.addressLine }}, {{ addr.city }}, {{ addr.province }} {{ addr.zip }}<br />
+                {{ addr.mobile }}
+              </div>
+              <a routerLink="/customer/addresses" nz-button nzType="link" nzSize="small">Change</a>
             </div>
-            <a routerLink="/customer/addresses" nz-button nzType="link" nzSize="small">Change</a>
-          </div>
+          } @else if (!addressLoading()) {
+            <a routerLink="/customer/addresses" nz-button nzType="dashed" nzBlock>
+              <span nz-icon nzType="plus"></span> Add a shipping address
+            </a>
+          }
         </nz-card>
 
         <!-- Order Items -->
@@ -71,11 +77,7 @@
           </div>
           <div class="summary-row">
             <span>Shipping</span>
-            @if (shippingFee() === 0) {
-              <span class="free-tag">FREE</span>
-            } @else {
-              <span>{{ shippingFee() | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-            }
+            <span>{{ shippingFee() | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
           </div>
           <nz-divider />
           <div class="summary-row total-row">
@@ -88,7 +90,7 @@
             nzType="primary"
             nzBlock
             class="confirm-btn"
-            [disabled]="!selectedPayment() || items().length === 0"
+            [disabled]="!address() || !selectedPayment() || items().length === 0"
             (click)="placeOrder()"
           >
             <span nz-icon nzType="check"></span> Confirm Order

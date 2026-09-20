@@ -59,11 +59,7 @@
             <nz-divider />
             <div class="summary-row"><span>Subtotal</span><span>{{ order()!.subtotal | currency:'PHP':'symbol-narrow':'1.0-0' }}</span></div>
             <div class="summary-row"><span>Shipping</span>
-              @if (order()!.shippingFee === 0) {
-                <span class="free-tag">FREE</span>
-              } @else {
-                <span>{{ order()!.shippingFee | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-              }
+              <span>{{ order()!.shippingFee | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
             </div>
             <div class="summary-row total-row">
               <span>Total</span>

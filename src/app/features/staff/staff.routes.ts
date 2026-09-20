@@ -10,6 +10,7 @@ export const STAFF_ROUTES: Routes = [
       { path: 'dashboard', loadComponent: () => import('./dashboard/dashboard.component').then(m => m.StaffDashboardComponent) },
       { path: 'orders', loadComponent: () => import('./orders/orders.component').then(m => m.StaffOrdersComponent) },
       { path: 'inventory', loadComponent: () => import('./inventory/inventory.component').then(m => m.StaffInventoryComponent) },
+      { path: 'bookings', loadComponent: () => import('../../shared/components/bookings-board/bookings-board.component').then(m => m.BookingsBoardComponent) },
       { path: 'messages', loadComponent: () => import('./messages/messages.component').then(m => m.StaffMessagesComponent) },
     ],
   },

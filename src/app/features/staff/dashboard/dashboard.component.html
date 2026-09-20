@@ -4,6 +4,7 @@
   <div class="kpi-grid">
     <nz-card class="kpi-card"><nz-statistic [nzValue]="pendingOrders()" nzTitle="Pending Orders" nzPrefix="🕐" /></nz-card>
     <nz-card class="kpi-card"><nz-statistic [nzValue]="processingOrders()" nzTitle="Processing" nzPrefix="⚙️" /></nz-card>
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="bookingsNeedingAction()" nzTitle="Bookings to Handle" nzPrefix="📅" /></nz-card>
     <nz-card class="kpi-card"><nz-statistic [nzValue]="unreadMessages()" nzTitle="Unread Messages" nzPrefix="💬" /></nz-card>
     <nz-card class="kpi-card"><nz-statistic [nzValue]="lowStock()" nzTitle="Low / Out of Stock" nzPrefix="⚠️" /></nz-card>
   </div>
@@ -33,6 +34,9 @@
           [nzDescription]="p.stock === 0 ? 'Out of stock' : 'Only ' + p.stock + ' units left'"
           nzShowIcon
         />
+      }
+      @if (lowStockHidden() > 0) {
+        <p class="no-alerts">and {{ lowStockHidden() }} more. See Inventory for the full list.</p>
       }
       @if (!lowStockItems().length) {
         <p class="no-alerts">All stock levels are healthy</p>

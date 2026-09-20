@@ -16,7 +16,7 @@ const RESPONSES: Record<string, string> = {
   order: 'You can track your orders in the Orders section. Is there anything specific you need help with?',
   price: 'Our prices vary by product. Browse the catalog for the latest pricing.',
   repair: 'We offer radio repair services. Visit the Services page to book a repair.',
-  shipping: 'We offer shipping across the Philippines. Free shipping on orders over ₱5,000!',
+  shipping: 'We offer shipping across the Philippines for a flat ₱250 per order.',
   return: 'For returns, please contact our support team via the Messages section.',
   contact: 'You can reach us via the Messages section or visit our service center.',
 };

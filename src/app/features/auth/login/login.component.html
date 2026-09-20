@@ -16,7 +16,7 @@
     <form nz-form [formGroup]="form" (ngSubmit)="submit()" nzLayout="vertical">
       <nz-form-item>
         <nz-form-label nzRequired>Email</nz-form-label>
-        <nz-form-control nzErrorTip="Please enter a valid email address">
+        <nz-form-control [nzErrorTip]="emailErrors">
           <nz-input-group nzPrefixIcon="mail">
             <input
               nz-input
@@ -24,6 +24,7 @@
               placeholder="you@example.com"
               formControlName="email"
               autocomplete="email"
+              maxlength="254"
             />
           </nz-input-group>
         </nz-form-control>
@@ -31,7 +32,7 @@
 
       <nz-form-item>
         <nz-form-label nzRequired>Password</nz-form-label>
-        <nz-form-control nzErrorTip="Password must be at least 6 characters">
+        <nz-form-control nzErrorTip="Please enter your password">
           <nz-input-group nzPrefixIcon="lock" [nzSuffix]="suffixTemplate">
             <input
               nz-input
@@ -52,6 +53,14 @@
         </nz-form-control>
       </nz-form-item>
 
+      <ng-template #emailErrors let-control>
+        @if (control.hasError('required')) {
+          Please enter your email
+        } @else {
+          Please enter a valid email address
+        }
+      </ng-template>
+
       <button
         nz-button
         nzType="primary"
@@ -64,23 +73,8 @@
       </button>
     </form>
 
-    <div class="demo-credentials">
-      <p class="demo-title">Demo credentials</p>
-      <div class="demo-grid">
-        <div class="demo-item">
-          <span class="demo-role customer-role">Customer</span>
-          <span>customer&#64;demo.com</span>
-        </div>
-        <div class="demo-item">
-          <span class="demo-role admin-role">Admin</span>
-          <span>admin&#64;demo.com</span>
-        </div>
-        <div class="demo-item">
-          <span class="demo-role staff-role">Staff</span>
-          <span>staff&#64;demo.com</span>
-        </div>
-      </div>
-      <p class="demo-note">Any password with 6+ characters works.</p>
-    </div>
+    <p class="switch-auth">
+      New to IOTEL? <a routerLink="/auth/register">Create an account</a>
+    </p>
   </div>
 </div>

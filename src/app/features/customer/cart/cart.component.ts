@@ -5,7 +5,6 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
@@ -21,7 +20,6 @@ import { CartService } from '../../../core/services/cart.service';
     NzButtonModule,
     NzIconModule,
     NzEmptyModule,
-    NzAlertModule,
     NzModalModule,
     NzDividerModule,
     NzSpaceModule,
@@ -38,9 +36,6 @@ export class CartComponent {
   readonly subtotal = computed(() => this.cart.subtotal);
   readonly shippingFee = computed(() => this.cart.shippingFee);
   readonly total = computed(() => this.cart.total);
-  readonly freeShippingLeft = computed(() =>
-    Math.max(0, this.cart.freeShippingThreshold - this.cart.subtotal)
-  );
 
   confirmClear(): void {
     this.modal.confirm({
@@ -52,7 +47,7 @@ export class CartComponent {
     });
   }
 
-  confirmRemove(productId: number): void {
+  confirmRemove(productId: string): void {
     this.modal.confirm({
       nzTitle: 'Remove item?',
       nzContent: 'Remove this item from your cart?',

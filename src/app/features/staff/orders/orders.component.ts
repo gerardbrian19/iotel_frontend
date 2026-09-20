@@ -26,14 +26,14 @@ export class StaffOrdersComponent {
   readonly orders = this.orderService.orders;
   readonly tabs: ('Pending' | 'Processing' | 'All')[] = ['Pending', 'Processing', 'All'];
   readonly activeTab = signal<'Pending' | 'Processing' | 'All'>('Pending');
-  readonly removedItems = signal<Record<string, Set<number>>>({});
+  readonly removedItems = signal<Record<string, Set<string>>>({});
 
   readonly filtered = computed(() => {
     const tab = this.activeTab();
     return tab === 'All' ? this.orders() : this.orders().filter(o => o.status === tab);
   });
 
-  toggleRemoveItem(orderId: string, productId: number) {
+  toggleRemoveItem(orderId: string, productId: string) {
     this.removedItems.update(m => {
       const s = new Set(m[orderId] ?? []);
       s.has(productId) ? s.delete(productId) : s.add(productId);
@@ -41,7 +41,7 @@ export class StaffOrdersComponent {
     });
   }
 
-  isRemoved(orderId: string, productId: number | undefined) { if (productId === undefined) return false; return this.removedItems()[orderId]?.has(productId) ?? false; }
+  isRemoved(orderId: string, productId: string | undefined) { if (productId === undefined) return false; return this.removedItems()[orderId]?.has(productId) ?? false; }
 
   prepareOrder(order: Order) {
     this.orderService.updateStatus(order.id, 'Processing').subscribe(() =>

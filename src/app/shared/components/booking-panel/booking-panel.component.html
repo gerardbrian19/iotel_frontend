@@ -1,0 +1,200 @@
+<section class="bp" [class.cancelled]="booking().status === 'Cancelled'">
+  <div class="bp-head">
+    <div class="bp-main">
+      <h3 class="bp-title">{{ booking().serviceName }}</h3>
+      <p class="bp-when"><span nz-icon nzType="calendar"></span> {{ when() }}</p>
+      @if (isStaff()) {
+        <p class="bp-customer">{{ booking().customerName }} · {{ booking().customerMobile }}</p>
+      }
+    </div>
+    <div class="bp-side">
+      <nz-tag [nzColor]="status().color">{{ status().label }}</nz-tag>
+      @if (booking().quote; as quote) {
+        <span class="bp-amount">{{ quote.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</span>
+      } @else {
+        <span class="bp-amount bp-from">From {{ booking().servicePrice | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
+      }
+    </div>
+  </div>
+
+  <p class="bp-hint">{{ hint() }}</p>
+
+  <div class="bp-actions">
+    @if (showChatLink()) {
+      <a nz-button nzSize="small" [routerLink]="chatLink()" [queryParams]="{ conversation: booking().conversationId }">
+        <span nz-icon nzType="message"></span> Open chat
+      </a>
+    }
+
+    @if (isStaff()) {
+      @if (canQuote()) {
+        <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" (click)="openQuote()">
+          {{ booking().status === 'Pending' ? 'Confirm & quote' : 'Change quote' }}
+        </button>
+      }
+      @if (paymentUnderReview()) {
+        <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" (click)="verifyPayment()">
+          Verify payment
+        </button>
+        <button nz-button nzSize="small" [disabled]="busy()" (click)="openReject()">Reject payment</button>
+      }
+      @if (booking().status === 'Paid') {
+        <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" (click)="complete()">
+          Mark completed
+        </button>
+      }
+      @if (canReschedule()) {
+        <button nz-button nzSize="small" [disabled]="busy()" (click)="openReschedule()">Reschedule</button>
+      }
+    } @else if (awaitingPayment()) {
+      <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" (click)="openPay()">
+        <span nz-icon nzType="credit-card"></span> Pay {{ booking().quote?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}
+      </button>
+    }
+
+    @if (canCancel()) {
+      <button nz-button nzDanger nzSize="small" [disabled]="busy()" (click)="confirmCancel()">Cancel booking</button>
+    }
+
+    <button nz-button nzType="link" nzSize="small" class="bp-toggle" (click)="toggle()" [attr.aria-expanded]="expanded()">
+      {{ expanded() ? 'Hide details' : 'Details' }}
+      <span nz-icon [nzType]="expanded() ? 'up' : 'down'"></span>
+    </button>
+  </div>
+
+  @if (expanded()) {
+    <dl class="bp-details">
+      @if (booking().notes) {
+        <dt>Problem described</dt>
+        <dd class="pre">{{ booking().notes }}</dd>
+      }
+      @if (booking().quote?.note; as quoteNote) {
+        <dt>Quotation note</dt>
+        <dd class="pre">{{ quoteNote }}</dd>
+      }
+      @if (booking().payment; as payment) {
+        <dt>Payment</dt>
+        <dd>
+          {{ payment.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} via {{ payment.method }}, reference
+          {{ payment.referenceNumber }} ({{ payment.status === 'Verified' ? 'verified' : 'waiting for verification' }})
+        </dd>
+      }
+      @if (isStaff()) {
+        <dt>Contact</dt>
+        <dd>{{ booking().customerEmail }} · {{ booking().customerMobile }}</dd>
+      }
+      @if (booking().createdAt) {
+        <dt>Requested</dt>
+        <dd>{{ booking().createdAt | date: 'medium' }}</dd>
+      }
+    </dl>
+  }
+</section>
+
+<!-- Staff: quotation -->
+<nz-modal [(nzVisible)]="quoteVisible" nzTitle="Confirm booking & quotation" [nzFooter]="null" nzWidth="440px">
+  <ng-container *nzModalContent>
+    <form nz-form [formGroup]="quoteForm" nzLayout="vertical" (ngSubmit)="saveQuote()">
+      <p class="modal-copy">
+        Confirm this only after agreeing the price and date with {{ booking().customerName }} in chat. They will be asked to pay
+        this amount.
+      </p>
+      <nz-form-item>
+        <nz-form-label nzRequired>Amount to charge (₱)</nz-form-label>
+        <nz-form-control nzErrorTip="Enter an amount above zero.">
+          <nz-input-number formControlName="amount" [nzMin]="1" [nzStep]="50" [nzPrecision]="2" style="width: 100%" />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label>Note for the customer</nz-form-label>
+        <nz-form-control>
+          <textarea nz-input formControlName="note" rows="3" maxlength="500" placeholder="What the amount covers"></textarea>
+        </nz-form-control>
+      </nz-form-item>
+      <div class="modal-footer">
+        <button nz-button type="button" (click)="quoteVisible.set(false)">Close</button>
+        <button nz-button nzType="primary" class="brand-btn" type="submit" [disabled]="quoteForm.invalid || busy()" [nzLoading]="busy()">
+          Confirm booking
+        </button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<!-- Staff: reschedule -->
+<nz-modal [(nzVisible)]="rescheduleVisible" nzTitle="Reschedule appointment" [nzFooter]="null" nzWidth="520px">
+  <ng-container *nzModalContent>
+    <p class="modal-copy">Currently {{ when() }}. The customer is told about the change in chat.</p>
+    <app-slot-picker [(date)]="newDate" [(time)]="newTime" />
+    <div class="modal-footer">
+      <button nz-button type="button" (click)="rescheduleVisible.set(false)">Close</button>
+      <button
+        nz-button
+        nzType="primary"
+        class="brand-btn"
+        type="button"
+        [disabled]="!newDate() || !newTime() || busy()"
+        [nzLoading]="busy()"
+        (click)="saveReschedule()"
+      >
+        Move appointment
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Customer: payment -->
+<nz-modal [(nzVisible)]="payVisible" nzTitle="Pay for your booking" [nzFooter]="null" nzWidth="440px">
+  <ng-container *nzModalContent>
+    <form nz-form [formGroup]="payForm" nzLayout="vertical" (ngSubmit)="submitPayment()">
+      <p class="pay-amount">{{ booking().quote?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</p>
+      <p class="modal-copy">
+        Send exactly this amount using the payment details our team shared in your chat, then enter the reference number from
+        your receipt. We will verify it and confirm here.
+      </p>
+      <nz-form-item>
+        <nz-form-label nzRequired>Payment method</nz-form-label>
+        <nz-form-control>
+          <nz-radio-group formControlName="method">
+            @for (method of paymentMethods; track method) {
+              <label nz-radio [nzValue]="method">{{ method }}</label>
+            }
+          </nz-radio-group>
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzRequired>Reference number</nz-form-label>
+        <nz-form-control nzErrorTip="Enter the 6 to 40 character reference from your receipt (letters, numbers, spaces or dashes).">
+          <input nz-input formControlName="referenceNumber" maxlength="40" autocomplete="off" />
+        </nz-form-control>
+      </nz-form-item>
+      <div class="modal-footer">
+        <button nz-button type="button" (click)="payVisible.set(false)">Close</button>
+        <button nz-button nzType="primary" class="brand-btn" type="submit" [disabled]="payForm.invalid || busy()" [nzLoading]="busy()">
+          Submit payment
+        </button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<!-- Staff: reject payment -->
+<nz-modal [(nzVisible)]="rejectVisible" nzTitle="Reject payment" [nzFooter]="null" nzWidth="440px">
+  <ng-container *nzModalContent>
+    <p class="modal-copy">The customer is told in chat and can submit the payment again.</p>
+    <textarea
+      nz-input
+      rows="3"
+      maxlength="200"
+      placeholder="Reason (optional), e.g. the reference number was not found"
+      [ngModel]="rejectReason()"
+      (ngModelChange)="rejectReason.set($event)"
+    ></textarea>
+    <div class="modal-footer">
+      <button nz-button type="button" (click)="rejectVisible.set(false)">Close</button>
+      <button nz-button nzType="primary" nzDanger type="button" [disabled]="busy()" [nzLoading]="busy()" (click)="rejectPayment()">
+        Reject payment
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>

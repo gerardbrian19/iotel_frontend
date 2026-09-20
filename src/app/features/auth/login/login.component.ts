@@ -1,12 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { AuthService } from '../../../core/services/auth.service';
+import { authErrorMessage } from '../../../core/firebase/auth-errors';
+import { emailFormat, requiredTrimmed } from '../../../shared/utils/validators';
 
 @Component({
   selector: 'app-login',
@@ -18,6 +20,7 @@ import { AuthService } from '../../../core/services/auth.service';
     NzButtonModule,
     NzAlertModule,
     NzIconModule,
+    RouterLink,
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
@@ -32,29 +35,28 @@ export class LoginComponent {
   readonly error = signal<string | null>(null);
   readonly loading = signal(false);
 
-  readonly form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
+  readonly form = this.fb.nonNullable.group({
+    email: ['', [requiredTrimmed, emailFormat]],
+    password: ['', [Validators.required]],
   });
 
-  submit(): void {
+  async submit(): Promise<void> {
+    if (this.loading()) return;
     if (this.form.invalid) {
-      Object.values(this.form.controls).forEach(c => {
-        c.markAsDirty();
-        c.updateValueAndValidity({ onlySelf: true });
-      });
+      this.form.markAllAsDirty();
+      this.form.updateValueAndValidity();
       return;
     }
     this.loading.set(true);
     this.error.set(null);
-    const { email, password } = this.form.value;
-    const success = this.auth.login(email!, password!);
-    this.loading.set(false);
-    if (success) {
-      const role = this.auth.currentUser()!.role;
-      this.router.navigate([`/${role}`]);
-    } else {
-      this.error.set('Invalid email or password. Please try again.');
+    const { email, password } = this.form.getRawValue();
+    try {
+      const user = await this.auth.login(email, password);
+      await this.router.navigate([`/${user.role}`]);
+    } catch (err) {
+      this.error.set(authErrorMessage(err));
+    } finally {
+      this.loading.set(false);
     }
   }
 }

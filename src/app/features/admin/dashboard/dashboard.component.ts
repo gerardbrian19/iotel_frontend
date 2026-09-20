@@ -8,6 +8,7 @@ import { NzStatisticModule } from 'ng-zorro-antd/statistic';
 import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { PRODUCT_CATEGORIES } from '../../../core/models';
 import { ProductService } from '../../../core/services/product.service';
 import { OrderService } from '../../../core/services/order.service';
 
@@ -40,14 +41,13 @@ export class DashboardComponent {
   };
 
   readonly categoryStats = computed(() => {
-    const categories = ['Handheld', 'Marine', 'Base Station', 'Accessories', 'Land Mobile', 'MOTOTRBO PORTABLE RADIOS', 'Aviation', 'Amateur', 'Receiver'];
-    return categories.map(cat => {
+    return PRODUCT_CATEGORIES.map(cat => {
       const items = this.products().filter(p => p.category === cat);
       return {
         category: cat,
         count: items.length,
         totalUnits: items.reduce((s, p) => s + p.stock, 0),
-        stockValue: items.reduce((s, p) => s + p.stock * p.price, 0),
+        stockValue: items.reduce((s, p) => s + p.stock * (p.price ?? 0), 0),
       };
     });
   });

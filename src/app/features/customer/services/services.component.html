@@ -2,55 +2,52 @@
   <div class="services-container">
     <h1 class="page-title">Services</h1>
 
+    @if (loadFailed()) {
+      <nz-alert
+        class="load-alert"
+        nzType="error"
+        nzShowIcon
+        nzMessage="We could not load your bookings"
+        nzDescription="Check your connection and refresh the page."
+      />
+    }
+
     <nz-tabs>
       <nz-tab nzTitle="Available Services">
-        <div class="services-grid">
-          @for (svc of services(); track svc.id) {
-            <nz-card class="svc-card">
-              <div class="svc-icon">🔧</div>
-              <h3 class="svc-title">{{ svc.title }}</h3>
-              <p class="svc-desc">{{ svc.description }}</p>
-              <div class="svc-footer">
-                <span class="svc-price">Starting at {{ svc.price | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-                <button nz-button nzType="primary" class="book-btn" (click)="openBooking(svc)">
-                  Book Now
-                </button>
-              </div>
-            </nz-card>
-          }
-        </div>
+        @if (loading() && !services().length) {
+          <div class="state-box"><nz-spin nzSimple /></div>
+        } @else {
+          <div class="services-grid">
+            @for (svc of services(); track svc.id) {
+              <nz-card class="svc-card">
+                <div class="svc-icon">🔧</div>
+                <h3 class="svc-title">{{ svc.title }}</h3>
+                <p class="svc-desc">{{ svc.description }}</p>
+                <div class="svc-footer">
+                  <span class="svc-price">Starting at {{ svc.price | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
+                  <button nz-button nzType="primary" class="book-btn" (click)="openBooking(svc)">Book Now</button>
+                </div>
+              </nz-card>
+            } @empty {
+              <nz-empty nzNotFoundContent="No services are available right now." />
+            }
+          </div>
+        }
       </nz-tab>
 
-      <nz-tab nzTitle="My Bookings">
-        @if (bookings().length === 0) {
-          <nz-empty nzDescription="No bookings yet">
-            <button *nzSpaceItem nz-button nzType="primary" class="book-btn" (click)="openBooking()">
-              Book a Service
-            </button>
+      <nz-tab [nzTitle]="'My Bookings' + (bookings().length ? ' (' + bookings().length + ')' : '')">
+        @if (loading() && !bookings().length) {
+          <div class="state-box"><nz-spin nzSimple /></div>
+        } @else if (bookings().length === 0) {
+          <nz-empty nzNotFoundContent="No bookings yet">
+            <ng-template #nzNotFoundFooter>
+              <button nz-button nzType="primary" class="book-btn" (click)="openBooking()">Book a Service</button>
+            </ng-template>
           </nz-empty>
-          <div class="mt-4 text-center">
-            <button nz-button nzType="primary" class="book-btn" (click)="openBooking()">Book a Service</button>
-          </div>
         } @else {
           <div class="bookings-list">
             @for (booking of bookings(); track booking.id) {
-              <nz-card class="booking-card">
-                <div class="booking-header">
-                  <div>
-                    <h3 class="booking-title">{{ booking.serviceName }}</h3>
-                    <p class="booking-date">
-                      <span nz-icon nzType="calendar"></span>
-                      {{ booking.preferredDate | date:'mediumDate' }} at {{ booking.preferredTime }}
-                    </p>
-                  </div>
-                  <div class="booking-right">
-                    <nz-tag [nzColor]="BOOKING_STATUS_COLORS[booking.status]">{{ booking.status }}</nz-tag>
-                    @if (booking.status === 'Pending') {
-                      <button nz-button nzDanger nzSize="small" (click)="confirmCancel(booking.id)">Cancel</button>
-                    }
-                  </div>
-                </div>
-              </nz-card>
+              <app-booking-panel [booking]="booking" [showChatLink]="true" />
             }
           </div>
         }
@@ -59,57 +56,72 @@
   </div>
 </div>
 
-<nz-modal [(nzVisible)]="modalVisible" nzTitle="Book a Service" [nzFooter]="null" nzWidth="520px">
+<nz-modal [(nzVisible)]="modalVisible" nzTitle="Book a Service" [nzFooter]="null" nzWidth="560px">
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="book()">
       <nz-form-item>
         <nz-form-label nzRequired>Service</nz-form-label>
-        <nz-form-control>
+        <nz-form-control nzErrorTip="Choose a service.">
           <nz-select formControlName="serviceId" nzPlaceHolder="Select a service" nzSize="large">
             @for (svc of services(); track svc.id) {
-              <nz-option [nzValue]="svc.id" [nzLabel]="svc.title + ' — ₱' + svc.price.toLocaleString()"></nz-option>
+              <nz-option [nzValue]="svc.id" [nzLabel]="svc.title + ' (from ₱' + svc.price.toLocaleString() + ')'"></nz-option>
             }
           </nz-select>
         </nz-form-control>
       </nz-form-item>
 
-      <div class="form-row">
-        <nz-form-item class="flex-1">
-          <nz-form-label nzRequired>Preferred Date</nz-form-label>
-          <nz-form-control>
-            <nz-date-picker formControlName="preferredDate" nzSize="large" style="width: 100%" />
-          </nz-form-control>
-        </nz-form-item>
-        <nz-form-item style="width: 120px">
-          <nz-form-label nzRequired>Time</nz-form-label>
-          <nz-form-control>
-            <nz-select formControlName="preferredTime" nzSize="large">
-              @for (t of ['09:00','10:00','11:00','13:00','14:00','15:00','16:00']; track t) {
-                <nz-option [nzValue]="t" [nzLabel]="t"></nz-option>
-              }
-            </nz-select>
-          </nz-form-control>
-        </nz-form-item>
-      </div>
+      <nz-form-item>
+        <nz-form-label nzRequired>Preferred date and time</nz-form-label>
+        <nz-form-control>
+          <app-slot-picker [(date)]="preferredDate" [(time)]="preferredTime" />
+        </nz-form-control>
+      </nz-form-item>
+
+      <nz-form-item>
+        <nz-form-label>What do you need done?</nz-form-label>
+        <nz-form-control [nzErrorTip]="errorTip('notes')">
+          <textarea
+            nz-input
+            formControlName="notes"
+            rows="3"
+            maxlength="1000"
+            placeholder="Describe the problem or the job: radio models, quantity, location..."
+          ></textarea>
+        </nz-form-control>
+      </nz-form-item>
 
       <nz-form-item>
         <nz-form-label nzRequired>Full Name</nz-form-label>
-        <nz-form-control><input nz-input formControlName="customerName" /></nz-form-control>
+        <nz-form-control [nzErrorTip]="errorTip('customerName')"><input nz-input formControlName="customerName" /></nz-form-control>
       </nz-form-item>
       <div class="form-row">
         <nz-form-item class="flex-1">
           <nz-form-label nzRequired>Email</nz-form-label>
-          <nz-form-control><input nz-input type="email" formControlName="customerEmail" /></nz-form-control>
+          <nz-form-control [nzErrorTip]="errorTip('customerEmail')"><input nz-input type="email" formControlName="customerEmail" /></nz-form-control>
         </nz-form-item>
         <nz-form-item class="flex-1">
           <nz-form-label nzRequired>Mobile</nz-form-label>
-          <nz-form-control><input nz-input formControlName="customerMobile" /></nz-form-control>
+          <nz-form-control [nzErrorTip]="errorTip('customerMobile')"><input nz-input formControlName="customerMobile" placeholder="09171234567" /></nz-form-control>
         </nz-form-item>
       </div>
 
+      <p class="booking-note">
+        Submitting holds your time slot. Our team will chat with you to confirm the quotation and, if needed, adjust the
+        date. You pay only after it is confirmed.
+      </p>
+
       <div class="modal-footer">
         <button nz-button type="button" (click)="modalVisible.set(false)">Cancel</button>
-        <button nz-button nzType="primary" type="submit" class="book-btn">Submit Booking</button>
+        <button
+          nz-button
+          nzType="primary"
+          type="submit"
+          class="book-btn"
+          [nzLoading]="submitting()"
+          [disabled]="form.invalid || !preferredDate() || !preferredTime()"
+        >
+          Submit Booking
+        </button>
       </div>
     </form>
   </ng-container>

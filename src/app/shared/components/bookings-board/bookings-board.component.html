@@ -1,0 +1,33 @@
+<div class="page-wrap">
+  <h1 class="page-title">Service Bookings</h1>
+
+  @if (loadFailed()) {
+    <nz-alert
+      class="load-alert"
+      nzType="error"
+      nzShowIcon
+      nzMessage="We could not load the bookings"
+      nzDescription="Check your connection and refresh the page. If it keeps failing, the Firestore rules may not be deployed."
+    />
+  }
+
+  @if (loading() && !groups()[0].bookings.length) {
+    <div class="state-box"><nz-spin nzSimple /></div>
+  } @else {
+    <nz-tabs>
+      @for (group of groups(); track group.key) {
+        <nz-tab [nzTitle]="group.title + ' (' + group.bookings.length + ')'">
+          @if (group.bookings.length) {
+            <div class="board-list">
+              @for (booking of group.bookings; track booking.id) {
+                <app-booking-panel [booking]="booking" [showChatLink]="true" />
+              }
+            </div>
+          } @else {
+            <nz-empty [nzNotFoundContent]="group.empty" />
+          }
+        </nz-tab>
+      }
+    </nz-tabs>
+  }
+</div>

@@ -1,0 +1,329 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isStaff() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
+    }
+
+    function isStaffOrAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['staff', 'admin'];
+    }
+
+    // Only call after signedIn() and once the caller's profile is known to exist (errors deny the request).
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function bookingPath(bookingId) {
+      return /databases/$(database)/documents/bookings/$(bookingId);
+    }
+
+    function conversationPath(conversationId) {
+      return /databases/$(database)/documents/conversations/$(conversationId);
+    }
+
+    function validStock(stock) {
+      return stock is int && stock >= 0;
+    }
+
+    function validProduct(product) {
+      return product.name is string && product.name.size() > 0
+        && product.category is string
+        && validStock(product.stock)
+        && product.get('isActive', true) is bool
+        && (product.get('srp', null) == null || (product.srp is number && product.srp >= 0));
+    }
+
+    function shortText(value, max) {
+      return value is string && value.trim().size() > 0 && value.size() <= max;
+    }
+
+    function validAddress(address) {
+      return address.keys().hasOnly(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile', 'isDefault', 'createdAt'])
+        && address.keys().hasAll(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile', 'isDefault', 'createdAt'])
+        && shortText(address.fullName, 60)
+        && shortText(address.addressLine, 200)
+        && shortText(address.city, 80)
+        && shortText(address.province, 80)
+        && shortText(address.zip, 10)
+        && shortText(address.mobile, 20)
+        && address.isDefault is bool;
+    }
+
+    function validName(name) {
+      return name is string && name.size() >= 2 && name.size() <= 60;
+    }
+
+    // One profile per account, keyed by Firebase Auth uid. `role` decides which portal the user can open.
+    match /users/{uid} {
+      // Read your own profile; admins can read and list everyone's.
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+
+      // Self sign-up (and first sign-in of an account that has no profile): always a customer.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt'])
+        && request.resource.data.role == 'customer'
+        && request.resource.data.email == request.auth.token.email
+        && validName(request.resource.data.name)
+        && request.resource.data.createdAt == request.time;
+
+      // Admin-created accounts (staff/admin/customer). The doc id is the new account's uid.
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt'])
+        && request.resource.data.role in ['customer', 'staff', 'admin']
+        && request.resource.data.email is string
+        && validName(request.resource.data.name)
+        && request.resource.data.createdAt == request.time;
+
+      // Users may rename themselves but never change their role or email.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && validName(request.resource.data.name);
+
+      // Admins change other people's roles (not their own, so the last admin cannot be demoted by accident).
+      allow update: if isAdmin()
+        && request.auth.uid != uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+        && request.resource.data.role in ['customer', 'staff', 'admin'];
+
+      allow delete: if false;
+    }
+
+    // A customer's liked products: users/{uid}/favorites/{productId}. Only the owner can see or change them.
+    match /users/{uid}/favorites/{productId} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['createdAt'])
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // A customer's saved shipping addresses: users/{uid}/addresses/{addressId}. Only the owner can see or change them.
+    // `isDefault` is kept unique by the client (batched writes); rules only check that each document is well formed.
+    match /users/{uid}/addresses/{addressId} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && validAddress(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && validAddress(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // The storefront catalog. Any signed-in user can read it; admins manage it and staff can only adjust stock.
+    // NOTE: reads are per document, so every field (including `dealerPrice` if present) is visible to every signed-in customer.
+    match /products/{productId} {
+      allow read: if signedIn();
+
+      allow create: if isAdmin() && validProduct(request.resource.data);
+      allow update: if (isAdmin() && validProduct(request.resource.data))
+        || (isStaff()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock'])
+          && validStock(request.resource.data.stock));
+      allow delete: if isAdmin();
+    }
+
+    // Bookable services (seeded with `npm run seed:services`). Any signed-in user can read them; admins manage them.
+    match /services/{serviceId} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin()
+        && shortText(request.resource.data.title, 100)
+        && request.resource.data.price is number && request.resource.data.price >= 0
+        && request.resource.data.description is string && request.resource.data.description.size() <= 500;
+      allow delete: if isAdmin();
+    }
+
+    // One document per taken slot, id = `{date}T{HH:mm}`. It is created and deleted in the same batch as the booking
+    // that holds it, and creating an id that already exists counts as an update, which is denied: that is what stops
+    // two customers booking the same slot. The document holds no personal data, so everyone can read it to see availability.
+    match /bookingSlots/{slotId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['date', 'time', 'bookingId'])
+        && request.resource.data.keys().hasAll(['date', 'time', 'bookingId'])
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.time in ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00']
+        && request.resource.data.bookingId is string
+        && slotId == request.resource.data.date + 'T' + request.resource.data.time
+        && existsAfter(bookingPath(request.resource.data.bookingId))
+        && getAfter(bookingPath(request.resource.data.bookingId)).data.preferredDate == request.resource.data.date
+        && getAfter(bookingPath(request.resource.data.bookingId)).data.preferredTime == request.resource.data.time
+        && getAfter(bookingPath(request.resource.data.bookingId)).data.status in ['Pending', 'Confirmed', 'Paid']
+        && (getAfter(bookingPath(request.resource.data.bookingId)).data.customerId == request.auth.uid || isStaffOrAdmin());
+
+      allow update: if false;
+
+      // Freed when its booking is cancelled (by the customer or staff) or moved to another slot (by staff).
+      allow delete: if signedIn()
+        && ((getAfter(bookingPath(resource.data.bookingId)).data.status == 'Cancelled'
+            && (get(bookingPath(resource.data.bookingId)).data.customerId == request.auth.uid || isStaffOrAdmin()))
+          || (isStaffOrAdmin()
+            && (getAfter(bookingPath(resource.data.bookingId)).data.preferredDate != resource.data.date
+              || getAfter(bookingPath(resource.data.bookingId)).data.preferredTime != resource.data.time)));
+    }
+
+    function validPayment(payment, quotedAmount) {
+      return payment.keys().hasOnly(['method', 'referenceNumber', 'amount', 'status', 'submittedAt'])
+        && payment.keys().hasAll(['method', 'referenceNumber', 'amount', 'status', 'submittedAt'])
+        && payment.method in ['GCash', 'Bank Transfer']
+        && shortText(payment.referenceNumber, 40)
+        && payment.amount == quotedAmount
+        && payment.status == 'Submitted'
+        && payment.submittedAt == request.time;
+    }
+
+    function validQuote(quote) {
+      return quote.keys().hasOnly(['amount', 'note', 'quotedAt'])
+        && quote.keys().hasAll(['amount', 'note', 'quotedAt'])
+        && quote.amount is number && quote.amount > 0
+        && quote.note is string && quote.note.size() <= 500
+        && quote.quotedAt is timestamp;
+    }
+
+    function validNewBooking(booking, bookingId) {
+      return booking.keys().hasOnly(['serviceId', 'serviceName', 'servicePrice', 'customerId', 'customerName',
+          'customerEmail', 'customerMobile', 'preferredDate', 'preferredTime', 'notes', 'status', 'conversationId',
+          'createdAt', 'updatedAt'])
+        && booking.keys().hasAll(['serviceId', 'serviceName', 'servicePrice', 'customerId', 'customerName',
+          'customerEmail', 'customerMobile', 'preferredDate', 'preferredTime', 'notes', 'status', 'conversationId',
+          'createdAt', 'updatedAt'])
+        && booking.customerId == request.auth.uid
+        && booking.status == 'Pending'
+        && shortText(booking.serviceId, 100)
+        && shortText(booking.serviceName, 100)
+        && booking.servicePrice is number && booking.servicePrice >= 0
+        && shortText(booking.customerName, 60)
+        && shortText(booking.customerEmail, 100)
+        && shortText(booking.customerMobile, 20)
+        && booking.preferredDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && booking.preferredTime in ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00']
+        && booking.notes is string && booking.notes.size() <= 1000
+        && booking.createdAt == request.time
+        && booking.updatedAt == request.time
+        // The slot and the booking's chat come with it in the same batch.
+        && existsAfter(/databases/$(database)/documents/bookingSlots/$(booking.preferredDate + 'T' + booking.preferredTime))
+        && getAfter(/databases/$(database)/documents/bookingSlots/$(booking.preferredDate + 'T' + booking.preferredTime)).data.bookingId == bookingId
+        && existsAfter(conversationPath(booking.conversationId))
+        && getAfter(conversationPath(booking.conversationId)).data.bookingId == bookingId;
+    }
+
+    // A service booking. Customers create their own (always Pending) and can cancel or pay it; staff and admins
+    // see every booking and drive it: quote and confirm, reschedule, verify payment, complete, cancel.
+    match /bookings/{bookingId} {
+      allow read: if signedIn() && (resource.data.customerId == request.auth.uid || isStaffOrAdmin());
+
+      allow create: if signedIn() && validNewBooking(request.resource.data, bookingId);
+
+      allow update: if signedIn() && (
+        // Customer cancels, until they have submitted a payment.
+        (resource.data.customerId == request.auth.uid
+          && resource.data.status in ['Pending', 'Confirmed']
+          && !resource.data.keys().hasAny(['payment'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          && request.resource.data.status == 'Cancelled'
+          && request.resource.data.updatedAt == request.time)
+        // Customer reports a payment of exactly the confirmed amount.
+        || (resource.data.customerId == request.auth.uid
+          && resource.data.status == 'Confirmed'
+          && !resource.data.keys().hasAny(['payment'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payment', 'updatedAt'])
+          && validPayment(request.resource.data.payment, resource.data.quote.amount)
+          && request.resource.data.updatedAt == request.time)
+        // Staff and admins change everything except who booked what.
+        || (isStaffOrAdmin()
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['customerId', 'customerName',
+            'customerEmail', 'customerMobile', 'serviceId', 'serviceName', 'servicePrice', 'conversationId',
+            'notes', 'createdAt'])
+          && request.resource.data.status in ['Pending', 'Confirmed', 'Paid', 'Completed', 'Cancelled']
+          && (!request.resource.data.keys().hasAny(['quote']) || validQuote(request.resource.data.quote))
+          && request.resource.data.updatedAt == request.time)
+      );
+
+      allow delete: if false;
+    }
+
+    // A chat thread between a customer and the shop, either opened from a booking or as a general inquiry.
+    // `customerUnread` / `staffUnread` are each side's unread counters (the sender bumps the other side's).
+    match /conversations/{conversationId} {
+      allow read: if signedIn() && (resource.data.customerId == request.auth.uid || isStaffOrAdmin());
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['customerId', 'customerName', 'subject', 'bookingId', 'lastMessage',
+          'lastMessageAt', 'customerUnread', 'staffUnread', 'createdAt'])
+        && request.resource.data.keys().hasAll(['customerId', 'customerName', 'subject', 'lastMessage',
+          'lastMessageAt', 'customerUnread', 'staffUnread', 'createdAt'])
+        && request.resource.data.customerId == request.auth.uid
+        && shortText(request.resource.data.customerName, 60)
+        && shortText(request.resource.data.subject, 120)
+        && shortText(request.resource.data.lastMessage, 2000)
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.customerUnread == 0
+        && request.resource.data.staffUnread == 1
+        && (!request.resource.data.keys().hasAny(['bookingId'])
+          || getAfter(bookingPath(request.resource.data.bookingId)).data.customerId == request.auth.uid);
+
+      // Either side moves the preview and the unread counters; nothing else changes.
+      allow update: if signedIn()
+        && (resource.data.customerId == request.auth.uid || isStaffOrAdmin())
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['lastMessage', 'lastMessageAt', 'customerUnread', 'staffUnread'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessage', 'lastMessageAt'])
+          || (shortText(request.resource.data.lastMessage, 2000) && request.resource.data.lastMessageAt == request.time))
+        && request.resource.data.customerUnread is int && request.resource.data.customerUnread >= 0
+        && request.resource.data.staffUnread is int && request.resource.data.staffUnread >= 0;
+
+      allow delete: if false;
+
+      // Messages are append-only. `getAfter` lets the first message be written in the same batch as its conversation.
+      match /messages/{messageId} {
+        allow read: if signedIn()
+          && (get(conversationPath(conversationId)).data.customerId == request.auth.uid || isStaffOrAdmin());
+
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['senderId', 'senderName', 'senderRole', 'kind', 'content', 'sentAt'])
+          && request.resource.data.keys().hasAll(['senderId', 'senderName', 'senderRole', 'kind', 'content', 'sentAt'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.senderName == userProfile().name
+          && request.resource.data.senderRole == userProfile().role
+          && request.resource.data.kind in ['text', 'event']
+          && shortText(request.resource.data.content, 2000)
+          && request.resource.data.sentAt == request.time
+          && (getAfter(conversationPath(conversationId)).data.customerId == request.auth.uid || isStaffOrAdmin());
+
+        allow update, delete: if false;
+      }
+    }
+
+    // Everything else stays locked until its feature is migrated to Firestore.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

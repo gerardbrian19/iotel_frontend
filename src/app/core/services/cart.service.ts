@@ -1,11 +1,13 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { CartItem } from '../models';
+import { ProductService } from './product.service';
 
-const FREE_SHIPPING_THRESHOLD = 5000;
 const SHIPPING_FEE = 250;
 
 @Injectable({ providedIn: 'root' })
 export class CartService {
+  private readonly products = inject(ProductService);
+
   readonly items = signal<CartItem[]>([]);
 
   readonly itemCount = (() => {
@@ -22,37 +24,43 @@ export class CartService {
   }
 
   get shippingFee(): number {
-    return this.subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+    return this.items().length ? SHIPPING_FEE : 0;
   }
 
   get total(): number {
     return this.subtotal + this.shippingFee;
   }
 
-  get freeShippingThreshold(): number {
-    return FREE_SHIPPING_THRESHOLD;
+  /** The most units of a product the cart can hold: its live stock. Products we can't look up aren't capped. */
+  maxQty(productId: string): number {
+    return this.products.byId().get(productId)?.stock ?? Infinity;
   }
 
-  addItem(item: Omit<CartItem, 'qty'>): void {
+  /** Adds one unit. Returns false, leaving the cart unchanged, when that would exceed the stock on hand. */
+  addItem(item: Omit<CartItem, 'qty'>): boolean {
     const existing = this.items().find(i => i.productId === item.productId);
+    const qty = (existing?.qty ?? 0) + 1;
+    if (qty > this.maxQty(item.productId)) return false;
     if (existing) {
-      this.updateQty(item.productId, existing.qty + 1);
+      this.updateQty(item.productId, qty);
     } else {
-      this.items.update(list => [...list, { ...item, qty: 1 }]);
+      this.items.update(list => [...list, { ...item, qty }]);
     }
+    return true;
   }
 
-  updateQty(productId: number, qty: number): void {
+  updateQty(productId: string, qty: number): void {
     if (qty <= 0) {
       this.removeItem(productId);
       return;
     }
+    const capped = Math.min(qty, this.maxQty(productId));
     this.items.update(list =>
-      list.map(i => (i.productId === productId ? { ...i, qty } : i))
+      list.map(i => (i.productId === productId ? { ...i, qty: capped } : i))
     );
   }
 
-  removeItem(productId: number): void {
+  removeItem(productId: string): void {
     this.items.update(list => list.filter(i => i.productId !== productId));
   }
 

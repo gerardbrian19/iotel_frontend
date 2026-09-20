@@ -5,10 +5,10 @@
       <div class="conv-item" [class.active]="selectedConversation()?.id === c.id" (click)="selectConversation(c)">
         <div class="conv-top">
           <span class="conv-subject">{{ c.subject }}</span>
-          <nz-badge [nzCount]="unreadCount(c)" [nzOverflowCount]="9" />
+          <nz-badge [nzCount]="c.unreadCount" [nzOverflowCount]="9" />
         </div>
         <div class="conv-preview">{{ c.lastMessage | slice:0:60 }}</div>
-        <div class="conv-customer">Customer #{{ c.customerId }}</div>
+        <div class="conv-customer">{{ c.customerName }}</div>
       </div>
     }
     @if (!conversations().length) {
@@ -22,6 +22,7 @@
       </button>
       <app-chat-panel
         [conversation]="selectedConversation()!"
+        [messages]="messages()"
         [currentUserId]="currentUserId"
         (messageSent)="onMessageSent($event)"
       />

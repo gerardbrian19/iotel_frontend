@@ -1,121 +1,137 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { CurrencyPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
+import { finalize } from 'rxjs';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
-import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzSpaceModule } from 'ng-zorro-antd/space';
-import { BookingService } from '../../../core/services/booking.service';
+import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { BookingService, bookingErrorMessage } from '../../../core/services/booking.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { Booking, Service } from '../../../core/models';
-
-const BOOKING_STATUS_COLORS: Record<Booking['status'], string> = {
-  Pending: 'warning',
-  Confirmed: 'success',
-  Cancelled: 'error',
-};
+import { Service } from '../../../core/models';
+import { BookingPanelComponent } from '../../../shared/components/booking-panel/booking-panel.component';
+import { SlotPickerComponent } from '../../../shared/components/slot-picker/slot-picker.component';
+import { emailFormat, personName, phMobile, requiredTrimmed } from '../../../shared/utils/validators';
 
 @Component({
   selector: 'app-services',
   standalone: true,
   imports: [
-    CurrencyPipe, DatePipe, FormsModule, ReactiveFormsModule,
+    CurrencyPipe, ReactiveFormsModule,
     NzCardModule, NzButtonModule, NzModalModule, NzTabsModule,
-    NzTagModule, NzFormModule, NzInputModule, NzSelectModule,
-    NzDatePickerModule, NzIconModule, NzEmptyModule, NzSpaceModule,
+    NzFormModule, NzInputModule, NzSelectModule, NzEmptyModule, NzSpinModule, NzAlertModule,
+    BookingPanelComponent, SlotPickerComponent,
   ],
   templateUrl: './services.component.html',
   styleUrl: './services.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ServicesComponent implements OnInit {
+export class ServicesComponent {
   private readonly bookingService = inject(BookingService);
   private readonly auth = inject(AuthService);
   private readonly msg = inject(NzMessageService);
-  private readonly modal = inject(NzModalService);
+  private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 
-  readonly BOOKING_STATUS_COLORS = BOOKING_STATUS_COLORS;
-  readonly services = signal<Service[]>([]);
-  readonly bookings = signal<Booking[]>([]);
+  readonly services = this.bookingService.services;
+  readonly loading = this.bookingService.loading;
+  readonly loadFailed = this.bookingService.error;
   readonly modalVisible = signal(false);
-  readonly selectedService = signal<Service | null>(null);
+  readonly submitting = signal(false);
+  readonly preferredDate = signal<string | null>(null);
+  readonly preferredTime = signal<string | null>(null);
 
-  readonly form = this.fb.group({
-    serviceId: [0, [Validators.required, Validators.min(1)]],
-    preferredDate: [null as Date | null, Validators.required],
-    preferredTime: ['10:00', Validators.required],
-    customerName: ['', Validators.required],
-    customerEmail: ['', [Validators.required, Validators.email]],
-    customerMobile: ['', Validators.required],
+  /** Bookings still in progress first (soonest date first), then finished and cancelled ones, newest first. */
+  readonly bookings = computed(() => {
+    const all = this.bookingService.bookings();
+    const inProgress = (status: string) => status === 'Pending' || status === 'Confirmed' || status === 'Paid';
+    const active = all
+      .filter(b => inProgress(b.status))
+      .sort((a, b) => (a.preferredDate + a.preferredTime).localeCompare(b.preferredDate + b.preferredTime));
+    return [...active, ...all.filter(b => !inProgress(b.status))];
   });
 
-  ngOnInit(): void {
-    this.bookingService.getServices().subscribe(s => this.services.set(s));
-    const user = this.auth.currentUser();
-    if (user) {
-      this.bookingService.getBookings(user.id).subscribe(b => this.bookings.set(b));
-      this.form.patchValue({ customerName: user.name, customerEmail: user.email });
-    }
+  readonly form = this.fb.group({
+    serviceId: ['', Validators.required],
+    customerName: ['', [requiredTrimmed, personName]],
+    customerEmail: ['', [requiredTrimmed, emailFormat]],
+    customerMobile: ['', [requiredTrimmed, phMobile]],
+    notes: ['', Validators.maxLength(1000)],
+  });
+
+  private readonly serviceId = signal('');
+  readonly selectedService = computed(() => this.services().find(s => s.id === this.serviceId()) ?? null);
+
+  constructor() {
+    this.form.controls.serviceId.valueChanges.subscribe(id => this.serviceId.set(id ?? ''));
+    // The profile may finish loading after the page opens.
+    effect(() => {
+      const user = this.auth.currentUser();
+      if (user && !this.form.controls.customerName.dirty) {
+        this.form.patchValue({ customerName: user.name, customerEmail: user.email }, { emitEvent: false });
+      }
+    });
   }
 
   openBooking(service?: Service): void {
-    if (service) {
-      this.selectedService.set(service);
-      this.form.patchValue({ serviceId: service.id });
-    }
+    if (service) this.form.controls.serviceId.setValue(service.id);
     this.modalVisible.set(true);
   }
 
   book(): void {
-    if (this.form.invalid) return;
-    const user = this.auth.currentUser()!;
-    const v = this.form.value;
-    const svc = this.services().find(s => s.id === v.serviceId)!;
-    const dateStr = (v.preferredDate as Date).toISOString().split('T')[0];
-    this.bookingService.create({
-      serviceId: svc.id,
-      serviceName: svc.title,
-      customerId: user.id,
-      customerName: v.customerName!,
-      customerEmail: v.customerEmail!,
-      customerMobile: v.customerMobile!,
-      preferredDate: dateStr,
-      preferredTime: v.preferredTime!,
-      status: 'Pending',
-    }).subscribe(b => {
-      this.bookings.update(list => [...list, b]);
-      this.msg.success('Booking submitted successfully!');
-      this.modalVisible.set(false);
-      this.form.reset({ preferredTime: '10:00', customerName: user.name, customerEmail: user.email });
-    });
+    const service = this.selectedService();
+    const date = this.preferredDate();
+    const time = this.preferredTime();
+    if (this.form.invalid || !service || !date || !time || this.submitting()) return;
+
+    const v = this.form.getRawValue();
+    this.submitting.set(true);
+    this.bookingService
+      .create({
+        service,
+        preferredDate: date,
+        preferredTime: time,
+        customerName: v.customerName!,
+        customerEmail: v.customerEmail!,
+        customerMobile: v.customerMobile!,
+        notes: v.notes ?? '',
+      })
+      .pipe(finalize(() => this.submitting.set(false)))
+      .subscribe({
+        next: ({ conversationId }) => {
+          this.msg.success('Booking submitted. Chat with our team to agree on the quotation.');
+          this.modalVisible.set(false);
+          this.resetForm();
+          this.router.navigate(['/customer/messages'], { queryParams: { conversation: conversationId } });
+        },
+        error: err => this.msg.error(bookingErrorMessage(err)),
+      });
   }
 
-  confirmCancel(id: number): void {
-    this.modal.confirm({
-      nzTitle: 'Cancel this booking?',
-      nzContent: 'Are you sure you want to cancel this booking?',
-      nzOkText: 'Yes, cancel it',
-      nzOkDanger: true,
-      nzCancelText: 'Keep booking',
-      nzOnOk: () => this.cancelBooking(id),
-    });
+  errorTip(name: 'customerName' | 'customerEmail' | 'customerMobile' | 'notes'): string {
+    const errors = this.form.controls[name].errors;
+    if (!errors) return '';
+    if (errors['required']) return 'This field is required.';
+    if (errors['email']) return 'Enter a valid email address.';
+    if (errors['mobile']) return 'Enter a valid PH mobile number, e.g. 09171234567.';
+    if (errors['name']) return 'Use letters, spaces, dots, apostrophes and hyphens only.';
+    if (errors['minlength']) return 'Too short.';
+    if (errors['maxlength']) return 'Too long.';
+    return 'Invalid value.';
   }
 
-  cancelBooking(id: number): void {
-    this.bookingService.cancel(id).subscribe(() => {
-      this.bookings.update(list => list.map(b => b.id === id ? { ...b, status: 'Cancelled' } : b));
-      this.msg.success('Booking cancelled');
-    });
+  private resetForm(): void {
+    const user = this.auth.currentUser();
+    this.form.reset({ serviceId: '', customerName: user?.name ?? '', customerEmail: user?.email ?? '', customerMobile: '', notes: '' });
+    this.preferredDate.set(null);
+    this.preferredTime.set(null);
   }
 }

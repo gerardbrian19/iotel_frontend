@@ -6,6 +6,7 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { ProductService } from '../../../core/services/product.service';
+import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
 
 @Component({
   selector: 'app-staff-inventory',
@@ -18,12 +19,14 @@ import { ProductService } from '../../../core/services/product.service';
 export class StaffInventoryComponent {
   private readonly productService = inject(ProductService);
 
+  readonly placeholder = PLACEHOLDER_IMAGE;
+  readonly onImageError = onImageError;
   readonly search = signal('');
   readonly products = this.productService.products;
 
   readonly filtered = computed(() => {
     const q = this.search().toLowerCase();
-    return q ? this.products().filter(p => p.name.toLowerCase().includes(q)) : this.products();
+    return q ? this.products().filter(p => `${p.name} ${p.brand} ${p.model}`.toLowerCase().includes(q)) : this.products();
   });
 
   stockLevel(stock: number): { label: string; color: string } {
