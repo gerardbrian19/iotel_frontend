@@ -11,11 +11,13 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { PRODUCT_CATEGORIES } from '../../../core/models';
 import { ProductService } from '../../../core/services/product.service';
 import { OrderService } from '../../../core/services/order.service';
+import { monthlySales } from '../../../core/orders/sales-view';
+import { SalesChartComponent } from './sales-chart/sales-chart.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CurrencyPipe, DatePipe, RouterLink, NzCardModule, NzTagModule, NzTableModule, NzStatisticModule, NzBadgeModule, NzAlertModule, NzIconModule],
+  imports: [CurrencyPipe, DatePipe, RouterLink, NzCardModule, NzTagModule, NzTableModule, NzStatisticModule, NzBadgeModule, NzAlertModule, NzIconModule, SalesChartComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,7 +34,9 @@ export class DashboardComponent {
   readonly revenue = computed(() =>
     this.orders().filter(o => o.status === 'Delivered').reduce((s, o) => s + o.total, 0)
   );
-  readonly lowStockItems = computed(() => this.products().filter(p => p.stock > 0 && p.stock <= 5));
+  readonly monthlySales = computed(() => monthlySales(this.orders()));
+  readonly salesTotal = computed(() => this.monthlySales().reduce((s, m) => s + m.total, 0));
+  readonly lowStockItems =computed(() => this.products().filter(p => p.stock > 0 && p.stock <= 5));
   readonly recentOrders = computed(() => [...this.orders()].slice(0, 5));
 
   readonly statusColors: Record<string, string> = {

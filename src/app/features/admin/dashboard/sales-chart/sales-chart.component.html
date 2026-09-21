@@ -1,0 +1,56 @@
+<div class="chart" [style.--n]="data().length">
+  <div class="y-axis" aria-hidden="true">
+    @for (tick of yTicks(); track tick.value) {
+      <span class="y-tick" [style.bottom.%]="tick.pct">{{ compact(tick.value) }}</span>
+    }
+  </div>
+
+  <div class="plot" role="group" aria-label="Sales per month">
+    @for (tick of yTicks(); track tick.value) {
+      <span class="grid-line" [class.baseline]="tick.value === 0" [style.bottom.%]="tick.pct"></span>
+    }
+
+    <div class="cols">
+      @for (col of columns(); track col.key; let i = $index) {
+        <button
+          type="button"
+          class="col"
+          [attr.aria-label]="col.description"
+          (pointerenter)="active.set(i)"
+          (pointerleave)="active.set(null)"
+          (focus)="active.set(i)"
+          (blur)="active.set(null)"
+        >
+          @if (i === peakIndex() && active() !== i) {
+            <span class="cap" [style.bottom]="'calc(' + col.pct + '% + 4px)'">{{ compact(col.total) }}</span>
+          }
+          <span class="bar" [style.height.%]="col.pct"></span>
+        </button>
+      }
+    </div>
+
+    @if (isEmpty()) {
+      <p class="empty">No delivered orders in this period yet.</p>
+    }
+
+    @if (tooltip(); as tip) {
+      <div
+        class="tip"
+        [class.tip-start]="tip.align === 'start'"
+        [class.tip-end]="tip.align === 'end'"
+        [style.left.%]="tip.left"
+        [style.bottom]="'calc(' + tip.pct + '% + 10px)'"
+        aria-hidden="true"
+      >
+        <strong>{{ tip.total | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</strong>
+        <span>{{ tip.title }} · {{ tip.orders }} {{ tip.orders === 1 ? 'order' : 'orders' }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="x-axis" aria-hidden="true">
+    @for (col of columns(); track col.key) {
+      <span>{{ col.label }}</span>
+    }
+  </div>
+</div>

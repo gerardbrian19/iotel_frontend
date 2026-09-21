@@ -25,6 +25,16 @@
     </nz-card>
   </div>
 
+  <!-- Sales per Month -->
+  <nz-card class="dash-card sales-card" nzTitle="Sales per Month" [nzExtra]="salesSummary">
+    <ng-template #salesSummary>
+      <span class="sales-summary">
+        {{ salesTotal() | currency:'PHP':'symbol-narrow':'1.0-0' }} delivered in the last 12 months
+      </span>
+    </ng-template>
+    <app-sales-chart [data]="monthlySales()" />
+  </nz-card>
+
   <div class="dashboard-grid">
     <!-- Recent Orders -->
     <nz-card class="dash-card" nzTitle="Recent Orders" [nzExtra]="ordersLink">
