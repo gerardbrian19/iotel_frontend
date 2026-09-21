@@ -1,52 +1,130 @@
 <div class="page-wrap">
-  <h1 class="page-title">Prepare Orders</h1>
+  <h1 class="page-title">Orders</h1>
 
-  <div class="tabs-bar">
-    @for (tab of tabs; track tab) {
-      <button class="tab" [class.active]="activeTab() === tab" (click)="activeTab.set(tab)">
-        {{ tab }} <span class="tab-count">{{ tabCount(tab) }}</span>
-      </button>
-    }
+  <div class="top-bar">
+    <div class="tabs-bar">
+      @for (tab of tabs; track tab) {
+        <button class="tab" [class.active]="activeTab() === tab" (click)="activeTab.set(tab)">
+          {{ tab }} <span class="tab-count">{{ tabCount(tab) }}</span>
+        </button>
+      }
+    </div>
+    <nz-input-group [nzPrefix]="searchIcon" class="search">
+      <input
+        nz-input
+        placeholder="Search by order number or customer..."
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+      />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
   </div>
 
-  <div class="orders-grid">
-    @for (order of filtered(); track order.id) {
-      <nz-card [nzTitle]="order.id" class="order-card">
-        <ng-template nz-card-extra>
-          <nz-tag [nzColor]="order.status === 'Pending' ? 'warning' : 'processing'">{{ order.status }}</nz-tag>
-        </ng-template>
-        <p class="customer-info">{{ order.address.fullName }} · {{ order.address.city }}</p>
-        <p class="payment-info">{{ order.paymentMethod }} @if (order.referenceNumber) { · Ref: {{ order.referenceNumber }} }</p>
+  @if (actionable() > 0) {
+    <p class="queue-note">
+      {{ actionable() }} {{ actionable() === 1 ? 'order needs' : 'orders need' }} your attention.
+    </p>
+  }
 
-        <div class="items-checklist">
-          @for (item of order.items; track item.productId) {
-            <div class="checklist-item" [class.removed]="isRemoved(order.id, item.productId)">
-              <label nz-checkbox [ngModel]="!isRemoved(order.id, item.productId)" (ngModelChange)="toggleRemoveItem(order.id, item.productId)">
-                <img [src]="item.imageUrl" [alt]="item.name" class="item-thumb" />
-                <span class="item-name">{{ item.name }}</span>
-                <span class="item-qty">x{{ item.qty }}</span>
-                <span class="item-price">{{ (item.price * item.qty) | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-              </label>
-            </div>
+  @if (error()) {
+    <nz-alert
+      nzType="error"
+      nzShowIcon
+      nzMessage="Orders could not be loaded"
+      nzDescription="Check your connection and your access to orders, then reload the page."
+    />
+  } @else if (loading()) {
+    <div class="loading-state"><nz-spin nzSimple nzSize="large" /></div>
+  } @else {
+    <div class="orders-grid">
+      @for (order of filtered(); track order.id) {
+        <nz-card
+          [nzTitle]="order.code"
+          class="order-card"
+          [class.needs-action]="needsAction(order)"
+        >
+          <ng-template nz-card-extra>
+            <nz-tag [nzColor]="statusColors[order.status]">{{ order.status }}</nz-tag>
+            @if (order.status !== 'Cancelled') {
+              <nz-tag [nzColor]="paymentBadge(order).color">{{ paymentBadge(order).label }}</nz-tag>
+            }
+          </ng-template>
+
+          <p class="customer-info">
+            {{ order.customerName || order.address.fullName }} · {{ order.address.city }}
+          </p>
+          <p class="payment-info">
+            {{ order.createdAt | date: 'MMM d, h:mm a' }} · {{ order.payment.method }}
+            @if (order.payment.referenceNumber) {
+              · Ref: {{ order.payment.referenceNumber }}
+            }
+          </p>
+
+          <div class="items-checklist">
+            @for (item of order.items; track item.productId) {
+              @if (order.status === 'Processing') {
+                <div class="checklist-item" [class.packed]="isPacked(order, item.productId)">
+                  <label
+                    nz-checkbox
+                    [ngModel]="isPacked(order, item.productId)"
+                    (ngModelChange)="togglePacked(order, item.productId)"
+                  >
+                    <img
+                      [src]="item.imageUrl || placeholder"
+                      [alt]="item.name"
+                      class="item-thumb"
+                      (error)="onImageError($event)"
+                    />
+                    <span class="item-name">{{ item.name }}</span>
+                    <span class="item-qty">x{{ item.qty }}</span>
+                  </label>
+                </div>
+              } @else {
+                <div class="checklist-item">
+                  <img
+                    [src]="item.imageUrl || placeholder"
+                    [alt]="item.name"
+                    class="item-thumb"
+                    (error)="onImageError($event)"
+                  />
+                  <span class="item-name">{{ item.name }}</span>
+                  <span class="item-qty">x{{ item.qty }}</span>
+                </div>
+              }
+            }
+            @if (order.status === 'Processing') {
+              <p class="pack-progress">
+                {{ packedCount(order) }} of {{ order.items.length }} packed
+              </p>
+            }
+          </div>
+
+          <div class="order-total-row">
+            <span>Total</span>
+            <strong>{{ order.total | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</strong>
+          </div>
+
+          <app-order-actions [order]="order" />
+
+          <button
+            nz-button
+            nzType="link"
+            nzSize="small"
+            class="toggle"
+            (click)="toggle(order.id)"
+            [attr.aria-expanded]="expanded().has(order.id)"
+          >
+            {{ expanded().has(order.id) ? 'Hide details' : 'View details' }}
+            <span nz-icon [nzType]="expanded().has(order.id) ? 'up' : 'down'"></span>
+          </button>
+          @if (expanded().has(order.id)) {
+            <div class="order-body"><app-order-detail [order]="order" [showCustomer]="true" /></div>
           }
-        </div>
-
-        @if (isRemoved(order.id, order.items[0]?.productId)) {
-          <nz-alert nzType="warning" nzMessage="Some items removed — inform customer before processing" nzShowIcon style="margin-bottom:12px" />
-        }
-
-        <div class="order-actions">
-          <span class="order-total">Total: {{ order.total | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-          @if (order.status === 'Pending') {
-            <button nz-button nzType="primary" class="process-btn" (click)="prepareOrder(order)">Mark Processing</button>
-          } @else if (order.status === 'Processing') {
-            <button nz-button nzType="primary" class="ready-btn" (click)="confirmReady(order)">Confirm Ready / Ship</button>
-          }
-        </div>
-      </nz-card>
-    }
-    @if (!filtered().length) {
-      <div class="no-orders">No orders in this queue</div>
-    }
-  </div>
+        </nz-card>
+      }
+      @if (!filtered().length) {
+        <div class="no-orders">{{ emptyText(activeTab()) }}</div>
+      }
+    </div>
+  }
 </div>

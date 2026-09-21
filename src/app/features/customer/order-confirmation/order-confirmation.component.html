@@ -1,14 +1,12 @@
 <div class="confirmation-page">
-  @if (!order()) {
-    <div class="loading-state">
-      <nz-spin nzSimple nzSize="large" />
-    </div>
-  } @else {
+  @if (order(); as order) {
     <div class="confirmation-container">
       <nz-result
-        nzStatus="success"
-        [nzTitle]="'Order Placed Successfully!'"
-        [nzSubTitle]="'Order ID: ' + order()!.id"
+        [nzStatus]="order.status === 'Cancelled' ? 'info' : 'success'"
+        [nzTitle]="
+          order.status === 'Pending' ? 'Order Placed Successfully!' : 'Order ' + order.status
+        "
+        [nzSubTitle]="'Order ' + order.code"
       >
         <div nz-result-extra>
           <a routerLink="/customer/orders" nz-button nzType="primary" class="track-btn">
@@ -18,82 +16,45 @@
         </div>
       </nz-result>
 
-      <div class="order-details">
-        <!-- Order Metadata -->
-        <nz-card class="detail-card" nzTitle="Order Details">
-          <div class="meta-grid">
-            <div class="meta-item">
-              <span class="meta-label">Order ID</span>
-              <span class="meta-value">{{ order()!.id }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">Date Placed</span>
-              <span class="meta-value">{{ order()!.createdAt | date:'mediumDate' }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">Est. Delivery</span>
-              <span class="meta-value">{{ order()!.estimatedDelivery | date:'mediumDate' }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">Status</span>
-              <nz-tag nzColor="processing">{{ order()!.status }}</nz-tag>
-            </div>
+      <nz-card class="detail-card">
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">Order</span>
+            <span class="meta-value">{{ order.code }}</span>
           </div>
-        </nz-card>
-
-        <div class="order-cols">
-          <!-- Items -->
-          <nz-card class="detail-card" nzTitle="Ordered Items">
-            @for (item of order()!.items; track item.productId) {
-              <div class="conf-item">
-                <img [src]="item.imageUrl" [alt]="item.name" class="conf-item-img" />
-                <div class="conf-item-info">
-                  <p class="conf-item-name">{{ item.name }}</p>
-                  <p class="conf-item-meta">Qty: {{ item.qty }}</p>
-                </div>
-                <strong class="conf-item-total">
-                  {{ (item.price * item.qty) | currency:'PHP':'symbol-narrow':'1.0-0' }}
-                </strong>
-              </div>
-            }
-            <nz-divider />
-            <div class="summary-row"><span>Subtotal</span><span>{{ order()!.subtotal | currency:'PHP':'symbol-narrow':'1.0-0' }}</span></div>
-            <div class="summary-row"><span>Shipping</span>
-              <span>{{ order()!.shippingFee | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-            </div>
-            <div class="summary-row total-row">
-              <span>Total</span>
-              <span>{{ order()!.total | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-            </div>
-          </nz-card>
-
-          <div class="right-col">
-            <!-- Payment -->
-            <nz-card class="detail-card" nzTitle="Payment">
-              <p><strong>Method:</strong> {{ order()!.paymentMethod }}</p>
-              @if (order()!.referenceNumber) {
-                <p><strong>Reference:</strong> {{ order()!.referenceNumber }}</p>
-              }
-              @if (order()!.paymentMethod !== 'Cash on Delivery') {
-                <nz-alert
-                  nzType="warning"
-                  nzMessage="Verification Pending"
-                  nzDescription="Our team will verify your payment and update your order status within 24 hours."
-                  nzShowIcon
-                />
-              }
-            </nz-card>
-
-            <!-- Delivery Address -->
-            <nz-card class="detail-card" nzTitle="Delivery Address">
-              <p class="addr-line"><strong>{{ order()!.address.fullName }}</strong></p>
-              <p class="addr-line">{{ order()!.address.addressLine }}</p>
-              <p class="addr-line">{{ order()!.address.city }}, {{ order()!.address.province }} {{ order()!.address.zip }}</p>
-              <p class="addr-line">{{ order()!.address.mobile }}</p>
-            </nz-card>
+          <div class="meta-item">
+            <span class="meta-label">Date Placed</span>
+            <span class="meta-value">{{ order.createdAt | date: 'mediumDate' }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Status</span>
+            <nz-tag [nzColor]="statusColors[order.status]">{{ order.status }}</nz-tag>
           </div>
         </div>
-      </div>
+        <app-order-actions class="actions" [order]="order" />
+      </nz-card>
+
+      <nz-card class="detail-card" nzTitle="Order Details">
+        <app-order-detail [order]="order" />
+      </nz-card>
+    </div>
+  } @else if (loading()) {
+    <div class="loading-state">
+      <nz-spin nzSimple nzSize="large" />
+    </div>
+  } @else {
+    <div class="confirmation-container">
+      <nz-result
+        nzStatus="404"
+        nzTitle="Order not found"
+        nzSubTitle="This order doesn't exist or isn't on your account."
+      >
+        <div nz-result-extra>
+          <a routerLink="/customer/orders" nz-button nzType="primary" class="track-btn"
+            >My Orders</a
+          >
+        </div>
+      </nz-result>
     </div>
   }
 </div>

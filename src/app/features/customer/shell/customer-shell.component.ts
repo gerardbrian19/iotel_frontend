@@ -3,6 +3,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzAvatarModule } from 'ng-zorro-antd/avatar';
 import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -22,6 +23,7 @@ import { ChatbotWidgetComponent } from '../../../shared/components/chatbot-widge
     NzLayoutModule,
     NzMenuModule,
     NzIconModule,
+    NzAvatarModule,
     NzBadgeModule,
     NzDropDownModule,
     NzButtonModule,

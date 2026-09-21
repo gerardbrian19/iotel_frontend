@@ -9,166 +9,177 @@
 
     <h1 class="page-title">Checkout</h1>
 
-    <div class="checkout-layout">
-      <div class="checkout-main">
-        <!-- Shipping Address -->
-        <nz-card class="section-card" nzTitle="Shipping Address">
-          @if (address(); as addr) {
-            <div class="address-block">
-              <div class="address-text">
-                <strong>{{ addr.fullName }}</strong><br />
-                {{ addr.addressLine }}, {{ addr.city }}, {{ addr.province }} {{ addr.zip }}<br />
-                {{ addr.mobile }}
-              </div>
-              <a routerLink="/customer/addresses" nz-button nzType="link" nzSize="small">Change</a>
-            </div>
-          } @else if (!addressLoading()) {
-            <a routerLink="/customer/addresses" nz-button nzType="dashed" nzBlock>
-              <span nz-icon nzType="plus"></span> Add a shipping address
-            </a>
+    @if (items().length === 0) {
+      <nz-empty nzNotFoundContent="Your cart is empty" [nzNotFoundFooter]="browse" />
+      <ng-template #browse>
+        <a routerLink="/customer/catalog" nz-button nzType="primary" class="confirm-btn"
+          >Browse products</a
+        >
+      </ng-template>
+    } @else {
+      <div class="checkout-layout">
+        <div class="checkout-main">
+          @if (problems().length) {
+            <nz-alert
+              nzType="warning"
+              nzShowIcon
+              nzMessage="Some items in your cart changed"
+              [nzDescription]="problemsTpl"
+            />
+            <ng-template #problemsTpl>
+              <ul class="problem-list">
+                @for (problem of problems(); track problem.productId) {
+                  <li>{{ problem.message }}</li>
+                }
+              </ul>
+              <button nz-button nzSize="small" (click)="fixCart()">Update my cart</button>
+              <a routerLink="/customer/cart" nz-button nzType="link" nzSize="small">Review cart</a>
+            </ng-template>
           }
-        </nz-card>
 
-        <!-- Order Items -->
-        <nz-card class="section-card" nzTitle="Order Items">
-          @for (item of items(); track item.productId) {
-            <div class="order-item">
-              <img [src]="item.imageUrl" [alt]="item.name" class="order-item-img" />
-              <div class="order-item-info">
-                <p class="order-item-name">{{ item.name }}</p>
-                <p class="order-item-meta">
-                  Qty: {{ item.qty }} &times; {{ item.price | currency:'PHP':'symbol-narrow':'1.0-0' }}
-                </p>
+          <!-- Shipping Address -->
+          <nz-card class="section-card" nzTitle="Shipping Address">
+            @if (address(); as addr) {
+              <div class="address-block">
+                <div class="address-text">
+                  <strong>{{ addr.fullName }}</strong
+                  ><br />
+                  {{ addr.addressLine }}, {{ addr.city }}, {{ addr.province }} {{ addr.zip }}<br />
+                  {{ addr.mobile }}
+                </div>
+                <a routerLink="/customer/addresses" nz-button nzType="link" nzSize="small"
+                  >Change</a
+                >
               </div>
-              <strong class="order-item-total">
-                {{ (item.price * item.qty) | currency:'PHP':'symbol-narrow':'1.0-0' }}
-              </strong>
-            </div>
-          }
-        </nz-card>
+            } @else if (!addressLoading()) {
+              <a routerLink="/customer/addresses" nz-button nzType="dashed" nzBlock>
+                <span nz-icon nzType="plus"></span> Add a shipping address
+              </a>
+            }
+          </nz-card>
 
-        <!-- Payment Method -->
-        <nz-card class="section-card" nzTitle="Payment Method">
-          @if (selectedPayment()) {
-            <div class="selected-payment">
-              <nz-tag nzColor="green">
-                <span nz-icon nzType="check-circle"></span>
-                {{ selectedPayment() }}
-              </nz-tag>
-              @if (referenceNumber()) {
-                <span class="ref-label">Ref: {{ referenceNumber() }}</span>
+          <!-- Order Items -->
+          <nz-card class="section-card" nzTitle="Order Items">
+            @for (item of items(); track item.productId) {
+              <div class="order-item">
+                <img
+                  [src]="item.imageUrl || placeholder"
+                  [alt]="item.name"
+                  class="order-item-img"
+                  (error)="onImageError($event)"
+                />
+                <div class="order-item-info">
+                  <p class="order-item-name">{{ item.name }}</p>
+                  <p class="order-item-meta">
+                    Qty: {{ item.qty }} &times;
+                    {{ item.price | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}
+                  </p>
+                  @if (problemByProduct().get(item.productId); as problem) {
+                    <p class="order-item-problem">{{ problem }}</p>
+                  }
+                </div>
+                <strong class="order-item-total">
+                  {{ item.price * item.qty | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}
+                </strong>
+              </div>
+            }
+          </nz-card>
+
+          <!-- Payment Method -->
+          <nz-card class="section-card" nzTitle="Payment Method">
+            <div class="payment-options" role="radiogroup" aria-label="Payment method">
+              @for (option of paymentOptions; track option.method) {
+                <div
+                  class="payment-card"
+                  role="radio"
+                  tabindex="0"
+                  [class.selected]="method() === option.method"
+                  [attr.aria-checked]="method() === option.method"
+                  (click)="selectMethod(option.method)"
+                  (keydown.enter)="selectMethod(option.method)"
+                  (keydown.space)="selectMethod(option.method); $event.preventDefault()"
+                >
+                  <div class="payment-icon">{{ option.icon }}</div>
+                  <div class="payment-info">
+                    <strong>{{ option.method }}</strong>
+                    <p>{{ option.details }}</p>
+                  </div>
+                  @if (method() === option.method) {
+                    <span nz-icon nzType="check-circle" class="payment-check"></span>
+                  }
+                </div>
               }
-              <button nz-button nzType="link" nzSize="small" (click)="openPaymentModal()">Change</button>
             </div>
-          } @else {
-            <button nz-button nzType="dashed" nzBlock (click)="openPaymentModal()">
-              <span nz-icon nzType="plus"></span> Select Payment Method
+
+            @if (needsReference()) {
+              <div class="ref-input-section">
+                <label class="ref-label-text" for="reference">Reference number</label>
+                <input
+                  id="reference"
+                  nz-input
+                  maxlength="40"
+                  autocomplete="off"
+                  placeholder="Enter the reference number from your receipt"
+                  [ngModel]="reference()"
+                  (ngModelChange)="reference.set($event)"
+                />
+                @if (referenceProblem(); as problem) {
+                  <p class="ref-error">{{ problem }}</p>
+                } @else {
+                  <p class="ref-hint">
+                    Send {{ total() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }} first, then
+                    enter the reference number. Our team verifies it before your order is processed.
+                  </p>
+                }
+              </div>
+            }
+          </nz-card>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="checkout-summary">
+          <nz-card nzTitle="Payment Summary">
+            <div class="summary-row">
+              <span>Subtotal</span>
+              <span>{{ subtotal() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
+            </div>
+            <div class="summary-row">
+              <span>Shipping</span>
+              <span>{{ shippingFee() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
+            </div>
+            <nz-divider />
+            <div class="summary-row total-row">
+              <span>Total</span>
+              <span>{{ total() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
+            </div>
+
+            <button
+              nz-button
+              nzType="primary"
+              nzBlock
+              class="confirm-btn"
+              [disabled]="!canPlace()"
+              [nzLoading]="placing()"
+              (click)="placeOrder()"
+            >
+              <span nz-icon nzType="check"></span> Confirm Order
             </button>
-          }
-        </nz-card>
-      </div>
-
-      <!-- Order Summary -->
-      <div class="checkout-summary">
-        <nz-card nzTitle="Payment Summary">
-          <div class="summary-row">
-            <span>Subtotal</span>
-            <span>{{ subtotal() | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-          </div>
-          <div class="summary-row">
-            <span>Shipping</span>
-            <span>{{ shippingFee() | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-          </div>
-          <nz-divider />
-          <div class="summary-row total-row">
-            <span>Total</span>
-            <span>{{ total() | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-          </div>
-
-          <button
-            nz-button
-            nzType="primary"
-            nzBlock
-            class="confirm-btn"
-            [disabled]="!address() || !selectedPayment() || items().length === 0"
-            (click)="placeOrder()"
-          >
-            <span nz-icon nzType="check"></span> Confirm Order
-          </button>
-        </nz-card>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Payment Modal -->
-<nz-modal
-  [(nzVisible)]="paymentModalVisible"
-  nzTitle="Select Payment Method"
-  [nzFooter]="null"
-  nzWidth="480px"
->
-  <ng-container *nzModalContent>
-    <div class="payment-options">
-      <div
-        class="payment-card"
-        [class.selected]="selectedPayment() === 'GCash'"
-        (click)="selectPayment('GCash')"
-      >
-        <div class="payment-icon">📱</div>
-        <div class="payment-info">
-          <strong>GCash</strong>
-          <p>Send to GCash: <strong>0917-123-4567</strong></p>
+            @if (!canPlace() && !placing()) {
+              <p class="confirm-hint">
+                @if (!address()) {
+                  Add a shipping address to continue.
+                } @else if (problems().length) {
+                  Update your cart to continue.
+                } @else if (!method()) {
+                  Choose a payment method to continue.
+                } @else {
+                  Enter your payment reference number to continue.
+                }
+              </p>
+            }
+          </nz-card>
         </div>
-      </div>
-
-      <div
-        class="payment-card"
-        [class.selected]="selectedPayment() === 'Bank Transfer'"
-        (click)="selectPayment('Bank Transfer')"
-      >
-        <div class="payment-icon">🏦</div>
-        <div class="payment-info">
-          <strong>Bank Transfer</strong>
-          <p>BPI: <strong>1234-5678-90</strong> | Goldcomm Corp</p>
-        </div>
-      </div>
-
-      <div
-        class="payment-card"
-        [class.selected]="selectedPayment() === 'Cash on Delivery'"
-        (click)="selectPayment('Cash on Delivery')"
-      >
-        <div class="payment-icon">💵</div>
-        <div class="payment-info">
-          <strong>Cash on Delivery</strong>
-          <p>Pay when your order arrives</p>
-        </div>
-      </div>
-    </div>
-
-    @if (selectedPayment() === 'GCash' || selectedPayment() === 'Bank Transfer') {
-      <div class="ref-input-section">
-        <label class="ref-label-text">Reference Number</label>
-        <input
-          nz-input
-          placeholder="Enter your transaction reference number"
-          [ngModel]="referenceNumber()"
-          (ngModelChange)="referenceNumber.set($event)"
-        />
-        <p class="ref-hint">Upload a screenshot to the support chat after placing your order.</p>
       </div>
     }
-
-    <button
-      nz-button
-      nzType="primary"
-      nzBlock
-      class="confirm-payment-btn mt-4"
-      [disabled]="!selectedPayment()"
-      (click)="paymentModalVisible.set(false)"
-    >
-      Confirm Payment Method
-    </button>
-  </ng-container>
-</nz-modal>
+  </div>
+</div>

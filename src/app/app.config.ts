@@ -50,6 +50,7 @@ import {
   ClockCircleOutline,
   CreditCardOutline,
   UpOutline,
+  UploadOutline,
 } from '@ant-design/icons-angular/icons';
 
 registerLocaleData(en);
@@ -104,6 +105,7 @@ export const appConfig: ApplicationConfig = {
       ClockCircleOutline,
       CreditCardOutline,
       UpOutline,
+      UploadOutline,
     ]),
   ],
 };

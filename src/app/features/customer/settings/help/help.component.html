@@ -1,21 +1,44 @@
 <div class="settings-section">
   <div class="section-header">
     <h2 class="section-title">Help Centre</h2>
-    <p class="section-desc">Find answers, contact support, and review legal documents.</p>
+    <p class="section-desc">Find answers, contact support and jump to the pages you use most.</p>
   </div>
 
   <nz-divider></nz-divider>
 
   <div class="help-grid">
-    @for (item of helpItems; track item.title) {
-      <div class="help-card">
+    @for (item of links; track item.title) {
+      <a class="help-card" [routerLink]="item.route">
         <span nz-icon [nzType]="item.icon" class="help-icon"></span>
         <div class="help-text">
           <p class="help-title">{{ item.title }}</p>
           <p class="help-desc">{{ item.desc }}</p>
         </div>
         <span nz-icon nzType="right" class="help-arrow"></span>
-      </div>
+      </a>
     }
   </div>
+
+  <nz-divider></nz-divider>
+
+  <h3 class="faq-heading">Frequently asked questions</h3>
+
+  @for (group of faqGroups; track group.title) {
+    <p class="faq-group-title"><span nz-icon [nzType]="group.icon"></span> {{ group.title }}</p>
+    <nz-collapse nzGhost class="faq-collapse">
+      @for (faq of group.faqs; track faq.question) {
+        <nz-collapse-panel [nzHeader]="faq.question">
+          <p class="faq-answer">{{ faq.answer }}</p>
+        </nz-collapse-panel>
+      }
+    </nz-collapse>
+  }
+
+  <nz-divider></nz-divider>
+
+  <p class="help-footer">
+    Can't find what you're looking for?
+    <a routerLink="/customer/messages">Message our support team</a> and include your order number if
+    it's about an order.
+  </p>
 </div>

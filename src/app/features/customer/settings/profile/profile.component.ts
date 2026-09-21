@@ -5,10 +5,11 @@ import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzUploadModule } from 'ng-zorro-antd/upload';
+import { NzAvatarModule } from 'ng-zorro-antd/avatar';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { AuthService } from '../../../../core/services/auth.service';
+import { avatarFileError, resizeToAvatar } from '../../../../shared/utils/avatar-image';
 
 @Component({
   selector: 'app-settings-profile',
@@ -20,7 +21,7 @@ import { AuthService } from '../../../../core/services/auth.service';
     NzInputModule,
     NzButtonModule,
     NzIconModule,
-    NzUploadModule,
+    NzAvatarModule,
     NzDividerModule,
   ],
   templateUrl: './profile.component.html',
@@ -33,11 +34,41 @@ export class ProfileComponent {
 
   readonly user = this.auth.currentUser;
   readonly saving = signal(false);
+  readonly photoBusy = signal(false);
 
   name = signal(this.user()?.name ?? '');
   email = signal(this.user()?.email ?? '');
   phone = signal('');
   bio = signal('');
+
+  async onPhotoSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // lets the same file be chosen again after a failure
+    if (!file) return;
+    const problem = avatarFileError(file);
+    if (problem) {
+      this.message.error(problem);
+      return;
+    }
+    await this.savePhoto(async () => resizeToAvatar(file), 'Profile picture updated.');
+  }
+
+  removePhoto(): Promise<void> {
+    return this.savePhoto(async () => null, 'Profile picture removed.');
+  }
+
+  private async savePhoto(prepare: () => Promise<string | null>, success: string): Promise<void> {
+    this.photoBusy.set(true);
+    try {
+      await this.auth.setPhoto(await prepare());
+      this.message.success(success);
+    } catch (err) {
+      this.message.error(err instanceof Error ? err.message : 'Could not update your profile picture.');
+    } finally {
+      this.photoBusy.set(false);
+    }
+  }
 
   save(): void {
     this.saving.set(true);

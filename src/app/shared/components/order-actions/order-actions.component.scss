@@ -1,0 +1,56 @@
+:host {
+  display: block;
+}
+
+.oa-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #595959;
+}
+
+.oa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  &:not(:empty) {
+    margin-top: 10px;
+  }
+}
+
+.brand-btn {
+  background: #CC2020 !important;
+  border-color: #CC2020 !important;
+  color: #FFFFFF !important;
+
+  &[disabled] {
+    opacity: 0.5;
+  }
+}
+
+.modal-copy {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #595959;
+}
+
+.pay-amount {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1A1A1A;
+}
+
+.field-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #CC2020;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}

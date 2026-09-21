@@ -1,7 +1,8 @@
 import {
   ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -54,6 +55,8 @@ function comparePrice(a: Product, b: Product, direction: 1 | -1): number {
 })
 export class CatalogComponent {
   private readonly productService = inject(ProductService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly pageSize = PAGE_SIZE;
   readonly loading = this.productService.loading;
@@ -70,6 +73,11 @@ export class CatalogComponent {
   private readonly selectedId = signal<string | null>(null);
 
   private readonly grid = viewChild<ElementRef<HTMLElement>>('grid');
+
+  constructor() {
+    // Deep links (from the IOTEL Assistant): ?q=, ?category=, ?min=, ?max=, ?stock=1 and ?product=<id>.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => this.applyQueryParams(params));
+  }
 
   readonly selectedProduct = computed(() => {
     const id = this.selectedId();
@@ -188,5 +196,38 @@ export class CatalogComponent {
 
   closeDetails(): void {
     this.selectedId.set(null);
+    // Drop the deep-link param so opening the same product again from a link is a real navigation.
+    if (this.route.snapshot.queryParamMap.has('product')) {
+      this.router.navigate([], {
+        queryParams: { product: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
+  }
+
+  private applyQueryParams(params: ParamMap): void {
+    const product = params.get('product');
+    if (product) this.selectedId.set(product);
+
+    const hasFilters = ['q', 'category', 'min', 'max', 'stock'].some(key => params.has(key));
+    if (!hasFilters) return;
+
+    const category = params.get('category');
+    this.selectedCategory.set(
+      (PRODUCT_CATEGORIES as readonly string[]).includes(category ?? '')
+        ? (category as ProductCategory)
+        : 'All',
+    );
+    this.searchQuery.set(params.get('q') ?? '');
+    this.minPrice.set(this.numberParam(params.get('min')));
+    this.maxPrice.set(this.numberParam(params.get('max')));
+    this.inStockOnly.set(params.get('stock') === '1');
+    this.page.set(1);
+  }
+
+  private numberParam(value: string | null): number | null {
+    const n = value === null || value === '' ? NaN : Number(value);
+    return Number.isFinite(n) && n >= 0 ? n : null;
   }
 }

@@ -10,7 +10,7 @@
     <nz-form-item>
       <nz-form-label><span nz-icon nzType="global"></span> App Language</nz-form-label>
       <nz-form-control>
-        <nz-select [ngModel]="selectedLanguage()" (ngModelChange)="selectedLanguage.set($event)" style="width: 240px;">
+        <nz-select [ngModel]="selectedLanguage()" (ngModelChange)="selectedLanguage.set($event)" name="language" style="width: 240px;">
           @for (lang of languages; track lang.value) {
             <nz-option [nzValue]="lang.value" [nzLabel]="lang.label"></nz-option>
           }
@@ -21,7 +21,7 @@
     <nz-form-item>
       <nz-form-label><span nz-icon nzType="flag"></span> Region / Country</nz-form-label>
       <nz-form-control>
-        <nz-select [ngModel]="selectedRegion()" (ngModelChange)="selectedRegion.set($event)" style="width: 240px;">
+        <nz-select [ngModel]="selectedRegion()" (ngModelChange)="selectedRegion.set($event)" name="region" style="width: 240px;">
           @for (region of regions; track region.value) {
             <nz-option [nzValue]="region.value" [nzLabel]="region.label"></nz-option>
           }

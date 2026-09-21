@@ -1,43 +1,227 @@
 @if (isOpen()) {
-  <div class="chat-panel">
-    <div class="chat-header">
-      <div class="chat-title">
-        <span class="bot-icon">🤖</span>
-        IOTEL Assistant
+  <section
+    class="chat-panel"
+    [class.expanded]="expanded()"
+    role="dialog"
+    aria-label="IOTEL Assistant"
+    (keydown.escape)="toggle()"
+  >
+    <header
+      class="flex items-center justify-between gap-2 border-b-[3px] border-[#C9A84C] bg-[#1A1A1A] py-3 pr-3.5 pl-4"
+    >
+      <div class="flex items-center gap-2.5 leading-tight text-white">
+        <span
+          class="grid size-9 place-items-center rounded-full bg-[#C9A84C]/20 text-lg"
+          aria-hidden="true"
+          >🤖</span
+        >
+        <div>
+          <strong class="block text-[15px]">IOTEL Assistant</strong>
+          <small class="text-xs text-white/60">Products · Bookings · Orders</small>
+        </div>
       </div>
-      <button class="close-btn" (click)="toggle()">✕</button>
-    </div>
-    <div class="chat-messages" #scrollContainer>
-      @for (msg of messages(); track $index) {
-        <div class="message" [class.user-msg]="msg.from === 'user'" [class.bot-msg]="msg.from === 'bot'">
-          {{ msg.text }}
+      <div class="flex gap-0.5">
+        <button
+          type="button"
+          class="icon-btn"
+          aria-label="Start a new conversation"
+          title="New conversation"
+          (click)="reset()"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+            />
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="icon-btn size-btn"
+          [attr.aria-label]="expanded() ? 'Make chat smaller' : 'Make chat bigger'"
+          [title]="expanded() ? 'Smaller' : 'Bigger'"
+          (click)="toggleSize()"
+        >
+          @if (expanded()) {
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
+              />
+            </svg>
+          } @else {
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+              />
+            </svg>
+          }
+        </button>
+        <button type="button" class="icon-btn" aria-label="Close chat" (click)="toggle()">✕</button>
+      </div>
+    </header>
+
+    <div class="flex flex-1 flex-col gap-3 overflow-y-auto p-4" #scroller aria-live="polite">
+      @for (msg of messages(); track msg.id) {
+        <div
+          class="flex flex-col gap-2"
+          [class.items-start]="msg.from === 'bot'"
+          [class.items-end]="msg.from === 'user'"
+        >
+          <div
+            class="message"
+            [class.user-msg]="msg.from === 'user'"
+            [class.bot-msg]="msg.from === 'bot'"
+          >
+            {{ msg.text }}
+          </div>
+
+          @if (msg.products?.length) {
+            <div class="flex w-[88%] flex-col gap-2 max-sm:w-[94%]">
+              @for (p of msg.products; track p.id) {
+                <a
+                  class="product"
+                  routerLink="/customer/catalog"
+                  [queryParams]="{ product: p.id }"
+                  (click)="onNavigate()"
+                >
+                  <img
+                    [src]="p.imageUrl || placeholderImage"
+                    [alt]="p.name"
+                    loading="lazy"
+                    (error)="onImageError($event)"
+                  />
+                  <span class="flex min-w-0 flex-1 flex-col text-[13px]">
+                    <span class="product-name">{{ p.name }}</span>
+                    <span class="text-[11px] text-[#777]">{{ p.category }}</span>
+                    @if (p.price !== null) {
+                      <span class="font-bold text-[#CC2020]">{{
+                        p.price | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+                      }}</span>
+                    } @else {
+                      <span class="text-[#777]">Price on request</span>
+                    }
+                  </span>
+                  <span
+                    class="flex-none text-[11px] font-semibold"
+                    [class]="p.inStock ? 'text-[#389E0D]' : 'text-[#CC2020]'"
+                    >{{ p.inStock ? 'In stock' : 'Out of stock' }}</span
+                  >
+                </a>
+              }
+            </div>
+          }
+
+          @if (msg.links?.length) {
+            <div class="flex flex-wrap gap-1.5">
+              @for (link of msg.links; track link.label) {
+                <a
+                  class="link-btn"
+                  [routerLink]="link.url"
+                  [queryParams]="link.queryParams"
+                  (click)="onNavigate()"
+                  >{{ link.label }} →</a
+                >
+              }
+            </div>
+          }
+        </div>
+      }
+
+      @if (typing()) {
+        <div class="message bot-msg typing" aria-label="IOTEL Assistant is typing">
+          <i></i><i></i><i></i>
+        </div>
+      }
+
+      @if (showTopics() && !typing()) {
+        <div class="rounded-xl border border-[#E6E6E6] bg-[#FCFCFC] p-3">
+          <p class="mb-2.5 text-[13px] font-semibold">What can I help you with?</p>
+          <div class="mb-3 flex flex-wrap gap-1.5 border-b border-[#E6E6E6] pb-3" role="tablist">
+            @for (topic of topics; track topic.id) {
+              <button
+                type="button"
+                role="tab"
+                class="topic-tab"
+                [class.active]="topic.id === activeTopicId()"
+                [attr.aria-selected]="topic.id === activeTopicId()"
+                (click)="activeTopicId.set(topic.id)"
+              >
+                <span aria-hidden="true">{{ topic.icon }}</span> {{ topic.label }}
+              </button>
+            }
+          </div>
+          <div class="flex flex-col gap-1.5" role="tabpanel">
+            @for (q of activeQuestions(); track q) {
+              <button type="button" class="question" (click)="send(q)">{{ q }}</button>
+            }
+          </div>
+        </div>
+      } @else if (followUps().length && !typing()) {
+        <div class="flex flex-wrap gap-1.5" aria-label="Suggested questions">
+          @for (q of followUps(); track q) {
+            <button type="button" class="chip" (click)="send(q)">{{ q }}</button>
+          }
         </div>
       }
     </div>
-    <div class="chat-footer">
+
+    <form class="flex gap-2 border-t border-[#E6E6E6] px-3.5 py-2.5" (ngSubmit)="send()">
       <input
+        #inputEl
         class="chat-input"
         type="text"
-        placeholder="Type a message..."
-        [(ngModel)]="inputText"
-        (keydown)="onKeydown($event)"
+        name="message"
+        autocomplete="off"
+        placeholder="Ask about products, bookings, orders…"
+        aria-label="Message"
+        [maxlength]="maxLength"
+        [ngModel]="input()"
+        (ngModelChange)="input.set($event)"
       />
-      <button class="send-btn" (click)="send()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+      <button type="submit" class="send-btn" aria-label="Send" [disabled]="!canSend()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
         </svg>
       </button>
+    </form>
+
+    <div
+      class="chat-escalate flex items-center justify-between gap-2 bg-[#F5F5F5] px-3.5 py-2 text-xs text-[#666]"
+    >
+      <button
+        type="button"
+        class="topics-toggle"
+        [attr.aria-pressed]="showTopics()"
+        (click)="toggleTopics()"
+      >
+        💡 {{ showTopics() ? 'Hide topics' : 'Topics' }}
+      </button>
+      <span
+        >Need a human?
+        <a routerLink="/customer/messages" (click)="onNavigate()">Talk to Support</a></span
+      >
     </div>
-    <div class="chat-escalate">
-      Need a human? <a routerLink="/customer/messages">Talk to Support</a>
-    </div>
-  </div>
+  </section>
 }
 
-<button class="fab" (click)="toggle()" [class.open]="isOpen()">
+<button
+  type="button"
+  class="fab"
+  (click)="toggle()"
+  [class.open]="isOpen()"
+  [attr.aria-label]="isOpen() ? 'Close IOTEL Assistant' : 'Open IOTEL Assistant'"
+  [attr.aria-expanded]="isOpen()"
+>
   @if (isOpen()) {
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path
+        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+      />
+    </svg>
   } @else {
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path
+        d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"
+      />
+    </svg>
   }
 </button>

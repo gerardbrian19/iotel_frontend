@@ -21,7 +21,7 @@ export const BOOKING_LEAD_DAYS = 1;
 export const BOOKING_HORIZON_DAYS = 60;
 
 /** Sunday (0) is closed. */
-const CLOSED_WEEKDAYS: readonly number[] = [0];
+export const CLOSED_WEEKDAYS: readonly number[] = [0];
 
 /** `YYYY-MM-DD` in the viewer's local time zone (never `toISOString`, which shifts the date across midnight). */
 export function toDateKey(date: Date): string {

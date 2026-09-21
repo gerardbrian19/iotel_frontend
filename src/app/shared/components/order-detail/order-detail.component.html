@@ -1,0 +1,116 @@
+<div class="od">
+  <section class="od-main">
+    <h4 class="od-heading">Items</h4>
+    @for (item of order().items; track item.productId) {
+      <div class="od-item">
+        <img
+          [src]="item.imageUrl || placeholder"
+          [alt]="item.name"
+          class="od-img"
+          (error)="onImageError($event)"
+        />
+        <div class="od-item-info">
+          <p class="od-item-name">{{ item.name }}</p>
+          <p class="od-item-meta">
+            Qty {{ item.qty }} &times;
+            {{ item.price | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}
+          </p>
+        </div>
+        <strong class="od-item-total">{{
+          item.price * item.qty | currency: 'PHP' : 'symbol-narrow' : '1.0-2'
+        }}</strong>
+      </div>
+    }
+    <div class="od-sum">
+      <div class="od-row">
+        <span>Subtotal</span
+        ><span>{{ order().subtotal | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</span>
+      </div>
+      <div class="od-row">
+        <span>Shipping</span
+        ><span>{{ order().shippingFee | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</span>
+      </div>
+      <div class="od-row od-total">
+        <span>Total</span
+        ><span>{{ order().total | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</span>
+      </div>
+    </div>
+  </section>
+
+  <aside class="od-side">
+    <section>
+      <h4 class="od-heading">Progress</h4>
+      <ol class="od-timeline">
+        @for (step of timeline(); track step.label) {
+          <li class="od-step" [class]="step.state">
+            <span class="od-dot"></span>
+            <div>
+              <strong>{{ step.label }}</strong>
+              @if (step.detail) {
+                <span class="od-step-detail">{{ step.detail }}</span>
+              }
+              @if (step.date) {
+                <time class="od-step-date">{{ step.date | date: 'MMM d, y, h:mm a' }}</time>
+              }
+            </div>
+          </li>
+        }
+      </ol>
+      @if (
+        order().estimatedDelivery &&
+        order().status !== 'Delivered' &&
+        order().status !== 'Cancelled'
+      ) {
+        <p class="od-note">
+          Estimated delivery: {{ order().estimatedDelivery | date: 'mediumDate' }}
+        </p>
+      }
+    </section>
+
+    <section>
+      <h4 class="od-heading">Payment</h4>
+      <p class="od-line">
+        {{ order().payment.method }}
+        <nz-tag [nzColor]="payment().color">{{ payment().label }}</nz-tag>
+      </p>
+      @if (order().payment.referenceNumber) {
+        <p class="od-line">
+          Reference: <strong>{{ order().payment.referenceNumber }}</strong>
+        </p>
+      }
+      @if (order().payment.status === 'Paid' && order().payment.paidAt) {
+        <p class="od-line">Paid on {{ order().payment.paidAt | date: 'mediumDate' }}</p>
+      }
+    </section>
+
+    <section>
+      <h4 class="od-heading">Delivery address</h4>
+      <p class="od-line">
+        <strong>{{ order().address.fullName }}</strong>
+      </p>
+      <p class="od-line">{{ order().address.addressLine }}</p>
+      <p class="od-line">
+        {{ order().address.city }}, {{ order().address.province }} {{ order().address.zip }}
+      </p>
+      <p class="od-line">{{ order().address.mobile }}</p>
+      @if (order().shipment; as shipment) {
+        <p class="od-line od-shipment">
+          Courier: <strong>{{ shipment.courier }}</strong>
+          @if (shipment.trackingNumber) {
+            · Tracking no. <strong>{{ shipment.trackingNumber }}</strong>
+          }
+        </p>
+      }
+    </section>
+
+    @if (showCustomer()) {
+      <section>
+        <h4 class="od-heading">Customer</h4>
+        <p class="od-line">
+          <strong>{{ order().customerName }}</strong>
+        </p>
+        <p class="od-line">{{ order().customerEmail }}</p>
+      </section>
+    }
+  </aside>
+</div>

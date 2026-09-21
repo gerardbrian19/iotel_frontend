@@ -1,31 +1,64 @@
 <div class="page-wrap">
   <h1 class="page-title">Staff Dashboard</h1>
 
+  @if (loadFailures().length) {
+    <nz-alert
+      class="load-alert"
+      nzType="error"
+      nzShowIcon
+      nzMessage="Some figures could not be loaded"
+      [nzDescription]="'Could not load ' + loadFailures().join(', ') + '. The numbers below may be incomplete; refresh to try again.'"
+    />
+  }
+
   <div class="kpi-grid">
     <nz-card class="kpi-card"><nz-statistic [nzValue]="pendingOrders()" nzTitle="Pending Orders" nzPrefix="🕐" /></nz-card>
     <nz-card class="kpi-card"><nz-statistic [nzValue]="processingOrders()" nzTitle="Processing" nzPrefix="⚙️" /></nz-card>
-    <nz-card class="kpi-card"><nz-statistic [nzValue]="bookingsNeedingAction()" nzTitle="Bookings to Handle" nzPrefix="📅" /></nz-card>
-    <nz-card class="kpi-card"><nz-statistic [nzValue]="unreadMessages()" nzTitle="Unread Messages" nzPrefix="💬" /></nz-card>
-    <nz-card class="kpi-card"><nz-statistic [nzValue]="lowStock()" nzTitle="Low / Out of Stock" nzPrefix="⚠️" /></nz-card>
+    <nz-card class="kpi-card" [nzLoading]="bookingsLoading()"><nz-statistic [nzValue]="bookingsNeedingAction()" nzTitle="Bookings to Handle" nzPrefix="📅" /></nz-card>
+    <nz-card class="kpi-card" [nzLoading]="messagesLoading()"><nz-statistic [nzValue]="unreadMessages()" nzTitle="Unread Messages" nzPrefix="💬" /></nz-card>
+    <nz-card class="kpi-card" [nzLoading]="productsLoading()"><nz-statistic [nzValue]="lowStock()" nzTitle="Low / Out of Stock" nzPrefix="⚠️" /></nz-card>
   </div>
 
   <div class="content-grid">
-    <nz-card class="action-card" nzTitle="Pending Order Queue">
-      @for (order of pendingOrderList(); track order.id) {
-        <div class="queue-item">
-          <div>
-            <strong>{{ order.id }}</strong>
-            <span class="queue-sub">{{ order.address.fullName }} · {{ order.items.length }} items</span>
-          </div>
-          <nz-tag nzColor="warning">{{ order.status }}</nz-tag>
-        </div>
-      }
-      @if (!pendingOrderList().length) {
-        <p style="color:#52c41a; text-align:center; padding: 12px 0;">All orders are up to date!</p>
-      }
-    </nz-card>
+    <div class="left-col">
+      <nz-card class="action-card" nzTitle="Bookings to Handle" [nzExtra]="bookingsLink" [nzLoading]="bookingsLoading()">
+        <ng-template #bookingsLink><a routerLink="/staff/bookings">View all</a></ng-template>
+        @for (b of bookingQueue(); track b.id) {
+          <a class="queue-item queue-link" routerLink="/staff/messages" [queryParams]="{ conversation: b.conversationId }">
+            <div>
+              <strong>{{ b.title }}</strong>
+              <span class="queue-sub">{{ b.sub }}</span>
+            </div>
+            <nz-tag [nzColor]="b.verifyPayment ? 'processing' : 'warning'">
+              {{ b.verifyPayment ? 'Verify payment' : 'New request' }}
+            </nz-tag>
+          </a>
+        }
+        @if (bookingsHidden() > 0) {
+          <p class="no-alerts">and {{ bookingsHidden() }} more. See Bookings for the full list.</p>
+        }
+        @if (!bookingQueue().length) {
+          <p class="no-alerts">No bookings are waiting on you</p>
+        }
+      </nz-card>
 
-    <nz-card class="alert-card" nzTitle="Low Stock Alerts">
+      <nz-card class="action-card" nzTitle="Pending Order Queue">
+        @for (order of pendingOrderList(); track order.id) {
+          <div class="queue-item">
+            <div>
+              <strong>{{ order.code }}</strong>
+              <span class="queue-sub">{{ order.address.fullName }} · {{ order.items.length }} items</span>
+            </div>
+            <nz-tag nzColor="warning">{{ order.status }}</nz-tag>
+          </div>
+        }
+        @if (!pendingOrderList().length) {
+          <p class="no-alerts">All orders are up to date!</p>
+        }
+      </nz-card>
+    </div>
+
+    <nz-card class="alert-card" nzTitle="Low Stock Alerts" [nzLoading]="productsLoading()">
       @for (p of lowStockItems(); track p.id) {
         <nz-alert
           class="alert-item"

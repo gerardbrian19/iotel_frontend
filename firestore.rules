@@ -70,6 +70,12 @@ service cloud.firestore {
       return name is string && name.size() >= 2 && name.size() <= 60;
     }
 
+    // Profile picture: a small JPEG data URL produced by the client (256x256, roughly 10-40 kB; capped at 150 kB).
+    function validPhoto(photo) {
+      return photo == null
+        || (photo is string && photo.size() <= 150000 && photo.matches('data:image/jpeg;base64,.*'));
+    }
+
     // One profile per account, keyed by Firebase Auth uid. `role` decides which portal the user can open.
     match /users/{uid} {
       // Read your own profile; admins can read and list everyone's.
@@ -93,11 +99,12 @@ service cloud.firestore {
         && validName(request.resource.data.name)
         && request.resource.data.createdAt == request.time;
 
-      // Users may rename themselves but never change their role or email.
+      // Users may rename themselves and set or clear their profile picture, but never change their role or email.
       allow update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
-        && validName(request.resource.data.name);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photoURL'])
+        && validName(request.resource.data.name)
+        && validPhoto(request.resource.data.get('photoURL', null));
 
       // Admins change other people's roles (not their own, so the last admin cannot be demoted by accident).
       allow update: if isAdmin()
@@ -319,6 +326,181 @@ service cloud.firestore {
 
         allow update, delete: if false;
       }
+    }
+
+    // ── Orders ─────────────────────────────────────────────────────────────────
+
+    function orderCounterPath() {
+      return /databases/$(database)/documents/counters/orders;
+    }
+
+    // Order numbers run 1, 2, 3 ...: the counter has to move from n - 1 to n in the same write as the order using n.
+    function validOrderNumber(n) {
+      return n is int && n >= 1
+        && getAfter(orderCounterPath()).data.last == n
+        && (n == 1 ? !exists(orderCounterPath()) : get(orderCounterPath()).data.last == n - 1);
+    }
+
+    function validShippingAddress(address) {
+      return address is map
+        && address.keys().hasOnly(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile'])
+        && address.keys().hasAll(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile'])
+        && shortText(address.fullName, 60)
+        && shortText(address.addressLine, 200)
+        && shortText(address.city, 80)
+        && shortText(address.province, 80)
+        && shortText(address.zip, 10)
+        && shortText(address.mobile, 20);
+    }
+
+    // What a customer may create: a payment that is not verified. GCash / Bank Transfer come with their reference
+    // number (Submitted), Cash on Delivery starts Unpaid. Only staff mark a payment Paid (with PayMongo, its webhook
+    // will, and this is where provider 'paymongo' + Unpaid gets allowed).
+    function validNewOrderPayment(payment, total) {
+      return payment is map
+        && payment.keys().hasOnly(['provider', 'method', 'status', 'amount', 'referenceNumber', 'submittedAt'])
+        && payment.keys().hasAll(['provider', 'method', 'status', 'amount'])
+        && payment.provider == 'manual'
+        && payment.amount == total
+        && ((payment.method == 'Cash on Delivery'
+            && payment.status == 'Unpaid'
+            && !payment.keys().hasAny(['referenceNumber', 'submittedAt']))
+          || (payment.method in ['GCash', 'Bank Transfer']
+            && payment.status == 'Submitted'
+            && shortText(payment.referenceNumber, 40)
+            && payment.submittedAt == request.time));
+    }
+
+    // The shipping fee (250) mirrors SHIPPING_FEE in cart.service.ts. Item prices can't be checked here (rules can't
+    // loop over `items`), so the total is only checked against the subtotal the client sent; staff verify each payment.
+    function validNewOrder(order) {
+      return order.keys().hasOnly(['number', 'customerId', 'customerName', 'customerEmail', 'items', 'subtotal',
+          'shippingFee', 'total', 'address', 'payment', 'status', 'estimatedDelivery', 'createdAt', 'updatedAt'])
+        && order.keys().hasAll(['number', 'customerId', 'customerName', 'customerEmail', 'items', 'subtotal',
+          'shippingFee', 'total', 'address', 'payment', 'status', 'estimatedDelivery', 'createdAt', 'updatedAt'])
+        && order.customerId == request.auth.uid
+        && shortText(order.customerName, 60)
+        && shortText(order.customerEmail, 100)
+        && order.status == 'Pending'
+        && order.items is list && order.items.size() > 0 && order.items.size() <= 50
+        && order.subtotal is number && order.subtotal > 0
+        && order.shippingFee == 250
+        && order.total == order.subtotal + order.shippingFee
+        && validShippingAddress(order.address)
+        && validNewOrderPayment(order.payment, order.total)
+        && order.estimatedDelivery is string
+        && order.estimatedDelivery.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && order.createdAt == request.time
+        && order.updatedAt == request.time
+        && validOrderNumber(order.number);
+    }
+
+    // Staff review a reported payment, and Cash on Delivery is marked paid when the order is delivered.
+    function validPaymentChange(before, after, afterStatus) {
+      return before == after
+        || (before.status == 'Submitted'
+          && after.status == 'Paid'
+          && after.diff(before).affectedKeys().hasOnly(['status', 'paidAt'])
+          && after.paidAt == request.time)
+        || (before.status == 'Submitted'
+          && after.status == 'Rejected'
+          && after.diff(before).affectedKeys().hasOnly(['status', 'rejectionReason'])
+          && (!after.keys().hasAny(['rejectionReason']) || shortText(after.rejectionReason, 200)))
+        || (before.method == 'Cash on Delivery'
+          && before.status == 'Unpaid'
+          && after.status == 'Paid'
+          && afterStatus == 'Delivered'
+          && after.diff(before).affectedKeys().hasOnly(['status', 'paidAt'])
+          && after.paidAt == request.time);
+    }
+
+    // Pending → Processing (payment verified or Cash on Delivery) → Shipped → Delivered; Pending or Processing → Cancelled.
+    function validStatusChange(before, after) {
+      return (before.status == 'Pending'
+          && after.status == 'Processing'
+          && (before.payment.status == 'Paid' || before.payment.method == 'Cash on Delivery')
+          && after.processedAt == request.time
+          && after.payment == before.payment)
+        || (before.status in ['Pending', 'Processing']
+          && after.status == 'Cancelled'
+          && after.cancelledBy == 'staff'
+          && after.cancelledAt == request.time
+          && (!after.keys().hasAny(['cancelReason']) || shortText(after.cancelReason, 200))
+          && after.payment == before.payment)
+        || (before.status == 'Processing'
+          && after.status == 'Shipped'
+          && after.shippedAt == request.time
+          && after.shipment.keys().hasOnly(['courier', 'trackingNumber'])
+          && shortText(after.shipment.courier, 60)
+          && after.shipment.trackingNumber is string
+          && after.shipment.trackingNumber.size() <= 60
+          && after.payment == before.payment)
+        || (before.status == 'Shipped'
+          && after.status == 'Delivered'
+          && after.deliveredAt == request.time);
+    }
+
+    // Staff and admins can never touch who ordered what, the items, the amounts or the payment terms.
+    function validStaffOrderUpdate(before, after) {
+      return after.diff(before).affectedKeys().hasOnly(['status', 'payment', 'shipment', 'processedAt', 'shippedAt',
+          'deliveredAt', 'cancelledAt', 'cancelledBy', 'cancelReason', 'updatedAt'])
+        && after.updatedAt == request.time
+        && validPaymentChange(before.payment, after.payment, after.status)
+        && (after.status == before.status
+          ? (before.payment == after.payment || before.status == 'Pending')
+            && !after.diff(before).affectedKeys().hasAny(['shipment', 'processedAt', 'shippedAt', 'deliveredAt',
+              'cancelledAt', 'cancelledBy', 'cancelReason'])
+          : validStatusChange(before, after));
+    }
+
+    // A customer's order. Customers place their own and can cancel it until staff verify the payment, or send the
+    // reference number again after a rejected payment. Staff and admins see every order and move it along.
+    match /orders/{orderId} {
+      allow read: if signedIn() && (resource.data.customerId == request.auth.uid || isStaffOrAdmin());
+
+      allow create: if signedIn() && validNewOrder(request.resource.data);
+
+      allow update: if signedIn() && (
+        // Customer cancels a pending order whose payment hasn't been verified.
+        (resource.data.customerId == request.auth.uid
+          && resource.data.status == 'Pending'
+          && resource.data.payment.status != 'Paid'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'updatedAt'])
+          && request.resource.data.status == 'Cancelled'
+          && request.resource.data.cancelledBy == 'customer'
+          && request.resource.data.cancelledAt == request.time
+          && (!request.resource.data.keys().hasAny(['cancelReason']) || shortText(request.resource.data.cancelReason, 200))
+          && request.resource.data.updatedAt == request.time)
+        // Customer sends the payment reference again after staff rejected it.
+        || (resource.data.customerId == request.auth.uid
+          && resource.data.status == 'Pending'
+          && resource.data.payment.status == 'Rejected'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payment', 'updatedAt'])
+          && request.resource.data.payment.diff(resource.data.payment).affectedKeys()
+            .hasOnly(['status', 'referenceNumber', 'submittedAt', 'rejectionReason'])
+          && request.resource.data.payment.status == 'Submitted'
+          && shortText(request.resource.data.payment.referenceNumber, 40)
+          && request.resource.data.payment.submittedAt == request.time
+          && request.resource.data.updatedAt == request.time)
+        // Staff and admins.
+        || (isStaffOrAdmin() && validStaffOrderUpdate(resource.data, request.resource.data))
+      );
+
+      allow delete: if false;
+    }
+
+    // `counters/orders` = { last }: the number of the latest order. Placing an order moves it up by exactly one (see
+    // validOrderNumber). It holds nothing sensitive beyond how many orders there have been.
+    match /counters/{counterId} {
+      allow read: if signedIn() && counterId == 'orders';
+      allow create: if signedIn() && counterId == 'orders'
+        && request.resource.data.keys().hasOnly(['last'])
+        && request.resource.data.last == 1;
+      allow update: if signedIn() && counterId == 'orders'
+        && request.resource.data.keys().hasOnly(['last'])
+        && request.resource.data.last == resource.data.last + 1;
+      allow delete: if false;
     }
 
     // Everything else stays locked until its feature is migrated to Firestore.

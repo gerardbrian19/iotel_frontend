@@ -32,6 +32,7 @@
   padding: 16px 8px;
   border-bottom: 1px solid #f0f0f0;
   cursor: pointer;
+  text-decoration: none;
   transition: background 0.15s;
 
   &:last-child {
@@ -72,4 +73,46 @@
 .help-arrow {
   font-size: 12px;
   color: #bfbfbf;
+}
+
+.faq-heading {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px;
+}
+
+.faq-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 20px 0 4px;
+  font-size: 14px;
+
+  [nz-icon] {
+    color: #c9a84c;
+  }
+}
+
+.faq-collapse {
+  border-top: 1px solid #f0f0f0;
+}
+
+.faq-answer {
+  margin: 0;
+  color: #595959;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.help-footer {
+  margin: 0;
+  color: #595959;
+  font-size: 14px;
+
+  a {
+    color: #cc2020;
+  }
 }

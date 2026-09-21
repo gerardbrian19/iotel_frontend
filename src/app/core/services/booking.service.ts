@@ -39,6 +39,14 @@ const STATUSES: readonly BookingStatus[] = [
   'Cancelled',
 ];
 
+/** A booking staff still have to act on: a new request to quote, or a submitted payment to verify. */
+export function needsStaffAction(booking: Booking): boolean {
+  return (
+    booking.status === 'Pending' ||
+    (booking.status === 'Confirmed' && booking.payment?.status === 'Submitted')
+  );
+}
+
 /** What the customer fills in. The rest of the booking (status, ids, timestamps) is set here. */
 export interface NewBooking {
   service: Service;

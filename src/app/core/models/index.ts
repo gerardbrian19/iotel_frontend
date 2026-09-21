@@ -1,5 +1,6 @@
 export * from './user.model';
 export * from './product.model';
+export * from './payment.model';
 export * from './order.model';
 export * from './address.model';
 export * from './cart-item.model';

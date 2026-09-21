@@ -1,4 +1,4 @@
-import { PaymentMethod } from './order.model';
+import { PaymentMethod } from './payment.model';
 
 /** A bookable service. `id` is the `services/{id}` document id (a slug). */
 export interface Service {

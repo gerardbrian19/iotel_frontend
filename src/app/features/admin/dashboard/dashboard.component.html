@@ -36,7 +36,7 @@
         <tbody>
           @for (order of recentOrders(); track order.id) {
             <tr>
-              <td>{{ order.id }}</td>
+              <td>{{ order.code }}</td>
               <td>{{ order.createdAt | date:'shortDate' }}</td>
               <td>{{ order.total | currency:'PHP':'symbol-narrow':'1.0-0' }}</td>
               <td><nz-tag [nzColor]="statusColors[order.status]">{{ order.status }}</nz-tag></td>

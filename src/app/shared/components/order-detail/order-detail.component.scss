@@ -1,0 +1,191 @@
+:host {
+  display: block;
+}
+
+.od {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 24px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+.od-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.od-heading {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8c8c8c;
+}
+
+.od-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.od-img {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #F5F5F5;
+}
+
+.od-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.od-item-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A1A1A;
+  overflow-wrap: anywhere;
+}
+
+.od-item-meta {
+  margin: 0;
+  font-size: 12px;
+  color: #888888;
+}
+
+.od-item-total {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: #CC2020;
+}
+
+.od-sum {
+  margin-top: 12px;
+}
+
+.od-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #555555;
+}
+
+.od-total {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #1A1A1A;
+}
+
+.od-line {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: #595959;
+  overflow-wrap: anywhere;
+}
+
+.od-shipment {
+  margin-top: 8px;
+}
+
+.od-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #888888;
+}
+
+.od-timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.od-step {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding-bottom: 14px;
+  font-size: 13px;
+  color: #8c8c8c;
+
+  // The line between two dots.
+  &:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 14px;
+    bottom: 0;
+    width: 2px;
+    background: #e8e8e8;
+  }
+
+  strong {
+    display: block;
+    font-weight: 600;
+    color: #8c8c8c;
+  }
+
+  &.done strong {
+    color: #1A1A1A;
+  }
+
+  &.current strong {
+    color: #C9A84C;
+  }
+
+  &.error strong {
+    color: #CC2020;
+  }
+
+  &.done:not(:last-child)::before {
+    background: #C9A84C;
+  }
+}
+
+.od-dot {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: 3px;
+  border-radius: 50%;
+  border: 2px solid #d9d9d9;
+  background: #FFFFFF;
+
+  .done > & {
+    border-color: #C9A84C;
+    background: #C9A84C;
+  }
+
+  .current > & {
+    border-color: #C9A84C;
+  }
+
+  .error > & {
+    border-color: #CC2020;
+    background: #CC2020;
+  }
+}
+
+.od-step-detail,
+.od-step-date {
+  display: block;
+  font-size: 12px;
+  color: #8c8c8c;
+  overflow-wrap: anywhere;
+}

@@ -4,61 +4,111 @@
 
     <!-- Search -->
     <nz-input-group [nzPrefix]="searchIcon" class="search-bar">
-      <input nz-input placeholder="Search by order ID or product..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+      <input
+        nz-input
+        placeholder="Search by order number or product..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+      />
     </nz-input-group>
     <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
 
     <!-- Status Tabs -->
     <div class="status-tabs">
       @for (tab of tabs; track tab) {
-        <button class="status-tab" [class.active]="activeTab() === tab" (click)="activeTab.set(tab)">
+        <button
+          class="status-tab"
+          [class.active]="activeTab() === tab"
+          (click)="activeTab.set(tab)"
+        >
           {{ tab }} <span class="tab-count">{{ countForStatus(tab) }}</span>
         </button>
       }
     </div>
 
-    @if (filteredOrders().length === 0) {
-      <nz-empty nzDescription="No orders found" />
+    @if (error()) {
+      <nz-alert
+        nzType="error"
+        nzShowIcon
+        nzMessage="We could not load your orders"
+        nzDescription="Please check your connection and reload the page."
+      />
+    } @else if (loading()) {
+      <div class="loading-state"><nz-spin nzSimple nzSize="large" /></div>
+    } @else if (filteredOrders().length === 0) {
+      <nz-empty
+        [nzNotFoundContent]="
+          orders().length ? 'No orders match your search' : 'You have no orders yet'
+        "
+        [nzNotFoundFooter]="orders().length ? undefined : shop"
+      />
+      <ng-template #shop>
+        <a routerLink="/customer/catalog" nz-button nzType="primary" class="shop-btn"
+          >Start shopping</a
+        >
+      </ng-template>
     } @else {
       <div class="orders-list">
         @for (order of filteredOrders(); track order.id) {
-          <nz-collapse class="order-collapse">
-            <nz-collapse-panel [nzHeader]="orderHeader">
-              <ng-template #orderHeader>
-                <div class="order-header">
-                  <div class="order-header-left">
-                    <strong class="order-id">{{ order.id }}</strong>
-                    <span class="order-date">{{ order.createdAt | date:'mediumDate' }}</span>
-                  </div>
-                  <div class="order-header-right">
-                    <nz-tag [nzColor]="STATUS_COLORS[order.status]">{{ order.status }}</nz-tag>
-                    <strong class="order-total">{{ order.total | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong>
-                  </div>
-                </div>
-              </ng-template>
-              <div class="order-body">
-                <div class="order-items-list">
-                  @for (item of order.items; track item.productId) {
-                    <div class="order-line-item">
-                      <img [src]="item.imageUrl" [alt]="item.name" class="line-img" />
-                      <span class="line-name">{{ item.name }}</span>
-                      <span class="line-qty">x{{ item.qty }}</span>
-                      <span class="line-total">{{ (item.price * item.qty) | currency:'PHP':'symbol-narrow':'1.0-0' }}</span>
-                    </div>
-                  }
-                </div>
-                <div class="order-meta">
-                  <span><strong>Payment:</strong> {{ order.paymentMethod }}</span>
-                  @if (order.estimatedDelivery) {
-                    <span><strong>ETA:</strong> {{ order.estimatedDelivery | date:'mediumDate' }}</span>
-                  }
-                </div>
-                <a [routerLink]="['/customer/orders', order.id, 'confirmation']" nz-button nzSize="small">
-                  <span nz-icon nzType="eye"></span> View Details
-                </a>
+          <article class="order-card" [class.cancelled]="order.status === 'Cancelled'">
+            <div class="order-header">
+              <div class="order-header-left">
+                <strong class="order-id">{{ order.code }}</strong>
+                <span class="order-date"
+                  >{{ order.createdAt | date: 'mediumDate' }} · {{ itemCount(order) }}
+                  {{ itemCount(order) === 1 ? 'item' : 'items' }}</span
+                >
               </div>
-            </nz-collapse-panel>
-          </nz-collapse>
+              <div class="order-header-right">
+                <div class="order-tags">
+                  <nz-tag [nzColor]="statusColors[order.status]">{{ order.status }}</nz-tag>
+                  @if (order.status !== 'Cancelled') {
+                    <nz-tag [nzColor]="paymentBadge(order).color">{{
+                      paymentBadge(order).label
+                    }}</nz-tag>
+                  }
+                </div>
+                <strong class="order-total">{{
+                  order.total | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+                }}</strong>
+              </div>
+            </div>
+
+            <div class="thumbs">
+              @for (item of order.items.slice(0, thumbnails); track item.productId) {
+                <img
+                  [src]="item.imageUrl || placeholder"
+                  [alt]="item.name"
+                  [title]="item.name"
+                  class="thumb"
+                  (error)="onImageError($event)"
+                />
+              }
+              @if (order.items.length > thumbnails) {
+                <span class="thumb-more">+{{ order.items.length - thumbnails }}</span>
+              }
+            </div>
+
+            <app-order-actions [order]="order" />
+
+            <button
+              nz-button
+              nzType="link"
+              nzSize="small"
+              class="toggle"
+              (click)="toggle(order.id)"
+              [attr.aria-expanded]="expanded().has(order.id)"
+            >
+              {{ expanded().has(order.id) ? 'Hide details' : 'View details' }}
+              <span nz-icon [nzType]="expanded().has(order.id) ? 'up' : 'down'"></span>
+            </button>
+
+            @if (expanded().has(order.id)) {
+              <div class="order-body">
+                <app-order-detail [order]="order" />
+              </div>
+            }
+          </article>
         }
       </div>
     }

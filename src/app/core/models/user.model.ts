@@ -8,5 +8,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  /** Profile picture as a small JPEG data URL (see `resizeToAvatar`); absent when none was set. */
+  photoURL?: string;
   createdAt?: string;
 }

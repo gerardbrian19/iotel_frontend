@@ -8,7 +8,16 @@ import {
   signOut,
   updateProfile,
 } from 'firebase/auth';
-import { DocumentData, doc, getDoc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import {
+  DocumentData,
+  deleteField,
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
 import { AppAuthError } from '../firebase/auth-errors';
 import { FIREBASE_AUTH, FIRESTORE } from '../firebase/firebase';
 import { USER_ROLES, User, UserRole } from '../models';
@@ -19,11 +28,13 @@ export function toUser(id: string, data: DocumentData): User {
     throw new AppAuthError('Your account has no valid role. Please contact an administrator.');
   }
   const createdAt = data['createdAt'];
+  const photoURL = data['photoURL'];
   return {
     id,
     name: String(data['name'] ?? data['email'] ?? ''),
     email: String(data['email'] ?? ''),
     role,
+    photoURL: typeof photoURL === 'string' && photoURL ? photoURL : undefined,
     createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : undefined,
   };
 }
@@ -103,6 +114,19 @@ export class AuthService {
     await signOut(this.auth);
     this.setUser(null);
     await this.router.navigate(['/auth/login']);
+  }
+
+  /** Saves (or, with `null`, removes) the signed-in user's profile picture on their `users/{uid}` document. */
+  async setPhoto(photoURL: string | null): Promise<void> {
+    const user = this._currentUser();
+    if (!user) throw new Error('You need to be signed in to change your profile picture.');
+    await updateDoc(doc(this.db, 'users', user.id), {
+      photoURL: photoURL ?? deleteField(),
+    });
+    // Ignore the result if the account changed while the write was in flight.
+    if (this._currentUser()?.id === user.id) {
+      this._currentUser.set({ ...user, photoURL: photoURL ?? undefined });
+    }
   }
 
   private setUser(user: User | null): void {

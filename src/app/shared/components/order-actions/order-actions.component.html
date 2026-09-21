@@ -1,0 +1,228 @@
+<p class="oa-hint">{{ hint() }}</p>
+
+<div class="oa-actions">
+  @if (isStaff()) {
+    @switch (step()) {
+      @case ('verify-payment') {
+        <button
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          class="brand-btn"
+          [disabled]="busy()"
+          (click)="verifyPayment()"
+        >
+          Verify payment
+        </button>
+        <button nz-button nzSize="small" [disabled]="busy()" (click)="openReject()">
+          Reject payment
+        </button>
+      }
+      @case ('start-processing') {
+        <button
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          class="brand-btn"
+          [disabled]="busy()"
+          [nzLoading]="busy()"
+          (click)="startProcessing()"
+        >
+          Start processing
+        </button>
+      }
+      @case ('ship') {
+        <button
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          class="brand-btn"
+          [disabled]="busy()"
+          (click)="openShip()"
+        >
+          Mark shipped
+        </button>
+      }
+      @case ('deliver') {
+        <button
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          class="brand-btn"
+          [disabled]="busy()"
+          (click)="confirmDelivered()"
+        >
+          Mark delivered
+        </button>
+      }
+    }
+  } @else if (canResubmit()) {
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="small"
+      class="brand-btn"
+      [disabled]="busy()"
+      (click)="openPay()"
+    >
+      Submit payment again
+    </button>
+  }
+
+  @if (canCancel()) {
+    <button nz-button nzDanger nzSize="small" [disabled]="busy()" (click)="openCancel()">
+      Cancel order
+    </button>
+  }
+</div>
+
+<!-- Staff: reject payment -->
+<nz-modal [(nzVisible)]="rejectVisible" nzTitle="Reject payment" [nzFooter]="null" nzWidth="440px">
+  <ng-container *nzModalContent>
+    <p class="modal-copy">
+      The customer sees the reason on their order and can send the reference number again.
+    </p>
+    <textarea
+      nz-input
+      rows="3"
+      maxlength="200"
+      placeholder="Reason (optional), e.g. the reference number was not found"
+      [ngModel]="rejectReason()"
+      (ngModelChange)="rejectReason.set($event)"
+    ></textarea>
+    <div class="modal-footer">
+      <button nz-button type="button" (click)="rejectVisible.set(false)">Close</button>
+      <button
+        nz-button
+        nzType="primary"
+        nzDanger
+        type="button"
+        [disabled]="busy()"
+        [nzLoading]="busy()"
+        (click)="rejectPayment()"
+      >
+        Reject payment
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Staff: ship -->
+<nz-modal [(nzVisible)]="shipVisible" nzTitle="Mark as shipped" [nzFooter]="null" nzWidth="440px">
+  <ng-container *nzModalContent>
+    <form nz-form [formGroup]="shipForm" nzLayout="vertical" (ngSubmit)="ship()">
+      <p class="modal-copy">
+        Enter who is delivering the parcel. The customer sees this on their order.
+      </p>
+      <nz-form-item>
+        <nz-form-label nzRequired>Courier</nz-form-label>
+        <nz-form-control nzErrorTip="Enter the courier, e.g. LBC, J&T Express or our own rider.">
+          <input nz-input formControlName="courier" maxlength="60" autocomplete="off" />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label>Tracking number</nz-form-label>
+        <nz-form-control>
+          <input nz-input formControlName="trackingNumber" maxlength="60" autocomplete="off" />
+        </nz-form-control>
+      </nz-form-item>
+      <div class="modal-footer">
+        <button nz-button type="button" (click)="shipVisible.set(false)">Close</button>
+        <button
+          nz-button
+          nzType="primary"
+          class="brand-btn"
+          type="submit"
+          [disabled]="shipForm.invalid || busy()"
+          [nzLoading]="busy()"
+        >
+          Mark shipped
+        </button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<!-- Cancel (customer and staff) -->
+<nz-modal
+  [(nzVisible)]="cancelVisible"
+  nzTitle="Cancel this order?"
+  [nzFooter]="null"
+  nzWidth="440px"
+>
+  <ng-container *nzModalContent>
+    <p class="modal-copy">
+      @if (isStaff()) {
+        @if (restocks()) {
+          The items go back into stock.
+        }
+        The customer will see that the order was cancelled. Arrange any refund with them directly.
+      } @else {
+        If you already sent a payment, message us so we can arrange a refund.
+      }
+    </p>
+    <textarea
+      nz-input
+      rows="3"
+      maxlength="200"
+      placeholder="Reason (optional)"
+      [ngModel]="cancelReason()"
+      (ngModelChange)="cancelReason.set($event)"
+    ></textarea>
+    <div class="modal-footer">
+      <button nz-button type="button" (click)="cancelVisible.set(false)">Keep order</button>
+      <button
+        nz-button
+        nzType="primary"
+        nzDanger
+        type="button"
+        [disabled]="busy()"
+        [nzLoading]="busy()"
+        (click)="cancel()"
+      >
+        Yes, cancel it
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Customer: send the payment reference again -->
+<nz-modal
+  [(nzVisible)]="payVisible"
+  nzTitle="Submit your payment again"
+  [nzFooter]="null"
+  nzWidth="440px"
+>
+  <ng-container *nzModalContent>
+    <p class="pay-amount">₱{{ order().total.toLocaleString('en-PH') }}</p>
+    <p class="modal-copy">
+      Send this amount by {{ order().payment.method }}, then enter the reference number from your
+      receipt. We will verify it and update your order.
+    </p>
+    <input
+      nz-input
+      maxlength="40"
+      autocomplete="off"
+      placeholder="Reference number"
+      [ngModel]="reference()"
+      (ngModelChange)="reference.set($event)"
+    />
+    @if (referenceProblem(); as problem) {
+      <p class="field-error">{{ problem }}</p>
+    }
+    <div class="modal-footer">
+      <button nz-button type="button" (click)="payVisible.set(false)">Close</button>
+      <button
+        nz-button
+        nzType="primary"
+        class="brand-btn"
+        type="button"
+        [disabled]="!reference() || !!referenceProblem() || busy()"
+        [nzLoading]="busy()"
+        (click)="submitPayment()"
+      >
+        Submit payment
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>

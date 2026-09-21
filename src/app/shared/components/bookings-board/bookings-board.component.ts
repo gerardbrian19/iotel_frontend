@@ -4,7 +4,7 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { Booking } from '../../../core/models';
-import { BookingService } from '../../../core/services/booking.service';
+import { BookingService, needsStaffAction } from '../../../core/services/booking.service';
 import { BookingPanelComponent } from '../booking-panel/booking-panel.component';
 
 interface Group {
@@ -34,10 +34,7 @@ export class BookingsBoardComponent {
 
   readonly groups = computed<Group[]>(() => {
     const all = this.bookingService.bookings();
-    const needsAction = all.filter(
-      (b) =>
-        b.status === 'Pending' || (b.payment?.status === 'Submitted' && b.status === 'Confirmed'),
-    );
+    const needsAction = all.filter(needsStaffAction);
     const awaitingPayment = all.filter((b) => b.status === 'Confirmed' && !b.payment);
     const scheduled = all.filter((b) => b.status === 'Paid');
     const history = all.filter((b) => b.status === 'Completed' || b.status === 'Cancelled');

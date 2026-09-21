@@ -96,6 +96,12 @@
   gap: 6px;
   font-size: 14px;
 
+  .user-avatar {
+    flex-shrink: 0;
+    background: #C9A84C;
+    color: #1A1A1A;
+  }
+
   .user-name {
     max-width: 120px;
     overflow: hidden;

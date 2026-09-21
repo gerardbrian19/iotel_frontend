@@ -52,7 +52,7 @@
         <!-- Desktop user dropdown -->
         <div nz-dropdown [nzDropdownMenu]="userMenu" nzPlacement="bottomRight" class="user-menu desktop-user-menu">
           <button nz-button nzType="text" class="user-btn">
-            <span nz-icon nzType="user"></span>
+            <nz-avatar [nzSize]="24" nzIcon="user" [nzSrc]="user()?.photoURL" class="user-avatar"></nz-avatar>
             <span class="user-name">{{ user()?.name }}</span>
             <span nz-icon nzType="down"></span>
           </button>

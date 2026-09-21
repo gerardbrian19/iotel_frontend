@@ -4,15 +4,10 @@
 .status-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .status-tab { padding: 5px 12px; border-radius: 20px; border: 1px solid #d9d9d9; background: #FFFFFF; cursor: pointer; font-size: 13px; transition: all .2s; &:hover { border-color: #CC2020; color: #CC2020; } &.active { background: #CC2020; border-color: #CC2020; color: #FFFFFF; font-weight: 600; } }
 .tab-count { font-size: 11px; margin-left: 3px; }
-.action-row { display: flex; gap: 8px; align-items: center; }
-.update-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
-.expanded-row td { background: #fafafa !important; padding: 12px 24px !important; }
-.expanded-content { display: flex; flex-direction: column; gap: 8px; }
-.exp-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-.exp-img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; }
-.exp-name { flex: 1; }
-.exp-total { font-weight: 600; color: #CC2020; }
-.exp-meta { display: flex; gap: 16px; font-size: 12px; color: #666; padding-top: 8px; border-top: 1px solid #f0f0f0; }
+.search { width: 280px; }
+.needs-action td:first-child { border-left: 3px solid #C9A84C; }
+.expanded-row td { background: #F5F5F5 !important; padding: 16px 24px !important; }
+.expanded-content { display: flex; flex-direction: column; gap: 16px; }
 
 @media (max-width: 640px) {
   .page-wrap {
