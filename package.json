@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "seed:products": "node scripts/seed-products.mjs",
-    "seed:services": "node scripts/seed-services.mjs"
+    "seed:services": "node scripts/seed-services.mjs",
+    "sync:showcase": "node scripts/sync-showcase.mjs"
   },
   "private": true,
   "packageManager": "npm@10.8.2",

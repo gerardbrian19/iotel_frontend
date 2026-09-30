@@ -1,0 +1,84 @@
+<section class="best-sellers" id="best-sellers" aria-labelledby="best-sellers-title">
+  <div class="inner">
+    <header class="heading">
+      <span class="eyebrow">Most ordered on IOTEL</span>
+      <h2 id="best-sellers-title">BEST SELLERS</h2>
+      <p>The products our customers order most. Sign in to see full details and purchase.</p>
+    </header>
+
+    @if (showcase.loading()) {
+      <div class="grid" aria-busy="true">
+        @for (s of skeletons; track s) {
+          <div class="card skeleton" aria-hidden="true">
+            <div class="media"></div>
+            <div class="body">
+              <span class="line w60"></span>
+              <span class="line w90"></span>
+              <span class="line w40"></span>
+            </div>
+          </div>
+        }
+      </div>
+    } @else if (showcase.bestSellers().length) {
+      <div class="grid">
+        @for (p of showcase.bestSellers(); track p.id; let i = $index) {
+          <article class="card">
+            <a
+              class="media"
+              routerLink="/customer/catalog"
+              [queryParams]="{ product: p.id }"
+              tabindex="-1"
+              aria-hidden="true"
+            >
+              <span class="rank">#{{ i + 1 }}</span>
+              <img
+                [src]="p.imageUrl || placeholder"
+                [alt]="p.name"
+                loading="lazy"
+                referrerpolicy="no-referrer"
+                (error)="onImageError($event)"
+              />
+            </a>
+            <div class="body">
+              <span class="category">{{ p.brand }} · {{ p.category }}</span>
+              <h3 class="name" [title]="p.name">{{ p.name }}</h3>
+              <p class="desc">{{ p.description }}</p>
+              <div class="meta">
+                <span class="price">
+                  @if (p.price !== null) {
+                    {{ p.price | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}
+                  } @else {
+                    Price on request
+                  }
+                </span>
+                <span class="stock" [class.out]="!p.inStock">
+                  <span class="stock-dot"></span>
+                  @if (p.inStock) {
+                    {{ p.stock }} in stock
+                  } @else if (p.isActive) {
+                    Out of stock
+                  } @else {
+                    Unavailable
+                  }
+                </span>
+              </div>
+              <a class="view-btn" routerLink="/customer/catalog" [queryParams]="{ product: p.id }">
+                View Product
+                <span nz-icon nzType="right"></span>
+              </a>
+              <p class="login-note">
+                <span nz-icon nzType="lock" nzTheme="outline"></span>
+                Sign in to purchase
+              </p>
+            </div>
+          </article>
+        }
+      </div>
+    } @else {
+      <p class="fallback">
+        Our best sellers are not available right now.
+        <a routerLink="/customer/catalog">Sign in to browse the full catalog</a>
+      </p>
+    }
+  </div>
+</section>

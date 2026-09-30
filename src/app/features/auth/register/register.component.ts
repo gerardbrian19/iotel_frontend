@@ -1,15 +1,28 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { AuthService } from '../../../core/services/auth.service';
 import { authErrorMessage } from '../../../core/firebase/auth-errors';
+import { LEGAL_DOCUMENTS, LegalDocumentId } from '../../../core/legal/legal-documents';
+import { safeReturnUrl } from '../../../shared/utils/return-url';
+import { LegalDocumentComponent } from '../../../shared/components/legal-document/legal-document.component';
 import {
+  emailDomainTypo,
   emailFormat,
   matchesControl,
   personName,
@@ -28,15 +41,19 @@ import {
     NzButtonModule,
     NzAlertModule,
     NzIconModule,
+    NzCheckboxModule,
+    NzModalModule,
+    LegalDocumentComponent,
   ],
   templateUrl: './register.component.html',
-  styleUrl: '../login/login.component.scss',
+  styleUrls: ['../login/login.component.scss', './register.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RegisterComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly passwordVisible = signal(false);
   readonly error = signal<string | null>(null);
@@ -44,9 +61,23 @@ export class RegisterComponent {
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [requiredTrimmed, personName]],
-    email: ['', [requiredTrimmed, emailFormat]],
+    email: ['', [requiredTrimmed, emailFormat, emailDomainTypo]],
     password: ['', [Validators.required, strongPassword]],
     confirmPassword: ['', [Validators.required, matchesControl('password')]],
+    // Never pre-checked: the user has to tick it themselves.
+    acceptLegal: [false, Validators.requiredTrue],
+  });
+
+  /** Create Account stays disabled until the Terms / Privacy checkbox is ticked. */
+  readonly acceptedLegal = toSignal(this.form.controls.acceptLegal.valueChanges, {
+    initialValue: false,
+  });
+
+  /** The legal document open in the modal, if any. */
+  readonly openDocId = signal<LegalDocumentId | null>(null);
+  readonly openDoc = computed(() => {
+    const id = this.openDocId();
+    return id ? LEGAL_DOCUMENTS[id] : null;
   });
 
   constructor() {
@@ -54,6 +85,17 @@ export class RegisterComponent {
     this.form.controls.password.valueChanges
       .pipe(takeUntilDestroyed(inject(DestroyRef)))
       .subscribe(() => this.form.controls.confirmPassword.updateValueAndValidity());
+  }
+
+  /** Opens a document from the link inside the checkbox label without toggling the checkbox. */
+  showDoc(id: LegalDocumentId, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.openDocId.set(id);
+  }
+
+  closeDoc(): void {
+    this.openDocId.set(null);
   }
 
   async submit(): Promise<void> {
@@ -68,7 +110,11 @@ export class RegisterComponent {
     const { name, email, password } = this.form.getRawValue();
     try {
       const user = await this.auth.register(name, email, password);
-      await this.router.navigate([`/${user.role}`]);
+      const returnUrl = safeReturnUrl(
+        this.route.snapshot.queryParamMap.get('returnUrl'),
+        user.role,
+      );
+      await this.router.navigateByUrl(returnUrl ?? `/${user.role}`);
     } catch (err) {
       this.error.set(authErrorMessage(err));
     } finally {

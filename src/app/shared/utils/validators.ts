@@ -13,6 +13,30 @@ export const requiredTrimmed: ValidatorFn = (c: AbstractControl): ValidationErro
 export const emailFormat: ValidatorFn = (c: AbstractControl): ValidationErrors | null =>
   isEmpty(c.value) || EMAIL_RE.test(String(c.value).trim()) ? null : { email: true };
 
+/** Common misspellings of `gmail.com`'s domain (`ggmail.com`, `gmial.com`, ...). */
+const GMAIL_TYPOS = new Set([
+  'ggmail.com',
+  'gmial.com',
+  'gmali.com',
+  'gmai.com',
+  'gmil.com',
+  'gnail.com',
+  'gmaill.com',
+  'gamil.com',
+  'gmail.co',
+  'gmail.cm',
+  'gmail.con',
+  'gmail.comm',
+  'gmail.net',
+]);
+
+/** Rejects a misspelled `gmail.com` domain, e.g. `someone@ggmail.com`. */
+export const emailDomainTypo: ValidatorFn = (c: AbstractControl): ValidationErrors | null => {
+  if (isEmpty(c.value)) return null;
+  const domain = String(c.value).trim().toLowerCase().split('@').pop() ?? '';
+  return GMAIL_TYPOS.has(domain) ? { emailTypo: true } : null;
+};
+
 /** 2–60 characters, letters plus spaces, dots, apostrophes and hyphens. */
 export const personName: ValidatorFn = (c: AbstractControl): ValidationErrors | null => {
   if (isEmpty(c.value)) return null;

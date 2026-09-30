@@ -1,10 +1,17 @@
-import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  inject,
+  provideAppInitializer,
+  provideBrowserGlobalErrorListeners,
+  provideEnvironmentInitializer,
+} from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideHttpClient } from '@angular/common/http';
 
 import { routes } from './app.routes';
 import { AuthService } from './core/services/auth.service';
+import { ShowcaseService } from './core/services/showcase.service';
 import { en_US, provideNzI18n } from 'ng-zorro-antd/i18n';
 import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
@@ -51,6 +58,18 @@ import {
   CreditCardOutline,
   UpOutline,
   UploadOutline,
+  WifiOutline,
+  LoginOutline,
+  MobileOutline,
+  BankOutline,
+  DollarOutline,
+  SoundOutline,
+  AppstoreOutline,
+  CompassOutline,
+  VideoCameraOutline,
+  ClusterOutline,
+  FileProtectOutline,
+  ThunderboltOutline,
 } from '@ant-design/icons-angular/icons';
 
 registerLocaleData(en);
@@ -60,6 +79,8 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     // Restore the Firebase session before the first navigation so the route guards can stay synchronous.
     provideAppInitializer(() => inject(AuthService).ready),
+    // Starts the Best Sellers copy's listener, and its refresh from the live catalog in staff/admin sessions.
+    provideEnvironmentInitializer(() => void inject(ShowcaseService)),
     provideRouter(routes, withComponentInputBinding()),
     provideAnimationsAsync(),
     provideHttpClient(),
@@ -106,6 +127,18 @@ export const appConfig: ApplicationConfig = {
       CreditCardOutline,
       UpOutline,
       UploadOutline,
+      WifiOutline,
+      LoginOutline,
+      MobileOutline,
+      BankOutline,
+      DollarOutline,
+      SoundOutline,
+      AppstoreOutline,
+      CompassOutline,
+      VideoCameraOutline,
+      ClusterOutline,
+      FileProtectOutline,
+      ThunderboltOutline,
     ]),
   ],
 };

@@ -76,6 +76,17 @@ service cloud.firestore {
         || (photo is string && photo.size() <= 150000 && photo.matches('data:image/jpeg;base64,.*'));
     }
 
+    // Which Terms of Service / Privacy Policy versions (legal-documents.ts) the user accepted at sign-up, stamped with
+    // the server time. Written once with the profile; the self-update rule below doesn't allow changing it.
+    function validLegalAcceptance(acceptance) {
+      return acceptance is map
+        && acceptance.keys().hasOnly(['termsVersion', 'privacyVersion', 'acceptedAt'])
+        && acceptance.keys().hasAll(['termsVersion', 'privacyVersion', 'acceptedAt'])
+        && shortText(acceptance.termsVersion, 20)
+        && shortText(acceptance.privacyVersion, 20)
+        && acceptance.acceptedAt == request.time;
+    }
+
     // One profile per account, keyed by Firebase Auth uid. `role` decides which portal the user can open.
     match /users/{uid} {
       // Read your own profile; admins can read and list everyone's.
@@ -85,11 +96,13 @@ service cloud.firestore {
       // Self sign-up (and first sign-in of an account that has no profile): always a customer.
       allow create: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt', 'legalAcceptance'])
         && request.resource.data.role == 'customer'
         && request.resource.data.email == request.auth.token.email
         && validName(request.resource.data.name)
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && (!request.resource.data.keys().hasAny(['legalAcceptance'])
+          || validLegalAcceptance(request.resource.data.legalAcceptance));
 
       // Admin-created accounts (staff/admin/customer). The doc id is the new account's uid.
       allow create: if isAdmin()
@@ -152,6 +165,37 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock'])
           && validStock(request.resource.data.stock));
       allow delete: if isAdmin();
+    }
+
+    // A showcased product's public copy: only what the landing page shows (never `dealerPrice`), and only products the
+    // document already lists. Mirrors StoredShowcaseProduct in showcase.service.ts.
+    function validShowcaseItem(items, i, productIds) {
+      return items.size() <= i
+        || (items[i] is map
+          && items[i].keys().hasOnly(['id', 'name', 'brand', 'category', 'description', 'imageUrl', 'price', 'stock', 'isActive'])
+          && items[i].id in productIds
+          && (items[i].price == null || (items[i].price is number && items[i].price >= 0))
+          && validStock(items[i].stock)
+          && items[i].isActive is bool);
+    }
+
+    // `showcase/bestSellers` = { productIds, products, updatedAt }: the landing page's Best Sellers, readable without
+    // signing in. `npm run sync:showcase` (Admin SDK) creates it and picks the products; staff and admins' clients only
+    // refresh the copies when prices or stock change (ShowcaseService).
+    match /showcase/{docId} {
+      allow get: if docId == 'bestSellers';
+      allow list: if false;
+      allow create, delete: if false;
+      allow update: if isStaffOrAdmin()
+        && docId == 'bestSellers'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['products', 'updatedAt'])
+        && request.resource.data.products is list
+        && request.resource.data.products.size() <= 4
+        && validShowcaseItem(request.resource.data.products, 0, resource.data.productIds)
+        && validShowcaseItem(request.resource.data.products, 1, resource.data.productIds)
+        && validShowcaseItem(request.resource.data.products, 2, resource.data.productIds)
+        && validShowcaseItem(request.resource.data.products, 3, resource.data.productIds)
+        && request.resource.data.updatedAt == request.time;
     }
 
     // Bookable services (seeded with `npm run seed:services`). Any signed-in user can read them; admins manage them.

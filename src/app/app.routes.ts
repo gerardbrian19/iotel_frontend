@@ -4,7 +4,12 @@ import { roleGuard } from './core/guards/role.guard';
 import { guestGuard } from './core/guards/guest.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
+  {
+    path: '',
+    pathMatch: 'full',
+    canActivate: [guestGuard],
+    loadComponent: () => import('./features/landing/landing.component').then(m => m.LandingComponent),
+  },
   {
     path: 'auth',
     canActivate: [guestGuard],
@@ -29,6 +34,19 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./features/staff/staff.routes').then(m => m.STAFF_ROUTES),
   },
-  { path: '**', redirectTo: '/auth/login' },
+  // Terms of Service / Privacy Policy: public, whether or not someone is signed in.
+  {
+    path: 'legal/terms',
+    data: { docId: 'terms' },
+    loadComponent: () =>
+      import('./features/legal/legal-page.component').then(m => m.LegalPageComponent),
+  },
+  {
+    path: 'legal/privacy',
+    data: { docId: 'privacy' },
+    loadComponent: () =>
+      import('./features/legal/legal-page.component').then(m => m.LegalPageComponent),
+  },
+  { path: '**', redirectTo: '' },
 ];
 

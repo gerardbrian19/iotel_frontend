@@ -1,0 +1,167 @@
+<div class="landing-page">
+  <!-- Header -->
+  <header class="landing-header">
+    <div
+      class="header-inner mx-auto flex h-[68px] max-w-[1280px] items-center gap-8 px-6 max-md:h-auto max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-2 max-md:px-4 max-md:pt-2.5 max-md:pb-0"
+    >
+      <a routerLink="/" class="brand-link">
+        <span class="brand-name">IOTEL</span>
+        <span class="brand-sub">by Goldcomm</span>
+      </a>
+
+      <nav class="header-nav">
+        <a href="#best-sellers" class="nav-link">Best Sellers</a>
+        <a href="#products" class="nav-link">Catalog</a>
+        <a href="#services" class="nav-link">Services</a>
+        <a href="#about" class="nav-link">About</a>
+      </nav>
+
+      <div class="flex items-center gap-2.5">
+        <a routerLink="/auth/login" class="sign-in-btn">
+          <span nz-icon nzType="login"></span>
+          Sign In
+        </a>
+        <a routerLink="/auth/register" class="sign-up-btn">
+          <span nz-icon nzType="user-add"></span>
+          Sign Up
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero: welcome text + image slideshow -->
+  <app-hero-slideshow />
+
+  <!-- Best Sellers -->
+  <app-best-sellers />
+
+  <!-- Products preview -->
+  <section class="section" id="products">
+    <div class="mx-auto max-w-[1200px]">
+      <span class="eyebrow">Products</span>
+      <h2 class="section-title">Shop the Catalog</h2>
+      <p class="section-intro">
+        A curated range of two-way radio equipment across these categories. Sign in to see live
+        prices, stock, and place an order.
+      </p>
+
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5">
+        @for (c of categories; track c.category) {
+          <div class="tile category-tile">
+            <div class="tile-icon"><span nz-icon [nzType]="c.icon" nzTheme="outline"></span></div>
+            <h3>{{ c.category }}</h3>
+            <p>{{ c.description }}</p>
+          </div>
+        }
+      </div>
+
+      <a routerLink="/auth/register" class="section-cta">
+        Sign up to browse the full catalog
+        <span nz-icon nzType="right"></span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Services preview -->
+  <section class="section section-alt" id="services">
+    <div class="mx-auto max-w-[1200px]">
+      <span class="eyebrow">Services</span>
+      <h2 class="section-title">Book a Service</h2>
+      <p class="section-intro">
+        Our certified technicians handle everything from programming to installation and repair.
+        Sign in to pick a date and time slot.
+      </p>
+
+      <div class="grid grid-cols-1 gap-5 md:grid-cols-[repeat(auto-fill,minmax(320px,1fr))]">
+        @for (s of services; track s.title) {
+          <div class="tile service-tile flex items-start gap-4">
+            <div class="tile-icon red">
+              <span nz-icon [nzType]="s.icon" nzTheme="outline"></span>
+            </div>
+            <div>
+              <h3>{{ s.title }}</h3>
+              <p>{{ s.description }}</p>
+            </div>
+          </div>
+        }
+      </div>
+
+      <a routerLink="/auth/register" class="section-cta">
+        Sign up to book a service
+        <span nz-icon nzType="right"></span>
+      </a>
+    </div>
+  </section>
+
+  <!-- About Us -->
+  <section class="section" id="about">
+    <div class="mx-auto max-w-[1200px]">
+      <span class="eyebrow">Who we are</span>
+      <h2 class="section-title">About Us</h2>
+      <p class="section-intro">
+        Goldcomm Corporation has been a trusted provider of two-way radio communication solutions
+        for businesses, public safety agencies, and organizations. IOTEL is our digital storefront
+        and service management platform — making it easy to order equipment, schedule installations,
+        and get support all in one place.
+      </p>
+
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5">
+        @for (f of features; track f.title) {
+          <div class="tile feature-card">
+            <div class="tile-icon red">
+              <span nz-icon [nzType]="f.icon" nzTheme="outline"></span>
+            </div>
+            <h3>{{ f.title }}</h3>
+            <p>{{ f.description }}</p>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Payment Methods -->
+  <section class="section section-alt">
+    <div class="mx-auto max-w-[1200px]">
+      <span class="eyebrow">Checkout</span>
+      <h2 class="section-title">Accepted Payment Methods</h2>
+      <div class="mt-6 flex flex-wrap gap-4">
+        <div class="payment-item">
+          <span nz-icon nzType="mobile" nzTheme="outline"></span>
+          <span>GCash</span>
+        </div>
+        <div class="payment-item">
+          <span nz-icon nzType="bank" nzTheme="outline"></span>
+          <span>Bank Transfer</span>
+        </div>
+        <div class="payment-item">
+          <span nz-icon nzType="dollar" nzTheme="outline"></span>
+          <span>Cash on Delivery</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="final-cta">
+    <h2>Ready to get started?</h2>
+    <p>Create a free account to browse prices, place orders, and book services.</p>
+    <div class="flex flex-wrap justify-center gap-3.5">
+      <a routerLink="/auth/register" class="cta-btn cta-primary">
+        <span nz-icon nzType="user-add" nzTheme="outline"></span>
+        Sign Up
+      </a>
+      <a routerLink="/auth/login" class="cta-btn cta-secondary">
+        <span nz-icon nzType="login" nzTheme="outline"></span>
+        Sign In
+      </a>
+    </div>
+  </section>
+
+  <footer class="landing-footer">
+    IOTEL &copy; 2026 Goldcomm Corporation. All rights reserved.
+    <nav class="footer-links mt-2 flex justify-center gap-5">
+      <a routerLink="/legal/terms">Terms of Service</a>
+      <a routerLink="/legal/privacy">Privacy Policy</a>
+    </nav>
+  </footer>
+</div>

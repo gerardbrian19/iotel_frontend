@@ -106,6 +106,8 @@
       <ng-template #emailErrors let-control>
         @if (control.hasError('required')) {
           Please enter an email
+        } @else if (control.hasError('emailTypo')) {
+          Did you mean gmail.com?
         } @else {
           Please enter a valid email address
         }

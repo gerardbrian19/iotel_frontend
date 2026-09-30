@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { AppAuthError } from '../firebase/auth-errors';
 import { FIREBASE_AUTH, FIRESTORE } from '../firebase/firebase';
+import { PRIVACY_VERSION, TERMS_VERSION } from '../legal/legal-documents';
 import { USER_ROLES, User, UserRole } from '../models';
 
 export function toUser(id: string, data: DocumentData): User {
@@ -90,7 +91,10 @@ export class AuthService {
     }
   }
 
-  /** Public sign-up. The role is always `customer`. */
+  /**
+   * Public sign-up. The role is always `customer`. Only call it once the user has accepted the Terms of Service and
+   * acknowledged the Privacy Policy: the current versions of both are recorded on the new profile.
+   */
   async register(name: string, email: string, password: string): Promise<User> {
     const cleanName = name.trim().replace(/\s+/g, ' ');
     const { user: fbUser } = await createUserWithEmailAndPassword(
@@ -100,7 +104,7 @@ export class AuthService {
     );
     try {
       await updateProfile(fbUser, { displayName: cleanName });
-      const user = await this.createProfile(fbUser, cleanName);
+      const user = await this.createProfile(fbUser, cleanName, true);
       this.setUser(user);
       return user;
     } catch (err) {
@@ -139,13 +143,25 @@ export class AuthService {
     return snap.exists() ? toUser(uid, snap.data()) : null;
   }
 
-  private async createProfile(fbUser: FirebaseUser, name: string): Promise<User> {
+  /** `acceptedLegal` records which Terms / Privacy Policy versions the user agreed to at sign-up, and when. */
+  private async createProfile(
+    fbUser: FirebaseUser,
+    name: string,
+    acceptedLegal = false,
+  ): Promise<User> {
     const email = fbUser.email ?? '';
     await setDoc(doc(this.db, 'users', fbUser.uid), {
       name,
       email,
       role: 'customer',
       createdAt: serverTimestamp(),
+      ...(acceptedLegal && {
+        legalAcceptance: {
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+          acceptedAt: serverTimestamp(),
+        },
+      }),
     });
     return { id: fbUser.uid, name, email, role: 'customer', createdAt: new Date().toISOString() };
   }

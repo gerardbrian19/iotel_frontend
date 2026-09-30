@@ -1,0 +1,336 @@
+.landing-page {
+  min-height: 100%;
+  background: #ffffff;
+  color: #1a1a1a;
+}
+
+// ─── Header ────────────────────────────────────────────────────────────────
+.landing-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid #eeeeee;
+  backdrop-filter: blur(12px);
+}
+
+.brand-link {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.brand-name {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: #1a1a1a;
+}
+
+.brand-sub {
+  margin-top: 3px;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #c9a84c;
+}
+
+.header-nav {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.nav-link {
+  position: relative;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #444444;
+  transition: color 0.2s;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 2px;
+    height: 2px;
+    background: #cc2020;
+    transform: scaleX(0);
+    transition: transform 0.2s;
+  }
+
+  &:hover {
+    color: #1a1a1a;
+
+    &::after {
+      transform: scaleX(1);
+    }
+  }
+}
+
+.sign-in-btn,
+.sign-up-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+}
+
+.sign-in-btn {
+  border: 1px solid #dddddd;
+  color: #1a1a1a;
+
+  &:hover {
+    border-color: #1a1a1a;
+    color: #1a1a1a;
+  }
+}
+
+.sign-up-btn {
+  background: #1a1a1a;
+  color: #ffffff;
+
+  &:hover {
+    background: #cc2020;
+    color: #ffffff;
+  }
+}
+
+// ─── Sections ──────────────────────────────────────────────────────────────
+.section {
+  padding: 80px 24px;
+  scroll-margin-top: 68px;
+}
+
+.section-alt {
+  background: #f5f5f5;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: #c9a84c;
+}
+
+.section-title {
+  margin: 6px 0 14px;
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 800;
+  color: #1a1a1a;
+}
+
+.section-intro {
+  max-width: 720px;
+  margin: 0 0 36px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #555555;
+}
+
+.section-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 32px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #cc2020;
+
+  &:hover {
+    gap: 10px;
+    color: #cc2020;
+  }
+}
+
+.tile {
+  padding: 24px;
+  border: 1px solid #eeeeee;
+  border-radius: 16px;
+  background: #ffffff;
+  transition:
+    box-shadow 0.25s,
+    transform 0.25s,
+    border-color 0.25s;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: transparent;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
+  }
+
+  h3 {
+    margin: 14px 0 6px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #666666;
+  }
+}
+
+.service-tile h3 {
+  margin-top: 0;
+}
+
+.tile-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(201, 168, 76, 0.15);
+  color: #a8872f;
+  font-size: 22px;
+
+  &.red {
+    background: rgba(204, 32, 32, 0.1);
+    color: #cc2020;
+  }
+}
+
+// ─── Payment Methods ───────────────────────────────────────────────────────
+.payment-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 28px;
+  border: 1px solid #e8e8e8;
+  border-radius: 999px;
+  background: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+
+  span[nz-icon] {
+    font-size: 22px;
+    color: #c9a84c;
+  }
+}
+
+// ─── Final CTA + Footer ────────────────────────────────────────────────────
+.final-cta {
+  padding: 80px 24px;
+  background: #1a1a1a;
+  text-align: center;
+
+  h2 {
+    margin: 0 0 12px;
+    font-size: clamp(26px, 3vw, 36px);
+    font-weight: 800;
+    color: #ffffff;
+  }
+
+  p {
+    margin: 0 0 32px;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.72);
+  }
+}
+
+.cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 32px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.cta-primary {
+  background: #cc2020;
+  color: #ffffff;
+
+  &:hover {
+    background: #b01b1b;
+    color: #ffffff;
+  }
+}
+
+.cta-secondary {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+
+  &:hover {
+    background: #ffffff;
+    color: #1a1a1a;
+  }
+}
+
+.landing-footer {
+  padding: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1a1a1a;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.footer-links a {
+  color: #c9a84c;
+}
+
+// ─── Tablet / mobile ───────────────────────────────────────────────────────
+@media (max-width: 768px) {
+  .brand-link {
+    margin-right: auto;
+  }
+
+  .brand-name {
+    font-size: 18px;
+    letter-spacing: 4px;
+  }
+
+  .sign-in-btn,
+  .sign-up-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  // The nav moves to its own scrollable row under the logo and buttons.
+  .header-nav {
+    order: 3;
+    flex: 1 0 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    margin: 0 -16px;
+    padding: 0 8px;
+    scrollbar-width: none;
+  }
+
+  .nav-link {
+    padding: 10px 10px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .section {
+    padding: 56px 16px;
+  }
+
+  .payment-item {
+    flex: 1 1 100%;
+  }
+}

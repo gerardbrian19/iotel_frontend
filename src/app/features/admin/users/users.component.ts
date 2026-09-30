@@ -16,6 +16,7 @@ import { UserService } from '../../../core/services/user.service';
 import { authErrorMessage } from '../../../core/firebase/auth-errors';
 import { USER_ROLES, User, UserRole } from '../../../core/models';
 import {
+  emailDomainTypo,
   emailFormat,
   personName,
   requiredTrimmed,
@@ -61,7 +62,7 @@ export class AdminUsersComponent {
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [requiredTrimmed, personName]],
-    email: ['', [requiredTrimmed, emailFormat]],
+    email: ['', [requiredTrimmed, emailFormat, emailDomainTypo]],
     password: ['', [Validators.required, strongPassword]],
     role: ['staff' as UserRole, Validators.required],
   });

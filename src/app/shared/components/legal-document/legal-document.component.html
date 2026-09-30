@@ -1,0 +1,74 @@
+@let d = doc();
+<article class="legal-doc">
+  <header class="doc-header">
+    <span class="eyebrow">IOTEL · Goldcomm Corporation</span>
+    @if (showTitle()) {
+      <h1 class="doc-title">{{ d.title }}</h1>
+    }
+    <p class="doc-meta">
+      Version {{ d.version }} · Effective date:
+      @if (d.effectiveDate) {
+        {{ d.effectiveDate | date: 'MMMM d, y' }}
+      } @else {
+        to be confirmed
+      }
+    </p>
+  </header>
+
+  @if (d.draft) {
+    <div class="draft-banner" role="note">
+      <span nz-icon nzType="info-circle" nzTheme="outline"></span>
+      <p>
+        <strong>Draft for review.</strong> Items marked “To be confirmed” still need details or
+        approval from Goldcomm Corporation before this document is final.
+      </p>
+    </div>
+  }
+
+  <p class="doc-intro">{{ d.intro }}</p>
+
+  <nav class="toc" aria-label="Contents">
+    <h2 class="toc-title">Contents</h2>
+    <ol>
+      @for (section of d.sections; track section.id; let i = $index) {
+        <li>
+          <button type="button" (click)="scrollTo(section.id)">
+            <span class="toc-num">{{ i + 1 }}.</span><span>{{ section.title }}</span>
+          </button>
+        </li>
+      }
+    </ol>
+  </nav>
+
+  @for (section of d.sections; track section.id; let i = $index) {
+    <section class="doc-section" [id]="anchor(section.id)">
+      <h2 class="section-title">
+        <span class="section-num">{{ i + 1 }}</span>
+        {{ section.title }}
+      </h2>
+      @for (block of section.blocks; track $index) {
+        @switch (block.kind) {
+          @case ('p') {
+            <p>{{ block.text }}</p>
+          }
+          @case ('h') {
+            <h3 class="sub-title">{{ block.text }}</h3>
+          }
+          @case ('list') {
+            <ul>
+              @for (item of block.items; track $index) {
+                <li>{{ item }}</li>
+              }
+            </ul>
+          }
+          @case ('confirm') {
+            <aside class="confirm-note">
+              <span class="confirm-label">To be confirmed</span>
+              {{ block.text }}
+            </aside>
+          }
+        }
+      }
+    </section>
+  }
+</article>

@@ -1,0 +1,18 @@
+<div class="legal-page">
+  <header class="legal-header">
+    <a routerLink="/" class="brand-link">
+      <span class="brand-name">IOTEL</span>
+      <span class="brand-sub">by Goldcomm</span>
+    </a>
+    <a [routerLink]="['/legal', otherDoc().id]" class="other-link">
+      <span nz-icon [nzType]="otherDoc().id === 'privacy' ? 'file-protect' : 'file-text'"></span>
+      {{ otherDoc().title }}
+    </a>
+  </header>
+
+  <main class="legal-card">
+    <app-legal-document [doc]="doc()" />
+  </main>
+
+  <footer class="legal-footer">IOTEL &copy; 2026 Goldcomm Corporation. All rights reserved.</footer>
+</div>

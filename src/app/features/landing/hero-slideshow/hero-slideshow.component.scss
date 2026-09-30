@@ -1,0 +1,358 @@
+:host {
+  display: block;
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: #111111;
+  color: #ffffff;
+  touch-action: pan-y;
+}
+
+.backdrops,
+.backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.backdrop {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(40px) saturate(1.2);
+  transform: scale(1.2);
+  opacity: 0;
+  transition: opacity 0.9s ease;
+
+  &.active {
+    opacity: 0.45;
+  }
+}
+
+.backdrops::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(17, 17, 17, 0.95) 0%,
+    rgba(17, 17, 17, 0.7) 45%,
+    rgba(17, 17, 17, 0.35) 100%
+  );
+}
+
+.hero-inner {
+  position: relative;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 64px 88px 88px;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: center;
+  gap: 48px;
+  min-height: 560px;
+}
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  margin-bottom: 22px;
+  border: 1px solid rgba(201, 168, 76, 0.45);
+  border-radius: 999px;
+  background: rgba(201, 168, 76, 0.14);
+  color: #c9a84c;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.hero-title {
+  margin: 0 0 18px;
+  font-size: clamp(34px, 4.6vw, 56px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.5px;
+  color: #ffffff;
+
+  .highlight {
+    color: #c9a84c;
+  }
+}
+
+.hero-tagline {
+  max-width: 480px;
+  margin: 0 0 32px;
+  font-size: 17px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.hero-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 28px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.btn-primary {
+  background: #cc2020;
+  color: #ffffff;
+
+  &:hover {
+    background: #b01b1b;
+    color: #ffffff;
+  }
+}
+
+.btn-ghost {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+
+  &:hover {
+    background: #ffffff;
+    color: #1a1a1a;
+  }
+}
+
+.counter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 40px 0 0;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.counter-current {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.counter-bar {
+  width: 48px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.stage {
+  position: relative;
+  height: 440px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+}
+
+// `contain`: the whole image is shown at its own proportions, never stretched or cropped.
+.slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 0.8s ease,
+    transform 5s ease-out;
+
+  &.active {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-top: -24px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: rgba(17, 17, 17, 0.45);
+  color: #ffffff;
+  font-size: 16px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+
+  &:hover,
+  &:focus-visible {
+    background: #cc2020;
+    border-color: #cc2020;
+  }
+}
+
+.arrow-prev {
+  left: 24px;
+}
+
+.arrow-next {
+  right: 24px;
+}
+
+.dots {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  z-index: 2;
+  display: flex;
+  gap: 10px;
+  transform: translateX(-50%);
+}
+
+.dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition:
+    width 0.3s,
+    background 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.7);
+  }
+
+  &.active {
+    width: 36px;
+    background: rgba(255, 255, 255, 0.35);
+  }
+
+  // Fills up over the 5 s until the next slide; restarts on every change.
+  &.active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: #c9a84c;
+    transform-origin: left;
+  }
+
+  &.running::after {
+    animation: dot-fill 5s linear;
+  }
+}
+
+@keyframes dot-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  .hero-inner {
+    padding: 48px 72px 80px;
+    gap: 32px;
+    min-height: 0;
+  }
+
+  .stage {
+    height: 360px;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-inner {
+    grid-template-columns: 1fr;
+    padding: 24px 16px 64px;
+    gap: 28px;
+  }
+
+  .stage {
+    order: -1;
+    height: min(78vw, 360px);
+    border-radius: 16px;
+  }
+
+  .backdrops::after {
+    background: linear-gradient(180deg, rgba(17, 17, 17, 0.4) 0%, rgba(17, 17, 17, 0.92) 55%);
+  }
+
+  .hero-tagline {
+    font-size: 15px;
+    margin-bottom: 24px;
+  }
+
+  .counter {
+    display: none;
+  }
+
+  .arrow {
+    top: calc(24px + min(39vw, 180px));
+    width: 38px;
+    height: 38px;
+    margin-top: -19px;
+  }
+
+  .arrow-prev {
+    left: 24px;
+  }
+
+  .arrow-next {
+    right: 24px;
+  }
+
+  .dots {
+    bottom: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide,
+  .backdrop,
+  .dot {
+    transition: none;
+  }
+
+  .dot.running::after {
+    animation: none;
+    transform: scaleX(1);
+  }
+}

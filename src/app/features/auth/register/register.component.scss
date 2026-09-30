@@ -1,0 +1,73 @@
+.legal-consent {
+  margin-bottom: 12px;
+
+  label {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #555555;
+  }
+}
+
+.legal-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: #cc2020;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover,
+  &:focus-visible {
+    color: #a81a1a;
+  }
+}
+
+.login-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.legal-scroll {
+  max-height: min(65vh, 640px);
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  padding-right: 8px;
+
+  &:focus-visible {
+    outline: 2px solid #c9a84c;
+    outline-offset: 2px;
+  }
+}
+
+.legal-modal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #1a1a1a;
+
+  [nz-icon] {
+    color: #c9a84c;
+  }
+}
+
+.legal-close-btn {
+  min-width: 96px;
+  background-color: #1a1a1a !important;
+  border-color: #1a1a1a !important;
+
+  &:hover {
+    background-color: #cc2020 !important;
+    border-color: #cc2020 !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .legal-scroll {
+    max-height: 70vh;
+  }
+}

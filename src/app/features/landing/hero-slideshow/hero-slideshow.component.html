@@ -1,0 +1,90 @@
+<section
+  class="hero"
+  aria-roledescription="carousel"
+  aria-label="Featured two-way radio equipment"
+  (mouseenter)="hovered.set(true)"
+  (mouseleave)="hovered.set(false)"
+  (focusin)="focused.set(true)"
+  (focusout)="onFocusOut($event)"
+  (keydown.arrowleft)="prev()"
+  (keydown.arrowright)="next()"
+  (touchstart)="onTouchStart($event)"
+  (touchend)="onTouchEnd($event)"
+>
+  <!-- Blurred copy of the current image behind everything, so each slide tints the hero. -->
+  <div class="backdrops" aria-hidden="true">
+    @for (slide of slides; track slide.src; let i = $index) {
+      <img
+        class="backdrop"
+        [class.active]="i === current()"
+        [src]="slide.src"
+        alt=""
+        referrerpolicy="no-referrer"
+      />
+    }
+  </div>
+
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="brand-badge">
+        <span nz-icon nzType="wifi" nzTheme="outline"></span>
+        Goldcomm Corporation
+      </div>
+      <h1 class="hero-title">Welcome to <span class="highlight">IOTEL</span></h1>
+      <p class="hero-tagline">
+        Your all-in-one platform for two-way radio equipment, professional installations, and
+        technical services — built to keep your teams connected.
+      </p>
+      <div class="hero-buttons">
+        <a routerLink="/customer/catalog" class="btn btn-primary">
+          Explore Products
+          <span nz-icon nzType="right"></span>
+        </a>
+        <a routerLink="/auth/register" class="btn btn-ghost">Create an account</a>
+      </div>
+      <p class="counter" aria-hidden="true">
+        <span class="counter-current">{{ pad(current() + 1) }}</span>
+        <span class="counter-bar"></span>
+        {{ pad(slides.length) }}
+      </p>
+    </div>
+
+    <div class="stage">
+      @for (slide of slides; track slide.src; let i = $index) {
+        <img
+          class="slide"
+          [class.active]="i === current()"
+          [src]="slide.src"
+          [alt]="slide.alt"
+          [attr.aria-hidden]="i !== current()"
+          [attr.fetchpriority]="i === 0 ? 'high' : null"
+          referrerpolicy="no-referrer"
+        />
+      }
+      <p class="sr-only" aria-live="polite">
+        Slide {{ current() + 1 }} of {{ slides.length }}: {{ slides[current()].alt }}
+      </p>
+    </div>
+  </div>
+
+  <button type="button" class="arrow arrow-prev" aria-label="Previous slide" (click)="prev()">
+    <span nz-icon nzType="left"></span>
+  </button>
+  <button type="button" class="arrow arrow-next" aria-label="Next slide" (click)="next()">
+    <span nz-icon nzType="right"></span>
+  </button>
+
+  <div class="dots">
+    @for (slide of slides; track slide.src; let i = $index) {
+      <button
+        type="button"
+        class="dot"
+        [class.active]="i === current()"
+        [class.running]="i === current() && !paused()"
+        [attr.aria-label]="'Show slide ' + (i + 1)"
+        [attr.aria-current]="i === current()"
+        (click)="goTo(i)"
+      ></button>
+    }
+  </div>
+</section>

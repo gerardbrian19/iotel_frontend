@@ -88,6 +88,23 @@
         </nz-form-control>
       </nz-form-item>
 
+      <nz-form-item class="legal-consent">
+        <nz-form-control
+          nzErrorTip="Please accept the Terms of Service and Privacy Policy to continue"
+        >
+          <label nz-checkbox formControlName="acceptLegal">
+            I have read and agree to the
+            <button type="button" class="legal-link" (click)="showDoc('terms', $event)">
+              Terms of Service
+            </button>
+            and acknowledge the
+            <button type="button" class="legal-link" (click)="showDoc('privacy', $event)">
+              Privacy Policy</button
+            >.
+          </label>
+        </nz-form-control>
+      </nz-form-item>
+
       <ng-template #nameErrors let-control>
         @if (control.hasError('required')) {
           Please enter your name
@@ -102,6 +119,8 @@
       <ng-template #emailErrors let-control>
         @if (control.hasError('required')) {
           Please enter your email
+        } @else if (control.hasError('emailTypo')) {
+          Did you mean gmail.com?
         } @else {
           Please enter a valid email address
         }
@@ -132,11 +151,40 @@
         [nzLoading]="loading()"
         type="submit"
         class="login-btn"
+        [disabled]="!acceptedLegal()"
       >
         Create Account
       </button>
     </form>
 
-    <p class="switch-auth">Already have an account? <a routerLink="/auth/login">Sign in</a></p>
+    <p class="switch-auth">Already have an account? <a routerLink="/auth/login" queryParamsHandling="preserve">Sign in</a></p>
   </div>
 </div>
+
+<nz-modal
+  [nzVisible]="openDoc() !== null"
+  [nzTitle]="modalTitle"
+  [nzFooter]="modalFooter"
+  (nzOnCancel)="closeDoc()"
+  nzWidth="760px"
+  nzCentered
+>
+  <ng-container *nzModalContent>
+    @if (openDoc(); as doc) {
+      <div class="legal-scroll" tabindex="0">
+        <app-legal-document [doc]="doc" [showTitle]="false" />
+      </div>
+    }
+  </ng-container>
+</nz-modal>
+
+<ng-template #modalTitle>
+  <span class="legal-modal-title">
+    <span nz-icon [nzType]="openDocId() === 'privacy' ? 'file-protect' : 'file-text'"></span>
+    {{ openDoc()?.title }}
+  </span>
+</ng-template>
+
+<ng-template #modalFooter>
+  <button nz-button nzType="primary" class="legal-close-btn" (click)="closeDoc()">Close</button>
+</ng-template>
