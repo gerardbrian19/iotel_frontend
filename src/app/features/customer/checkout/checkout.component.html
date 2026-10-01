@@ -85,54 +85,27 @@
             }
           </nz-card>
 
-          <!-- Payment Method -->
-          <nz-card class="section-card" nzTitle="Payment Method">
-            <div class="payment-options" role="radiogroup" aria-label="Payment method">
-              @for (option of paymentOptions; track option.method) {
-                <div
-                  class="payment-card"
-                  role="radio"
-                  tabindex="0"
-                  [class.selected]="method() === option.method"
-                  [attr.aria-checked]="method() === option.method"
-                  (click)="selectMethod(option.method)"
-                  (keydown.enter)="selectMethod(option.method)"
-                  (keydown.space)="selectMethod(option.method); $event.preventDefault()"
-                >
-                  <div class="payment-icon">{{ option.icon }}</div>
-                  <div class="payment-info">
-                    <strong>{{ option.method }}</strong>
-                    <p>{{ option.details }}</p>
-                  </div>
-                  @if (method() === option.method) {
-                    <span nz-icon nzType="check-circle" class="payment-check"></span>
-                  }
-                </div>
-              }
-            </div>
-
-            @if (needsReference()) {
-              <div class="ref-input-section">
-                <label class="ref-label-text" for="reference">Reference number</label>
-                <input
-                  id="reference"
-                  nz-input
-                  maxlength="40"
-                  autocomplete="off"
-                  placeholder="Enter the reference number from your receipt"
-                  [ngModel]="reference()"
-                  (ngModelChange)="reference.set($event)"
-                />
-                @if (referenceProblem(); as problem) {
-                  <p class="ref-error">{{ problem }}</p>
-                } @else {
-                  <p class="ref-hint">
-                    Send {{ total() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }} first, then
-                    enter the reference number. Our team verifies it before your order is processed.
-                  </p>
-                }
+          <!-- Payment -->
+          <nz-card class="section-card" nzTitle="Payment">
+            <div class="paymongo-block">
+              <span nz-icon nzType="safety-certificate" class="paymongo-icon"></span>
+              <div>
+                <strong>Pay securely with PayMongo</strong>
+                <p>
+                  After you continue, you are taken to PayMongo's secure page to pay
+                  {{ total() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}. Your order is
+                  confirmed as soon as the payment goes through. IOTEL never sees your card or
+                  wallet details.
+                </p>
               </div>
-            }
+            </div>
+            <ul class="method-chips" aria-label="Accepted payment methods">
+              @for (method of acceptedMethods; track method.label) {
+                <li>
+                  <span aria-hidden="true">{{ method.icon }}</span> {{ method.label }}
+                </li>
+              }
+            </ul>
           </nz-card>
         </div>
 
@@ -162,19 +135,23 @@
               [nzLoading]="placing()"
               (click)="placeOrder()"
             >
-              <span nz-icon nzType="check"></span> Confirm Order
+              <span nz-icon nzType="lock"></span> Pay
+              {{ total() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}
             </button>
+            @if (placing()) {
+              <p class="confirm-hint">Taking you to PayMongo…</p>
+            }
             @if (!canPlace() && !placing()) {
               <p class="confirm-hint">
                 @if (!address()) {
                   Add a shipping address to continue.
                 } @else if (problems().length) {
                   Update your cart to continue.
-                } @else if (!method()) {
-                  Choose a payment method to continue.
-                } @else {
-                  Enter your payment reference number to continue.
                 }
+              </p>
+            } @else if (!placing()) {
+              <p class="confirm-hint">
+                Unpaid orders are cancelled after {{ unpaidMinutes }} minutes.
               </p>
             }
           </nz-card>

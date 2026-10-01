@@ -5,6 +5,7 @@ import { NzStatisticModule } from 'ng-zorro-antd/statistic';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { formatSlot } from '../../../core/booking/schedule';
+import { isPaymentSettled } from '../../../core/orders/order-view';
 import { OrderService } from '../../../core/services/order.service';
 import { ProductService } from '../../../core/services/product.service';
 import { MessageService } from '../../../core/services/message.service';
@@ -36,12 +37,15 @@ export class StaffDashboardComponent {
     ].filter((name): name is string => name !== null),
   );
 
-  readonly pendingOrders = computed(() => this.orderService.orders().filter(o => o.status === 'Pending').length);
+  /** Paid and waiting for staff to start; unpaid pending orders are still with the customer (PayMongo). */
+  private readonly ordersToProcess = computed(() =>
+    this.orderService.orders().filter(o => o.status === 'Pending' && isPaymentSettled(o)));
+  readonly pendingOrders = computed(() => this.ordersToProcess().length);
   readonly processingOrders = computed(() => this.orderService.orders().filter(o => o.status === 'Processing').length);
   private readonly lowStockProducts = computed(() =>
     this.productService.products().filter(p => p.isActive && p.stock <= 5));
   readonly lowStock = computed(() => this.lowStockProducts().length);
-  /** New requests to quote, plus payments waiting to be verified, soonest appointment first. */
+  /** New requests to quote, plus payments to refund on cancelled bookings, soonest appointment first. */
   private readonly bookingsToHandle = computed(() =>
     this.bookingService
       .bookings()
@@ -56,12 +60,13 @@ export class StaffDashboardComponent {
       conversationId: b.conversationId,
       title: b.serviceName,
       sub: `${b.customerName} · ${formatSlot(b.preferredDate, b.preferredTime)}`,
-      verifyPayment: b.status === 'Confirmed',
+      refund: b.status === 'Cancelled',
     })),
   );
   readonly bookingsHidden = computed(() => this.bookingsNeedingAction() - this.bookingQueue().length);
   readonly unreadMessages = this.messageService.unreadTotal;
-  readonly pendingOrderList = computed(() => this.orderService.orders().filter(o => o.status === 'Pending').slice(0, 5));
+  /** Oldest first, like the staff order queue. */
+  readonly pendingOrderList = computed(() => [...this.ordersToProcess()].reverse().slice(0, 5));
   /** The 10 most urgent items (fewest units first); the KPI card shows the full count. */
   readonly lowStockItems = computed(() =>
     [...this.lowStockProducts()].sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name)).slice(0, 10));

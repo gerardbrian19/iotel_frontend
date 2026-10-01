@@ -19,12 +19,16 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
-import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { formatSlot } from '../../../core/booking/schedule';
-import { BOOKING_PAYMENT_METHODS, Booking, BookingPaymentMethod } from '../../../core/models';
+import { Booking } from '../../../core/models';
+import { paymentMethodLabel } from '../../../core/payments/payment-methods';
 import { AuthService } from '../../../core/services/auth.service';
-import { BookingService, bookingErrorMessage } from '../../../core/services/booking.service';
+import {
+  BookingService,
+  awaitingPayment,
+  bookingErrorMessage,
+} from '../../../core/services/booking.service';
 import { SlotPickerComponent } from '../slot-picker/slot-picker.component';
 
 interface StatusView {
@@ -35,9 +39,9 @@ interface StatusView {
 /**
  * One booking with what happens next and the actions that fit the viewer and the booking's status:
  *
- * - Customer: pay a confirmed booking, cancel until a payment is submitted.
- * - Staff / admin: confirm with a quotation, change the quote, reschedule, verify or reject a payment,
- *   mark it completed, cancel.
+ * - Customer: pay a confirmed booking through PayMongo, cancel until it is paid.
+ * - Staff / admin: confirm with a quotation, change the quote until it is paid, reschedule, mark it completed, cancel an
+ *   unpaid booking, refund a paid one (which cancels it).
  *
  * Used in the customer's booking list, the staff bookings board and above the booking's chat thread.
  */
@@ -56,7 +60,6 @@ interface StatusView {
     NzInputModule,
     NzInputNumberModule,
     NzModalModule,
-    NzRadioModule,
     NzTagModule,
     SlotPickerComponent,
   ],
@@ -81,29 +84,15 @@ export class BookingPanelComponent {
   readonly busy = signal(false);
   readonly quoteVisible = signal(false);
   readonly rescheduleVisible = signal(false);
-  readonly payVisible = signal(false);
-  readonly rejectVisible = signal(false);
+  readonly refundVisible = signal(false);
 
-  readonly paymentMethods = BOOKING_PAYMENT_METHODS;
   readonly newDate = signal<string | null>(null);
   readonly newTime = signal<string | null>(null);
-  readonly rejectReason = signal('');
+  readonly refundReason = signal('');
 
   readonly quoteForm = this.fb.nonNullable.group({
     amount: [0, [Validators.required, Validators.min(1)]],
     note: ['', Validators.maxLength(500)],
-  });
-  readonly payForm = this.fb.nonNullable.group({
-    method: ['GCash' as BookingPaymentMethod, Validators.required],
-    referenceNumber: [
-      '',
-      [
-        Validators.required,
-        Validators.minLength(6),
-        Validators.maxLength(40),
-        Validators.pattern(/^[A-Za-z0-9 -]+$/),
-      ],
-    ],
   });
 
   private readonly role = computed(() => this.auth.currentUser()?.role ?? 'customer');
@@ -114,34 +103,32 @@ export class BookingPanelComponent {
     formatSlot(this.booking().preferredDate, this.booking().preferredTime),
   );
 
-  /** Waiting for the customer's payment, i.e. confirmed and nothing submitted yet. */
-  readonly awaitingPayment = computed(() => {
-    const b = this.booking();
-    return b.status === 'Confirmed' && !b.payment;
-  });
-  readonly paymentUnderReview = computed(() => {
-    const b = this.booking();
-    return b.status === 'Confirmed' && b.payment?.status === 'Submitted';
-  });
+  /** Waiting for the customer's PayMongo payment. */
+  readonly awaitingPayment = computed(() => awaitingPayment(this.booking()));
+  readonly isPaid = computed(() => this.booking().payment?.status === 'Paid');
+  readonly paidWith = computed(() => paymentMethodLabel(this.booking().payment?.method));
   readonly canReschedule = computed(() =>
     ['Pending', 'Confirmed', 'Paid'].includes(this.booking().status),
   );
-  /** Staff can still quote until a payment has been submitted. */
+  /** Staff can still quote until it is paid. */
   readonly canQuote = computed(() => {
     const b = this.booking();
-    return (b.status === 'Pending' || b.status === 'Confirmed') && !b.payment;
+    return (b.status === 'Pending' || b.status === 'Confirmed') && !this.isPaid();
   });
+  /** Unpaid bookings only; paid ones are cancelled by refunding them. */
   readonly canCancel = computed(() => {
     const b = this.booking();
-    return this.isStaff()
-      ? ['Pending', 'Confirmed', 'Paid'].includes(b.status)
-      : (b.status === 'Pending' || b.status === 'Confirmed') && !b.payment;
+    return (b.status === 'Pending' || b.status === 'Confirmed') && !this.isPaid();
+  });
+  /** Staff refund a paid booking that hasn't been carried out, or one paid after it was cancelled. */
+  readonly canRefund = computed(() => {
+    const b = this.booking();
+    return this.isStaff() && this.isPaid() && b.status !== 'Completed';
   });
 
   readonly status = computed<StatusView>(() => {
     const b = this.booking();
     if (this.awaitingPayment()) return { label: 'Awaiting payment', color: 'processing' };
-    if (this.paymentUnderReview()) return { label: 'Payment under review', color: 'processing' };
     switch (b.status) {
       case 'Pending':
         return { label: 'Pending', color: 'warning' };
@@ -160,23 +147,26 @@ export class BookingPanelComponent {
   readonly hint = computed(() => {
     const b = this.booking();
     const staff = this.isStaff();
-    if (b.status === 'Cancelled')
-      return 'This booking was cancelled and its time slot is free again.';
+    if (b.status === 'Cancelled') {
+      if (this.isPaid()) {
+        return staff
+          ? 'Cancelled, but a payment came in for it. Refund the payment.'
+          : 'This booking was cancelled. We received a payment for it and will refund it.';
+      }
+      return b.payment?.status === 'Refunded'
+        ? 'This booking was cancelled and the payment was refunded.'
+        : 'This booking was cancelled and its time slot is free again.';
+    }
     if (b.status === 'Completed') return 'This service has been completed.';
     if (b.status === 'Paid') {
       return staff
-        ? 'Payment verified. Mark it completed once the service is done.'
+        ? 'Paid through PayMongo. Mark it completed once the service is done.'
         : `Payment received. See you on ${this.when()}.`;
-    }
-    if (this.paymentUnderReview()) {
-      return staff
-        ? `Check ${b.payment?.method} reference ${b.payment?.referenceNumber} against your records, then verify or reject it.`
-        : 'Payment sent. We will verify it shortly.';
     }
     if (this.awaitingPayment()) {
       return staff
-        ? 'Waiting for the customer to pay.'
-        : 'Your booking is confirmed. Pay the amount below to proceed.';
+        ? 'Waiting for the customer to pay through PayMongo.'
+        : 'Your booking is confirmed. Pay the amount through PayMongo to lock in your slot.';
     }
     return staff
       ? 'Discuss the job with the customer in chat, then confirm the booking with a quotation.'
@@ -218,35 +208,27 @@ export class BookingPanelComponent {
     );
   }
 
-  openPay(): void {
-    this.payForm.reset({ method: 'GCash', referenceNumber: '' });
-    this.payVisible.set(true);
+  /** Sends the customer to the PayMongo checkout for the quote. */
+  pay(): void {
+    this.busy.set(true);
+    this.bookings.payQuote(this.booking()).subscribe({
+      // The page is left, so `busy` stays on until the browser navigates away.
+      next: (url) => window.location.assign(url),
+      error: (err) => {
+        this.busy.set(false);
+        this.msg.error(bookingErrorMessage(err));
+      },
+    });
   }
 
-  submitPayment(): void {
-    if (this.payForm.invalid) return;
-    const { method, referenceNumber } = this.payForm.getRawValue();
-    this.run(
-      this.bookings.submitPayment(this.booking(), method, referenceNumber),
-      'Payment submitted. We will verify it shortly.',
-      () => this.payVisible.set(false),
-    );
+  openRefund(): void {
+    this.refundReason.set('');
+    this.refundVisible.set(true);
   }
 
-  verifyPayment(): void {
-    this.run(this.bookings.verifyPayment(this.booking()), 'Payment verified.');
-  }
-
-  openReject(): void {
-    this.rejectReason.set('');
-    this.rejectVisible.set(true);
-  }
-
-  rejectPayment(): void {
-    this.run(
-      this.bookings.rejectPayment(this.booking(), this.rejectReason()),
-      'Payment rejected. The customer can submit it again.',
-      () => this.rejectVisible.set(false),
+  refund(): void {
+    this.run(this.bookings.refund(this.booking(), this.refundReason()), 'Payment refunded.', () =>
+      this.refundVisible.set(false),
     );
   }
 
@@ -259,7 +241,7 @@ export class BookingPanelComponent {
       nzTitle: 'Cancel this booking?',
       nzContent: this.isStaff()
         ? 'The customer will be notified in chat and the time slot will be freed.'
-        : 'Your time slot will be freed. You can book again any time.',
+        : 'Your time slot will be freed. You can book again any time. If you just paid, wait a moment: a paid booking can no longer be cancelled here.',
       nzOkText: 'Yes, cancel it',
       nzOkDanger: true,
       nzCancelText: 'Keep booking',

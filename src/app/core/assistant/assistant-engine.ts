@@ -364,11 +364,9 @@ function nextStep(b: Booking): string {
     case 'Pending':
       return 'Staff are reviewing it. They will chat with you and send a quote.';
     case 'Confirmed':
-      return b.payment
-        ? 'Payment submitted. Staff are verifying your reference number.'
-        : `Quote ready${b.quote ? `: ${peso(b.quote.amount)}` : ''}. Pay by GCash or Bank Transfer to lock it in.`;
+      return `Quote ready${b.quote ? `: ${peso(b.quote.amount)}` : ''}. Pay it through PayMongo in My Bookings to lock it in.`;
     case 'Paid':
-      return 'Payment verified. Your slot is confirmed.';
+      return 'Payment received. Your slot is confirmed.';
     case 'Completed':
       return 'All done.';
     case 'Cancelled':
@@ -463,7 +461,7 @@ function cancelBookingReply(ctx: AssistantContext): AssistantReply {
   return {
     text:
       'Open My Bookings and press Cancel on the booking. You can cancel while it is Pending, or Confirmed as long as ' +
-      "you haven't submitted a payment, and its time slot is freed right away.\n\n" +
+      "you haven't paid yet, and its time slot is freed right away.\n\n" +
       "If you've already paid, message staff in the booking's chat and they'll handle it.",
     links: [MY_BOOKINGS, ...chatLink(firstActive(ctx))],
     followUps: ['How do I reschedule a booking?', "What's the status of my bookings?"],
@@ -481,14 +479,16 @@ function rescheduleReply(ctx: AssistantContext): AssistantReply {
 }
 
 function bookingPaymentReply(ctx: AssistantContext): AssistantReply {
-  const awaiting = ctx.bookings.find((b) => b.status === 'Confirmed' && !b.payment);
+  const awaiting = ctx.bookings.find(
+    (b) => b.status === 'Confirmed' && b.payment?.status !== 'Paid',
+  );
   const personal = awaiting
     ? `\n\nYou have a confirmed booking for ${awaiting.serviceName}${awaiting.quote ? ` with a quote of ${peso(awaiting.quote.amount)}` : ''}, ready to pay in My Bookings.`
     : '';
   return {
     text:
-      'Once staff confirm your booking and send a quote, you can pay by GCash or Bank Transfer: send the amount, then enter the reference number in My Bookings. ' +
-      'There is no online payment gateway, so staff check your reference number by hand. It shows as Submitted until they verify it, then the booking becomes Paid.' +
+      "Once staff confirm your booking and send a quote, press Pay in My Bookings. You pay on PayMongo's secure page with GCash, Maya, a credit or debit card, GrabPay or QR Ph, " +
+      'and the booking becomes Paid as soon as the payment goes through.' +
       personal,
     links: [MY_BOOKINGS],
     followUps: ["What's the status of my bookings?", 'How do I cancel a booking?'],
@@ -563,7 +563,7 @@ function howToBookReply(): AssistantReply {
         'Choose a date and an open time slot',
         'Describe the problem so staff can prepare',
         'Staff chat with you and send a quote',
-        'Pay by GCash or Bank Transfer once you agree to it',
+        'Pay the quote through PayMongo (GCash, Maya, card and more)',
       ]) +
       `\n\n${hoursText()}`,
     links: [{ label: 'Book a service', url: '/customer/services' }],
@@ -998,8 +998,9 @@ function shippingReply(ctx: AssistantContext): AssistantReply {
 function orderPaymentReply(): AssistantReply {
   return {
     text:
-      'At checkout you can pay by GCash, Bank Transfer or Cash on Delivery. For GCash and Bank Transfer, enter your payment reference number so we can match it.\n\n' +
-      'Service bookings work differently: you pay after staff confirm and quote the job (GCash or Bank Transfer).',
+      "All payments go through PayMongo's secure checkout: GCash, Maya, credit or debit card, GrabPay or QR Ph. " +
+      'Your order is confirmed as soon as the payment goes through; unpaid orders are cancelled after an hour. We do not offer Cash on Delivery.\n\n' +
+      'Service bookings work the same way, after staff confirm and quote the job.',
     links: [{ label: 'Go to cart', url: '/customer/cart' }],
     followUps: ['How much is shipping?', 'How do I pay for my booking?'],
   };
@@ -1031,7 +1032,7 @@ function cartReply(ctx: AssistantContext): AssistantReply {
 function checkoutReply(ctx: AssistantContext): AssistantReply {
   return {
     text:
-      'To check out: add items to your cart, open the cart, then Checkout. Pick a saved shipping address (or add one), choose GCash, Bank Transfer or Cash on Delivery, and confirm.' +
+      "To check out: add items to your cart, open the cart, then Checkout. Pick a saved shipping address (or add one) and press Pay. You finish on PayMongo's secure page (GCash, Maya, card, GrabPay or QR Ph)." +
       (ctx.cart.items.length
         ? `\n\nYour cart is ready with ${plural(ctx.cart.items.length, 'product')}.`
         : ''),
@@ -1237,7 +1238,7 @@ export function answer(input: string, ctx: AssistantContext): AssistantReply {
     return rescheduleReply(ctx);
   if (
     (bookingCue || test(q, /\bservice\b/)) &&
-    test(q, /\b(pay|payment|gcash|bank transfer|reference number|quote|quotation)\b/)
+    test(q, /\b(pay|payment|gcash|maya|paymongo|quote|quotation)\b/)
   )
     return bookingPaymentReply(ctx);
   if (
@@ -1306,7 +1307,12 @@ export function answer(input: string, ctx: AssistantContext): AssistantReply {
     test(q, /\b(order|orders|tracking|track|delivered|parcel|package|shipment|purchase history)\b/)
   )
     return ordersReply(ctx);
-  if (test(q, /\b(pay|payment|payments|gcash|bank transfer|cash on delivery|cod)\b/))
+  if (
+    test(
+      q,
+      /\b(pay|payment|payments|paymongo|gcash|maya|paymaya|credit card|debit card|grabpay|qr ph|bank transfer|cash on delivery|cod)\b/,
+    )
+  )
     return orderPaymentReply();
   if (test(q, /\b(checkout|check out)\b/)) return checkoutReply(ctx);
   if (test(q, /\b(cart|basket)\b/)) return cartReply(ctx);

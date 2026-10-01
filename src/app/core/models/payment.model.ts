@@ -1,30 +1,32 @@
-export type PaymentMethod = 'GCash' | 'Bank Transfer' | 'Cash on Delivery';
+/** Every payment goes through PayMongo's hosted checkout; see `core/payments/payment-methods.ts`. */
+export type PaymentProvider = 'paymongo';
 
 /**
- * Who confirms that the money arrived.
- * manual   – the customer reports a reference number and staff check it by hand (today).
- * paymongo – PayMongo confirms the payment and a backend webhook marks it paid (planned).
+ * Unpaid   – the checkout was opened but PayMongo hasn't confirmed a payment yet.
+ * Paid     – PayMongo confirmed it (set only by the backend webhook, never by the app).
+ * Refunded – staff refunded it through PayMongo.
  */
-export type PaymentProvider = 'manual' | 'paymongo';
+export type PaymentStatus = 'Unpaid' | 'Paid' | 'Refunded';
 
-/**
- * Unpaid    – nothing received yet (Cash on Delivery until it is delivered).
- * Submitted – the customer reported a payment; staff still have to verify it.
- * Paid      – confirmed. Set by staff today and by PayMongo's webhook later; never by the customer.
- * Rejected  – staff could not verify the reported payment; the customer can submit it again.
- */
-export type PaymentStatus = 'Unpaid' | 'Submitted' | 'Paid' | 'Rejected';
+/** What PayMongo reports the customer paid with, e.g. `gcash`, `paymaya`, `card`, `qrph`. */
+export type PaymentMethod = string;
 
-/** The payment of one order. Stored as `orders/{id}.payment`. */
-export interface OrderPayment {
+/** The payment of an order (`orders/{id}.payment`) or a service booking (`bookings/{id}.payment`). */
+export interface Payment {
   provider: PaymentProvider;
-  method: PaymentMethod;
   status: PaymentStatus;
-  /** Amount due in PHP; always the order total. */
+  /** Amount due in PHP: the order total, or the booking's quote. */
   amount: number;
-  /** What the customer entered from their GCash / bank receipt (manual provider). */
-  referenceNumber?: string;
-  rejectionReason?: string;
-  submittedAt?: string;
+  /** Set once paid. */
+  method?: PaymentMethod;
+  checkoutSessionId?: string;
+  /** PayMongo's hosted checkout page, while the payment is open. */
+  checkoutUrl?: string;
+  /** PayMongo payment id (`pay_…`), once paid. */
+  paymentId?: string;
   paidAt?: string;
+  refundId?: string;
+  refundedAt?: string;
 }
+
+export type OrderPayment = Payment;

@@ -3,21 +3,6 @@
 <div class="oa-actions">
   @if (isStaff()) {
     @switch (step()) {
-      @case ('verify-payment') {
-        <button
-          nz-button
-          nzType="primary"
-          nzSize="small"
-          class="brand-btn"
-          [disabled]="busy()"
-          (click)="verifyPayment()"
-        >
-          Verify payment
-        </button>
-        <button nz-button nzSize="small" [disabled]="busy()" (click)="openReject()">
-          Reject payment
-        </button>
-      }
       @case ('start-processing') {
         <button
           nz-button
@@ -56,16 +41,15 @@
         </button>
       }
     }
-  } @else if (canResubmit()) {
-    <button
-      nz-button
-      nzType="primary"
-      nzSize="small"
-      class="brand-btn"
-      [disabled]="busy()"
-      (click)="openPay()"
-    >
-      Submit payment again
+  } @else if (canPay()) {
+    <button nz-button nzType="primary" nzSize="small" class="brand-btn" (click)="pay()">
+      Pay now
+    </button>
+  }
+
+  @if (canRefund()) {
+    <button nz-button nzDanger nzSize="small" [disabled]="busy()" (click)="openRefund()">
+      {{ refundCancels() ? 'Cancel & refund' : 'Refund payment' }}
     </button>
   }
 
@@ -75,37 +59,6 @@
     </button>
   }
 </div>
-
-<!-- Staff: reject payment -->
-<nz-modal [(nzVisible)]="rejectVisible" nzTitle="Reject payment" [nzFooter]="null" nzWidth="440px">
-  <ng-container *nzModalContent>
-    <p class="modal-copy">
-      The customer sees the reason on their order and can send the reference number again.
-    </p>
-    <textarea
-      nz-input
-      rows="3"
-      maxlength="200"
-      placeholder="Reason (optional), e.g. the reference number was not found"
-      [ngModel]="rejectReason()"
-      (ngModelChange)="rejectReason.set($event)"
-    ></textarea>
-    <div class="modal-footer">
-      <button nz-button type="button" (click)="rejectVisible.set(false)">Close</button>
-      <button
-        nz-button
-        nzType="primary"
-        nzDanger
-        type="button"
-        [disabled]="busy()"
-        [nzLoading]="busy()"
-        (click)="rejectPayment()"
-      >
-        Reject payment
-      </button>
-    </div>
-  </ng-container>
-</nz-modal>
 
 <!-- Staff: ship -->
 <nz-modal [(nzVisible)]="shipVisible" nzTitle="Mark as shipped" [nzFooter]="null" nzWidth="440px">
@@ -153,12 +106,11 @@
   <ng-container *nzModalContent>
     <p class="modal-copy">
       @if (isStaff()) {
-        @if (restocks()) {
-          The items go back into stock.
-        }
-        The customer will see that the order was cancelled. Arrange any refund with them directly.
+        The customer has not paid, so there is nothing to refund. They will see that the order was
+        cancelled.
       } @else {
-        If you already sent a payment, message us so we can arrange a refund.
+        You have not paid for this order, so nothing is charged. If you paid just now, wait a
+        moment: a paid order can no longer be cancelled here.
       }
     </p>
     <textarea
@@ -186,42 +138,45 @@
   </ng-container>
 </nz-modal>
 
-<!-- Customer: send the payment reference again -->
+<!-- Staff: refund (and cancel) -->
 <nz-modal
-  [(nzVisible)]="payVisible"
-  nzTitle="Submit your payment again"
+  [(nzVisible)]="refundVisible"
+  [nzTitle]="refundCancels() ? 'Cancel and refund this order?' : 'Refund this payment?'"
   [nzFooter]="null"
   nzWidth="440px"
 >
   <ng-container *nzModalContent>
-    <p class="pay-amount">₱{{ order().total.toLocaleString('en-PH') }}</p>
+    <p class="pay-amount">₱{{ order().payment.amount.toLocaleString('en-PH') }}</p>
     <p class="modal-copy">
-      Send this amount by {{ order().payment.method }}, then enter the reference number from your
-      receipt. We will verify it and update your order.
+      The full amount goes back to the customer through PayMongo.
+      @if (refundCancels()) {
+        The order is cancelled.
+      }
+      @if (restocks()) {
+        Its items go back into stock.
+      }
+      This cannot be undone.
     </p>
-    <input
+    <textarea
       nz-input
-      maxlength="40"
-      autocomplete="off"
-      placeholder="Reference number"
-      [ngModel]="reference()"
-      (ngModelChange)="reference.set($event)"
-    />
-    @if (referenceProblem(); as problem) {
-      <p class="field-error">{{ problem }}</p>
-    }
+      rows="3"
+      maxlength="200"
+      placeholder="Reason (optional), shown to the customer"
+      [ngModel]="refundReason()"
+      (ngModelChange)="refundReason.set($event)"
+    ></textarea>
     <div class="modal-footer">
-      <button nz-button type="button" (click)="payVisible.set(false)">Close</button>
+      <button nz-button type="button" (click)="refundVisible.set(false)">Close</button>
       <button
         nz-button
         nzType="primary"
-        class="brand-btn"
+        nzDanger
         type="button"
-        [disabled]="!reference() || !!referenceProblem() || busy()"
+        [disabled]="busy()"
         [nzLoading]="busy()"
-        (click)="submitPayment()"
+        (click)="refund()"
       >
-        Submit payment
+        Refund
       </button>
     </div>
   </ng-container>

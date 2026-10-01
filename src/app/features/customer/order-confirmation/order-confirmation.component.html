@@ -2,10 +2,8 @@
   @if (order(); as order) {
     <div class="confirmation-container">
       <nz-result
-        [nzStatus]="order.status === 'Cancelled' ? 'info' : 'success'"
-        [nzTitle]="
-          order.status === 'Pending' ? 'Order Placed Successfully!' : 'Order ' + order.status
-        "
+        [nzStatus]="result()!.status"
+        [nzTitle]="result()!.title"
         [nzSubTitle]="'Order ' + order.code"
       >
         <div nz-result-extra>
@@ -15,6 +13,13 @@
           <a routerLink="/customer/catalog" nz-button>Continue Shopping</a>
         </div>
       </nz-result>
+
+      @if (confirming()) {
+        <div class="confirming">
+          <nz-spin nzSimple />
+          <span>PayMongo is confirming your payment. This page updates by itself.</span>
+        </div>
+      }
 
       <nz-card class="detail-card">
         <div class="meta-grid">

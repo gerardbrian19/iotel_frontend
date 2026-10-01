@@ -37,8 +37,8 @@ export interface LegalDocument {
   sections: readonly LegalSection[];
 }
 
-export const TERMS_VERSION = '1.1';
-export const PRIVACY_VERSION = '1.1';
+export const TERMS_VERSION = '1.2';
+export const PRIVACY_VERSION = '1.2';
 
 const CONTACT_CONFIRM =
   'Goldcomm Corporation to provide: registered business address, customer-support email address and telephone number, and business hours.';
@@ -167,12 +167,12 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         },
         {
           kind: 'p',
-          text: 'At checkout you choose a delivery address and a payment method and confirm the order. Each order gets an order number (for example, ORD-0007) and then moves through these stages, which you can follow under My Orders:',
+          text: "At checkout you choose a delivery address and press Pay. The order is created with an order number (for example, ORD-0007) and you are taken to PayMongo's secure page to pay for it. The order then moves through these stages, which you can follow under My Orders:",
         },
         {
           kind: 'list',
           items: [
-            'Pending — the order has been placed and is waiting for payment verification (or, for Cash on Delivery, for our staff to start it).',
+            'Pending — the order has been placed. It waits for your payment, and once paid, for our staff to start it. An order that is not paid within 60 minutes is cancelled automatically.',
             'Processing — our staff are preparing the order. The items are taken out of stock at this point.',
             'Shipped — the order has been handed to a courier. The courier name, and a tracking number when there is one, are shown on the order.',
             'Delivered — the order has been received.',
@@ -191,31 +191,23 @@ export const TERMS_OF_SERVICE: LegalDocument = {
     },
     {
       id: 'payment',
-      title: 'Payment Methods and Verification',
+      title: 'Payment',
       blocks: [
         {
           kind: 'p',
-          text: 'IOTEL does not currently process online payments or connect to a payment gateway. The available methods are:',
+          text: 'Payments for orders and service bookings are processed by PayMongo Philippines, Inc. ("PayMongo"). When you press Pay, you are taken to PayMongo\'s secure checkout page, where you can pay with:',
         },
         {
           kind: 'list',
-          items: [
-            'GCash — you send the order total to the GCash account shown at checkout, then enter the reference number from your receipt.',
-            'Bank Transfer — you transfer the order total to the bank account shown at checkout, then enter the reference number from your receipt.',
-            'Cash on Delivery — you pay in cash when the order is delivered.',
-          ],
+          items: ['GCash', 'Maya', 'credit or debit card', 'GrabPay', 'QR Ph'],
         },
         {
           kind: 'p',
-          text: 'Our staff check each GCash or bank transfer reference by hand. Until then the payment shows as "Submitted". If we cannot match your payment, we mark it "Rejected" and you can enter a correct reference number while the order is still Pending. An order paid by GCash or bank transfer is processed only after the payment is verified.',
-        },
-        {
-          kind: 'p',
-          text: "You must enter only reference numbers for payments you actually made to Goldcomm. Payments you make through GCash or your bank are also subject to that provider's own terms.",
+          text: "You enter your card or e-wallet details on PayMongo's page, not in IOTEL, and your payment is also subject to PayMongo's terms and those of your card issuer or e-wallet. Your order or booking is marked Paid only when PayMongo confirms the payment to us. If you leave PayMongo's page without paying, you can pay from the order (Pay now) until it is cancelled. Cash on Delivery is not offered.",
         },
         {
           kind: 'confirm',
-          text: 'Goldcomm Corporation to provide its official GCash number and bank account details (the ones currently shown at checkout are placeholders), and to confirm whether an official receipt or sales invoice is issued and how.',
+          text: 'Goldcomm Corporation to confirm whether an official receipt or sales invoice is issued for each payment, and how.',
         },
       ],
     },
@@ -226,10 +218,10 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         {
           kind: 'list',
           items: [
-            'You can cancel your order yourself from My Orders while it is still Pending and before your payment has been verified.',
-            'After your payment is verified or processing has started, please contact us through Messages if you need to cancel.',
-            'Goldcomm may cancel an order that is Pending or Processing, for example when the items are out of stock or the payment cannot be verified. We may give a reason on the order.',
-            'If a Processing order is cancelled, the items go back into stock.',
+            'You can cancel your order yourself from My Orders while it is still Pending and has not been paid. Orders that are not paid within 60 minutes are cancelled automatically.',
+            'Once your order is paid, please contact us through Messages if you need to cancel.',
+            'Goldcomm may cancel an order that is Pending or Processing, for example when the items are out of stock. If the order was paid, we refund the full amount through PayMongo to the payment method you used. We may give a reason on the order.',
+            'If we receive a payment for an order that was already cancelled, we refund it in full.',
           ],
         },
       ],
@@ -240,7 +232,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       blocks: [
         {
           kind: 'p',
-          text: 'IOTEL does not have an online returns or refunds feature. Requests about returns, replacements, defective items or refunds are handled by our staff; please contact us through Messages and include your order number.',
+          text: 'When Goldcomm cancels a paid order or booking, the full amount is refunded through PayMongo to the payment method you used; how long it takes to reach you depends on PayMongo and your card issuer or e-wallet. Other requests about returns, replacements, defective items or refunds are handled by our staff; please contact us through Messages and include your order number.',
         },
         {
           kind: 'p',
@@ -248,7 +240,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         },
         {
           kind: 'confirm',
-          text: 'Goldcomm Corporation to provide its returns, replacement, warranty and refund policy: the time limits, which items qualify, who pays return shipping, and how and when money is refunded (including for a paid order that is later cancelled). Until then, IOTEL makes no promise of a refund.',
+          text: 'Goldcomm Corporation to provide its returns, replacement and warranty policy: the time limits, which items qualify, who pays return shipping, and when a refund is given after delivery. Until then, IOTEL makes no promise of a refund beyond the cancellations described above.',
         },
       ],
     },
@@ -261,7 +253,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           items: [
             'A flat shipping fee of ₱250 is added to every order.',
             'We deliver to the address you choose at checkout. Please make sure it and the mobile number are correct and that someone can receive the order. The address cannot be changed in IOTEL once the order is placed.',
-            'The estimated delivery date shown on your order is an estimate, not a guaranteed delivery date. Actual delivery depends on stock, payment verification, the courier and your location.',
+            'The estimated delivery date shown on your order is an estimate, not a guaranteed delivery date. Actual delivery depends on stock, the courier and your location.',
             'When the order ships, we show the courier and, where available, a tracking number.',
           ],
         },
@@ -284,13 +276,13 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           items: [
             'You choose a service, a preferred date and an available time slot (Monday to Saturday), and describe what you need. The booking starts as Pending, and a chat thread with our staff is opened for it.',
             'The price shown for a service is a starting price. Our staff confirm the booking and give you a quotation, and may agree a different date or time with you in the chat.',
-            'You pay the quoted amount by GCash or bank transfer and enter the reference number. Our staff verify it by hand before the booking is marked Paid, and mark it Completed when the work is done.',
-            "You can cancel a booking yourself while it is Pending or Confirmed and before you have submitted a payment. After that, please contact us through the booking's chat.",
+            'You pay the quoted amount through PayMongo (see Payment). The booking is marked Paid when PayMongo confirms the payment, and Completed when the work is done.',
+            "You can cancel a booking yourself while it is Pending or Confirmed and before you have paid. After that, please contact us through the booking's chat; if we cancel a paid booking, we refund it in full through PayMongo.",
           ],
         },
         {
           kind: 'confirm',
-          text: 'Goldcomm Corporation to confirm the terms for on-site work (service area, travel fees, site access), what happens if a customer misses a booked slot, and refunds for paid bookings that are cancelled.',
+          text: 'Goldcomm Corporation to confirm the terms for on-site work (service area, travel fees, site access), what happens if a customer misses a booked slot, and whether a paid booking the customer asks to cancel is refunded in full.',
         },
       ],
     },
@@ -316,7 +308,6 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           kind: 'list',
           items: [
             'Check your cart, delivery address and payment method before placing an order.',
-            'Pay the exact amount shown and enter the correct reference number.',
             'Keep your mobile number reachable so the courier or our staff can contact you.',
             'Check your delivery when it arrives and tell us promptly about any problem.',
             'Use the radio equipment you buy in line with applicable laws and regulations, including any licensing or registration required by the National Telecommunications Commission.',
@@ -337,7 +328,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           kind: 'list',
           items: [
             "register with false information or use another person's name, email or account;",
-            'enter a payment reference number for a payment that you did not make, or that was not made to Goldcomm;',
+            'make payments with a card or e-wallet that you are not authorized to use, or file chargebacks for orders you received;',
             'place orders or book services you do not intend to honor, or deliberately occupy booking slots;',
             'send abusive, threatening, unlawful or spam messages to our staff;',
             "try to access other customers' information, staff or administrator features, or data you are not allowed to see;",
@@ -456,7 +447,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         },
         {
           kind: 'p',
-          text: 'This policy covers the IOTEL web application only. It does not cover the GCash app, your bank, courier services or other websites, which have their own privacy policies.',
+          text: "This policy covers the IOTEL web application only. It does not cover PayMongo's checkout page, the GCash or Maya apps, your bank or card issuer, courier services or other websites, which have their own privacy policies.",
         },
       ],
     },
@@ -473,7 +464,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           items: [
             'Account information — your name, email address, profile photo (optional) and account records.',
             'Delivery details — names, addresses and mobile numbers you save or use at checkout.',
-            'Order, booking and payment records — what you ordered or booked, amounts, payment method and reference numbers.',
+            'Order, booking and payment records — what you ordered or booked, amounts, how you paid and the PayMongo payment and refund IDs.',
             "Messages — what you and our staff write in IOTEL's chat.",
             'Favorites — the products you mark with a heart.',
           ],
@@ -535,11 +526,11 @@ export const PRIVACY_POLICY: LegalDocument = {
       blocks: [
         {
           kind: 'p',
-          text: 'You pay by GCash or bank transfer outside IOTEL, or in cash on delivery. For each order or booking we record the payment method, the amount, the reference number you enter, when you submitted it, whether our staff verified or rejected it, and any reason for a rejection.',
+          text: "You pay on PayMongo's checkout page. To open it, IOTEL sends PayMongo your name, email address, the order or booking number, the items and the amount. For each order or booking we record the amount, the payment status (unpaid, paid or refunded), the method you used (for example GCash or card), when it was paid or refunded, and PayMongo's payment and refund IDs.",
         },
         {
           kind: 'p',
-          text: 'We do not collect or store card numbers, bank account numbers, GCash PINs, one-time passwords or online banking credentials. Please never send them to us, including in chat.',
+          text: "Your card number, e-wallet account and one-time passwords are entered on PayMongo's page and handled by PayMongo under its own privacy policy; IOTEL never receives or stores them. Please never send them to us, including in chat.",
         },
       ],
     },
@@ -553,11 +544,11 @@ export const PRIVACY_POLICY: LegalDocument = {
           items: [
             'create and manage your account, sign you in and give you access to the right parts of IOTEL;',
             'show you the catalog, your cart, favorites, orders and bookings;',
-            'process your orders: verify payments, prepare and ship the items, and keep track of stock;',
+            'process your orders: take payments through PayMongo, prepare and ship the items, keep track of stock, and issue refunds;',
             'schedule, quote, carry out and follow up on the services you book;',
             'answer your questions and support requests through Messages;',
             'let our staff see order and sales totals needed to run the business;',
-            'prevent misuse and fraud, such as false payment references;',
+            'prevent misuse and fraud, such as unauthorized payments;',
             'comply with our legal obligations and respond to lawful requests from authorities.',
           ],
         },
@@ -594,6 +585,14 @@ export const PRIVACY_POLICY: LegalDocument = {
         {
           kind: 'confirm',
           text: "Goldcomm Corporation to confirm that its agreement with Brevo covers data processing, and the retention of Brevo's delivery logs.",
+        },
+        {
+          kind: 'p',
+          text: 'Payments are processed by PayMongo Philippines, Inc. PayMongo receives your name, email address and the order or booking details needed to take the payment, plus whatever you enter on its checkout page, and processes them under its own privacy policy.',
+        },
+        {
+          kind: 'confirm',
+          text: 'Goldcomm Corporation to confirm its merchant agreement with PayMongo, including that it covers data processing.',
         },
         {
           kind: 'confirm',
@@ -636,10 +635,11 @@ export const PRIVACY_POLICY: LegalDocument = {
           kind: 'list',
           items: [
             'You can see your own profile, addresses, favorites, orders, bookings and messages.',
-            'Goldcomm staff and administrators can see all orders, bookings and conversations, including the names, email addresses, delivery addresses, mobile numbers and payment references in them, so that they can process and support them. Administrators can also see all account profiles.',
+            'Goldcomm staff and administrators can see all orders, bookings and conversations, including the names, email addresses, delivery addresses, mobile numbers and payment details in them, so that they can process and support them. Administrators can also see all account profiles.',
             'Couriers receive the name, delivery address and mobile number needed to deliver your order.',
             'Google, as our cloud service provider, stores and processes the information on our behalf.',
             'Brevo, our email delivery provider, receives your email address and sign-in codes in order to deliver them.',
+            'PayMongo, our payment provider, receives your name, email address and the order or booking details needed to take your payment and issue refunds.',
             'Government authorities, courts or regulators, when the law requires it.',
           ],
         },

@@ -12,7 +12,7 @@
   }
 
   <div class="kpi-grid">
-    <nz-card class="kpi-card"><nz-statistic [nzValue]="pendingOrders()" nzTitle="Pending Orders" nzPrefix="🕐" /></nz-card>
+    <nz-card class="kpi-card"><nz-statistic [nzValue]="pendingOrders()" nzTitle="Paid Orders to Process" nzPrefix="🕐" /></nz-card>
     <nz-card class="kpi-card"><nz-statistic [nzValue]="processingOrders()" nzTitle="Processing" nzPrefix="⚙️" /></nz-card>
     <nz-card class="kpi-card" [nzLoading]="bookingsLoading()"><nz-statistic [nzValue]="bookingsNeedingAction()" nzTitle="Bookings to Handle" nzPrefix="📅" /></nz-card>
     <nz-card class="kpi-card" [nzLoading]="messagesLoading()"><nz-statistic [nzValue]="unreadMessages()" nzTitle="Unread Messages" nzPrefix="💬" /></nz-card>
@@ -29,8 +29,8 @@
               <strong>{{ b.title }}</strong>
               <span class="queue-sub">{{ b.sub }}</span>
             </div>
-            <nz-tag [nzColor]="b.verifyPayment ? 'processing' : 'warning'">
-              {{ b.verifyPayment ? 'Verify payment' : 'New request' }}
+            <nz-tag [nzColor]="b.refund ? 'error' : 'warning'">
+              {{ b.refund ? 'Refund payment' : 'New request' }}
             </nz-tag>
           </a>
         }
@@ -42,14 +42,14 @@
         }
       </nz-card>
 
-      <nz-card class="action-card" nzTitle="Pending Order Queue">
+      <nz-card class="action-card" nzTitle="Paid Orders Queue">
         @for (order of pendingOrderList(); track order.id) {
           <div class="queue-item">
             <div>
               <strong>{{ order.code }}</strong>
               <span class="queue-sub">{{ order.address.fullName }} · {{ order.items.length }} items</span>
             </div>
-            <nz-tag nzColor="warning">{{ order.status }}</nz-tag>
+            <nz-tag nzColor="success">Paid</nz-tag>
           </div>
         }
         @if (!pendingOrderList().length) {

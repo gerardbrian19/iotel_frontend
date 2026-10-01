@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+} from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -40,6 +49,23 @@ export class ServicesComponent {
   private readonly msg = inject(NzMessageService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+
+  /** Set when PayMongo sends the customer back: `?booking=<id>&payment=success|cancelled`. */
+  readonly booking = input<string>();
+  readonly payment = input<string>();
+  /** Back from PayMongo: open My Bookings. */
+  readonly tabIndex = linkedSignal<number>(() => (this.booking() ? 1 : 0));
+  /** The booking the customer just paid (or left the checkout of), with how it went. */
+  readonly returned = computed(() => {
+    const id = this.booking();
+    const booking = id ? this.bookingService.byId().get(id) : undefined;
+    if (!booking) return null;
+    const paid = booking.payment?.status === 'Paid';
+    if (paid) return { type: 'success' as const, text: `Payment received for ${booking.serviceName}. Thank you!` };
+    return this.payment() === 'success'
+      ? { type: 'info' as const, text: 'PayMongo is confirming your payment. This updates by itself in a moment.' }
+      : { type: 'warning' as const, text: 'The payment was not completed. You can pay again from the booking below.' };
+  });
 
   readonly services = this.bookingService.services;
   readonly loading = this.bookingService.loading;

@@ -32,12 +32,6 @@
           {{ booking().status === 'Pending' ? 'Confirm & quote' : 'Change quote' }}
         </button>
       }
-      @if (paymentUnderReview()) {
-        <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" (click)="verifyPayment()">
-          Verify payment
-        </button>
-        <button nz-button nzSize="small" [disabled]="busy()" (click)="openReject()">Reject payment</button>
-      }
       @if (booking().status === 'Paid') {
         <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" (click)="complete()">
           Mark completed
@@ -47,8 +41,14 @@
         <button nz-button nzSize="small" [disabled]="busy()" (click)="openReschedule()">Reschedule</button>
       }
     } @else if (awaitingPayment()) {
-      <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" (click)="openPay()">
+      <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" [nzLoading]="busy()" (click)="pay()">
         <span nz-icon nzType="credit-card"></span> Pay {{ booking().quote?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}
+      </button>
+    }
+
+    @if (canRefund()) {
+      <button nz-button nzDanger nzSize="small" [disabled]="busy()" (click)="openRefund()">
+        {{ booking().status === 'Cancelled' ? 'Refund payment' : 'Cancel & refund' }}
       </button>
     }
 
@@ -73,11 +73,21 @@
         <dd class="pre">{{ quoteNote }}</dd>
       }
       @if (booking().payment; as payment) {
-        <dt>Payment</dt>
-        <dd>
-          {{ payment.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} via {{ payment.method }}, reference
-          {{ payment.referenceNumber }} ({{ payment.status === 'Verified' ? 'verified' : 'waiting for verification' }})
-        </dd>
+        @if (payment.status !== 'Unpaid') {
+          <dt>Payment</dt>
+          <dd>
+            {{ payment.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} through PayMongo{{ paidWith() ? ' (' + paidWith() + ')' : '' }}
+            @if (payment.paidAt) {
+              <br />Paid {{ payment.paidAt | date: 'medium' }}
+            }
+            @if (payment.status === 'Refunded') {
+              <br />Refunded {{ payment.refundedAt | date: 'medium' }}
+            }
+            @if (isStaff() && payment.paymentId) {
+              <br />PayMongo payment {{ payment.paymentId }}
+            }
+          </dd>
+        }
       }
       @if (isStaff()) {
         <dt>Contact</dt>
@@ -143,57 +153,34 @@
   </ng-container>
 </nz-modal>
 
-<!-- Customer: payment -->
-<nz-modal [(nzVisible)]="payVisible" nzTitle="Pay for your booking" [nzFooter]="null" nzWidth="440px">
+<!-- Staff: refund (and cancel) -->
+<nz-modal
+  [(nzVisible)]="refundVisible"
+  [nzTitle]="booking().status === 'Cancelled' ? 'Refund this payment?' : 'Cancel and refund this booking?'"
+  [nzFooter]="null"
+  nzWidth="440px"
+>
   <ng-container *nzModalContent>
-    <form nz-form [formGroup]="payForm" nzLayout="vertical" (ngSubmit)="submitPayment()">
-      <p class="pay-amount">{{ booking().quote?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</p>
-      <p class="modal-copy">
-        Send exactly this amount using the payment details our team shared in your chat, then enter the reference number from
-        your receipt. We will verify it and confirm here.
-      </p>
-      <nz-form-item>
-        <nz-form-label nzRequired>Payment method</nz-form-label>
-        <nz-form-control>
-          <nz-radio-group formControlName="method">
-            @for (method of paymentMethods; track method) {
-              <label nz-radio [nzValue]="method">{{ method }}</label>
-            }
-          </nz-radio-group>
-        </nz-form-control>
-      </nz-form-item>
-      <nz-form-item>
-        <nz-form-label nzRequired>Reference number</nz-form-label>
-        <nz-form-control nzErrorTip="Enter the 6 to 40 character reference from your receipt (letters, numbers, spaces or dashes).">
-          <input nz-input formControlName="referenceNumber" maxlength="40" autocomplete="off" />
-        </nz-form-control>
-      </nz-form-item>
-      <div class="modal-footer">
-        <button nz-button type="button" (click)="payVisible.set(false)">Close</button>
-        <button nz-button nzType="primary" class="brand-btn" type="submit" [disabled]="payForm.invalid || busy()" [nzLoading]="busy()">
-          Submit payment
-        </button>
-      </div>
-    </form>
-  </ng-container>
-</nz-modal>
-
-<!-- Staff: reject payment -->
-<nz-modal [(nzVisible)]="rejectVisible" nzTitle="Reject payment" [nzFooter]="null" nzWidth="440px">
-  <ng-container *nzModalContent>
-    <p class="modal-copy">The customer is told in chat and can submit the payment again.</p>
+    <p class="modal-copy">
+      {{ booking().payment?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} goes back to
+      {{ booking().customerName }} through PayMongo.
+      @if (booking().status !== 'Cancelled') {
+        The booking is cancelled and its time slot freed.
+      }
+      The customer is told in chat. This cannot be undone.
+    </p>
     <textarea
       nz-input
       rows="3"
       maxlength="200"
-      placeholder="Reason (optional), e.g. the reference number was not found"
-      [ngModel]="rejectReason()"
-      (ngModelChange)="rejectReason.set($event)"
+      placeholder="Reason (optional), shown in the chat"
+      [ngModel]="refundReason()"
+      (ngModelChange)="refundReason.set($event)"
     ></textarea>
     <div class="modal-footer">
-      <button nz-button type="button" (click)="rejectVisible.set(false)">Close</button>
-      <button nz-button nzType="primary" nzDanger type="button" [disabled]="busy()" [nzLoading]="busy()" (click)="rejectPayment()">
-        Reject payment
+      <button nz-button type="button" (click)="refundVisible.set(false)">Close</button>
+      <button nz-button nzType="primary" nzDanger type="button" [disabled]="busy()" [nzLoading]="busy()" (click)="refund()">
+        Refund
       </button>
     </div>
   </ng-container>

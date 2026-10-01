@@ -32,7 +32,7 @@ const MESSAGES: Record<string, string> = {
   unavailable: 'The service is temporarily unavailable. Please try again.',
 };
 
-/** Cloud Function errors whose messages are written for users in functions/src/index.ts. */
+/** Cloud Function errors whose messages are written for users (functions/src/auth.ts, payments.ts). */
 const USER_FACING_FUNCTION_CODES = new Set([
   'functions/invalid-argument',
   'functions/failed-precondition',
@@ -44,13 +44,20 @@ const USER_FACING_FUNCTION_CODES = new Set([
   'functions/unauthenticated',
 ]);
 
+/** The user-facing message of a Cloud Function error, or null for anything else. */
+export function functionErrorMessage(err: unknown): string | null {
+  if (err instanceof FirebaseError && USER_FACING_FUNCTION_CODES.has(err.code) && err.message) {
+    // The SDK can append the HTTP status, e.g. "That code is incorrect. [403]".
+    return err.message.replace(/\s*\[\d+\]$/, '');
+  }
+  return null;
+}
+
 export function authErrorMessage(err: unknown): string {
   if (err instanceof AppAuthError) return err.message;
+  const fromFunction = functionErrorMessage(err);
+  if (fromFunction) return fromFunction;
   if (err instanceof FirebaseError) {
-    if (USER_FACING_FUNCTION_CODES.has(err.code) && err.message) {
-      // The SDK can append the HTTP status, e.g. "That code is incorrect. [403]".
-      return err.message.replace(/\s*\[\d+\]$/, '');
-    }
     return (
       MESSAGES[err.code] ??
       MESSAGES[err.code.replace(/^firestore\//, '')] ??

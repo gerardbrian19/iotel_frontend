@@ -1,66 +1,65 @@
-import { PaymentMethod, PaymentProvider } from '../models';
+import { DocumentData } from 'firebase/firestore';
+import { isoOf } from '../firebase/timestamps';
+import { Payment, PaymentMethod, PaymentProvider, PaymentStatus } from '../models';
 
 /**
- * How payments are collected. This file and `OrderService` are the only places that know it, so the move to PayMongo
- * (orders now, service bookings later) stays contained:
+ * How payments are collected: PayMongo's hosted checkout, for orders and service bookings alike.
  *
- * - Today the customer pays outside the app (GCash / bank transfer), types the reference number from their receipt, and
- *   staff verify it by hand (`payment.provider = 'manual'`).
- * - With PayMongo the order is created unpaid (`provider = 'paymongo'`), the customer is sent to PayMongo's checkout,
- *   and a backend webhook marks `payment.status` as `Paid`. Customers can never set `Paid` themselves (see
- *   `firestore.rules`), so nothing in the order flow, the staff screens or the rules has to change shape.
+ * The backend (`functions/src/payments.ts`) creates the order or reads the booking's quote, opens a PayMongo checkout
+ * for the amount and returns its URL; the app sends the customer there. PayMongo's webhook is the only thing that
+ * marks a payment `Paid` (customers and staff can't, see `firestore.rules`), and staff refund through the backend.
+ * Test and live mode differ only in the backend's secrets.
  */
-export const PAYMENT_PROVIDER: PaymentProvider = 'manual';
+export const PAYMENT_PROVIDER: PaymentProvider = 'paymongo';
 
-export interface PaymentOption {
-  method: PaymentMethod;
-  icon: string;
-  /** Where to send the money, or what to expect. */
-  details: string;
-  /** The customer has to enter the reference number of their transfer. */
-  needsReference: boolean;
-}
+/** Unpaid orders are cancelled after this long (`UNPAID_ORDER_TTL_MS` in functions/src/payments.ts). */
+export const UNPAID_ORDER_MINUTES = 60;
 
-export const PAYMENT_OPTIONS: readonly PaymentOption[] = [
-  {
-    method: 'GCash',
-    icon: '📱',
-    details: 'Send to GCash: 0917-123-4567 (Goldcomm Corp)',
-    needsReference: true,
-  },
-  {
-    method: 'Bank Transfer',
-    icon: '🏦',
-    details: 'BPI: 1234-5678-90 | Goldcomm Corp',
-    needsReference: true,
-  },
-  {
-    method: 'Cash on Delivery',
-    icon: '💵',
-    details: 'Pay in cash when your order arrives',
-    needsReference: false,
-  },
+/** What the PayMongo checkout offers (`PAYMENT_METHOD_TYPES` in functions/src/payments.ts), for the screens. */
+export const ACCEPTED_PAYMENT_METHODS: readonly { label: string; icon: string }[] = [
+  { label: 'GCash', icon: '📱' },
+  { label: 'Maya', icon: '💳' },
+  { label: 'Credit / Debit Card', icon: '💳' },
+  { label: 'GrabPay', icon: '🚗' },
+  { label: 'QR Ph', icon: '🔳' },
 ];
 
-export function paymentOption(method: PaymentMethod): PaymentOption {
-  return PAYMENT_OPTIONS.find((option) => option.method === method) ?? PAYMENT_OPTIONS[0];
+const METHOD_LABELS: Record<string, string> = {
+  card: 'Card',
+  gcash: 'GCash',
+  paymaya: 'Maya',
+  grab_pay: 'GrabPay',
+  qrph: 'QR Ph',
+  dob: 'Online banking',
+  dob_ubp: 'Online banking',
+  billease: 'BillEase',
+};
+
+/** "GCash" for `gcash`, etc. Empty until PayMongo reports how the customer paid. */
+export function paymentMethodLabel(method: PaymentMethod | undefined): string {
+  if (!method) return '';
+  return METHOD_LABELS[method] ?? method;
 }
 
-/** Payments that need a reference number, which staff verify. */
-export function needsReference(method: PaymentMethod): boolean {
-  return paymentOption(method).needsReference;
+const STATUSES: readonly PaymentStatus[] = ['Unpaid', 'Paid', 'Refunded'];
+
+function text(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined;
 }
 
-export const REFERENCE_MIN_LENGTH = 6;
-export const REFERENCE_MAX_LENGTH = 40;
-export const REFERENCE_HELP = `Enter the ${REFERENCE_MIN_LENGTH} to ${REFERENCE_MAX_LENGTH} character reference from your receipt (letters, numbers, spaces or dashes).`;
-
-/** Null when the reference looks right, otherwise what is wrong with it. */
-export function referenceError(value: string): string | null {
-  const reference = value.trim();
-  if (!reference) return 'Enter the reference number from your receipt.';
-  if (reference.length < REFERENCE_MIN_LENGTH || reference.length > REFERENCE_MAX_LENGTH)
-    return REFERENCE_HELP;
-  if (!/^[A-Za-z0-9 -]+$/.test(reference)) return REFERENCE_HELP;
-  return null;
+/** Maps a stored `payment` map (order or booking) to the app's shape. */
+export function toPayment(data: DocumentData | undefined): Payment {
+  const payment = data ?? {};
+  return {
+    provider: PAYMENT_PROVIDER,
+    status: STATUSES.includes(payment['status']) ? payment['status'] : 'Unpaid',
+    amount: Number(payment['amount']) || 0,
+    method: text(payment['method']),
+    checkoutSessionId: text(payment['checkoutSessionId']),
+    checkoutUrl: text(payment['checkoutUrl']),
+    paymentId: text(payment['paymentId']),
+    paidAt: isoOf(payment['paidAt']) || undefined,
+    refundId: text(payment['refundId']),
+    refundedAt: isoOf(payment['refundedAt']) || undefined,
+  };
 }

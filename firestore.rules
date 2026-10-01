@@ -261,14 +261,8 @@ service cloud.firestore {
               || getAfter(bookingPath(resource.data.bookingId)).data.preferredTime != resource.data.time)));
     }
 
-    function validPayment(payment, quotedAmount) {
-      return payment.keys().hasOnly(['method', 'referenceNumber', 'amount', 'status', 'submittedAt'])
-        && payment.keys().hasAll(['method', 'referenceNumber', 'amount', 'status', 'submittedAt'])
-        && payment.method in ['GCash', 'Bank Transfer']
-        && shortText(payment.referenceNumber, 40)
-        && payment.amount == quotedAmount
-        && payment.status == 'Submitted'
-        && payment.submittedAt == request.time;
+    function bookingPaid(booking) {
+      return booking.keys().hasAny(['payment']) && booking.payment.status == 'Paid';
     }
 
     function validQuote(quote) {
@@ -306,34 +300,34 @@ service cloud.firestore {
         && getAfter(conversationPath(booking.conversationId)).data.bookingId == bookingId;
     }
 
-    // A service booking. Customers create their own (always Pending) and can cancel or pay it; staff and admins
-    // see every booking and drive it: quote and confirm, reschedule, verify payment, complete, cancel.
+    // A service booking. Customers create their own (always Pending) and can cancel it until it is paid; staff and
+    // admins see every booking and drive it: quote and confirm, reschedule, complete, cancel an unpaid one.
+    // `payment` (PayMongo) is written only by the backend: createBookingCheckout opens it, the webhook marks it Paid
+    // together with status 'Paid', and refundPayment refunds and cancels.
     match /bookings/{bookingId} {
       allow read: if signedIn() && (resource.data.customerId == request.auth.uid || isStaffOrAdmin());
 
       allow create: if signedIn() && validNewBooking(request.resource.data, bookingId);
 
       allow update: if signedIn() && (
-        // Customer cancels, until they have submitted a payment.
+        // Customer cancels, until it is paid.
         (resource.data.customerId == request.auth.uid
           && resource.data.status in ['Pending', 'Confirmed']
-          && !resource.data.keys().hasAny(['payment'])
+          && !bookingPaid(resource.data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
           && request.resource.data.status == 'Cancelled'
           && request.resource.data.updatedAt == request.time)
-        // Customer reports a payment of exactly the confirmed amount.
-        || (resource.data.customerId == request.auth.uid
-          && resource.data.status == 'Confirmed'
-          && !resource.data.keys().hasAny(['payment'])
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payment', 'updatedAt'])
-          && validPayment(request.resource.data.payment, resource.data.quote.amount)
-          && request.resource.data.updatedAt == request.time)
-        // Staff and admins change everything except who booked what.
+        // Staff and admins change everything except who booked what and the payment. Only the webhook makes a
+        // booking Paid, and a paid booking is cancelled only by refunding it (backend).
         || (isStaffOrAdmin()
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['customerId', 'customerName',
             'customerEmail', 'customerMobile', 'serviceId', 'serviceName', 'servicePrice', 'conversationId',
-            'notes', 'createdAt'])
+            'notes', 'createdAt', 'payment'])
           && request.resource.data.status in ['Pending', 'Confirmed', 'Paid', 'Completed', 'Cancelled']
+          && (request.resource.data.status != 'Paid' || resource.data.status == 'Paid')
+          && (request.resource.data.status != 'Completed' || resource.data.status in ['Paid', 'Completed'])
+          && (request.resource.data.status != 'Cancelled' || resource.data.status == 'Cancelled'
+            || !bookingPaid(resource.data))
           && (!request.resource.data.keys().hasAny(['quote']) || validQuote(request.resource.data.quote))
           && request.resource.data.updatedAt == request.time)
       );
@@ -396,158 +390,59 @@ service cloud.firestore {
 
     // ── Orders ─────────────────────────────────────────────────────────────────
 
-    function orderCounterPath() {
-      return /databases/$(database)/documents/counters/orders;
-    }
-
-    // Order numbers run 1, 2, 3 ...: the counter has to move from n - 1 to n in the same write as the order using n.
-    function validOrderNumber(n) {
-      return n is int && n >= 1
-        && getAfter(orderCounterPath()).data.last == n
-        && (n == 1 ? !exists(orderCounterPath()) : get(orderCounterPath()).data.last == n - 1);
-    }
-
-    function validShippingAddress(address) {
-      return address is map
-        && address.keys().hasOnly(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile'])
-        && address.keys().hasAll(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile'])
-        && shortText(address.fullName, 60)
-        && shortText(address.addressLine, 200)
-        && shortText(address.city, 80)
-        && shortText(address.province, 80)
-        && shortText(address.zip, 10)
-        && shortText(address.mobile, 20);
-    }
-
-    // What a customer may create: a payment that is not verified. GCash / Bank Transfer come with their reference
-    // number (Submitted), Cash on Delivery starts Unpaid. Only staff mark a payment Paid (with PayMongo, its webhook
-    // will, and this is where provider 'paymongo' + Unpaid gets allowed).
-    function validNewOrderPayment(payment, total) {
-      return payment is map
-        && payment.keys().hasOnly(['provider', 'method', 'status', 'amount', 'referenceNumber', 'submittedAt'])
-        && payment.keys().hasAll(['provider', 'method', 'status', 'amount'])
-        && payment.provider == 'manual'
-        && payment.amount == total
-        && ((payment.method == 'Cash on Delivery'
-            && payment.status == 'Unpaid'
-            && !payment.keys().hasAny(['referenceNumber', 'submittedAt']))
-          || (payment.method in ['GCash', 'Bank Transfer']
-            && payment.status == 'Submitted'
-            && shortText(payment.referenceNumber, 40)
-            && payment.submittedAt == request.time));
-    }
-
-    // The shipping fee (250) mirrors SHIPPING_FEE in cart.service.ts. Item prices can't be checked here (rules can't
-    // loop over `items`), so the total is only checked against the subtotal the client sent; staff verify each payment.
-    function validNewOrder(order) {
-      return order.keys().hasOnly(['number', 'customerId', 'customerName', 'customerEmail', 'items', 'subtotal',
-          'shippingFee', 'total', 'address', 'payment', 'status', 'estimatedDelivery', 'createdAt', 'updatedAt'])
-        && order.keys().hasAll(['number', 'customerId', 'customerName', 'customerEmail', 'items', 'subtotal',
-          'shippingFee', 'total', 'address', 'payment', 'status', 'estimatedDelivery', 'createdAt', 'updatedAt'])
-        && order.customerId == request.auth.uid
-        && shortText(order.customerName, 60)
-        && shortText(order.customerEmail, 100)
-        && order.status == 'Pending'
-        && order.items is list && order.items.size() > 0 && order.items.size() <= 50
-        && order.subtotal is number && order.subtotal > 0
-        && order.shippingFee == 250
-        && order.total == order.subtotal + order.shippingFee
-        && validShippingAddress(order.address)
-        && validNewOrderPayment(order.payment, order.total)
-        && order.estimatedDelivery is string
-        && order.estimatedDelivery.matches('^\\d{4}-\\d{2}-\\d{2}$')
-        && order.createdAt == request.time
-        && order.updatedAt == request.time
-        && validOrderNumber(order.number);
-    }
-
-    // Staff review a reported payment, and Cash on Delivery is marked paid when the order is delivered.
-    function validPaymentChange(before, after, afterStatus) {
-      return before == after
-        || (before.status == 'Submitted'
-          && after.status == 'Paid'
-          && after.diff(before).affectedKeys().hasOnly(['status', 'paidAt'])
-          && after.paidAt == request.time)
-        || (before.status == 'Submitted'
-          && after.status == 'Rejected'
-          && after.diff(before).affectedKeys().hasOnly(['status', 'rejectionReason'])
-          && (!after.keys().hasAny(['rejectionReason']) || shortText(after.rejectionReason, 200)))
-        || (before.method == 'Cash on Delivery'
-          && before.status == 'Unpaid'
-          && after.status == 'Paid'
-          && afterStatus == 'Delivered'
-          && after.diff(before).affectedKeys().hasOnly(['status', 'paidAt'])
-          && after.paidAt == request.time);
-    }
-
-    // Pending → Processing (payment verified or Cash on Delivery) → Shipped → Delivered; Pending or Processing → Cancelled.
+    // Pending → Processing (paid) → Shipped → Delivered; an unpaid Pending order → Cancelled. Paid orders are cancelled
+    // only by refunding them (the refundPayment function), and the payment never changes here.
     function validStatusChange(before, after) {
       return (before.status == 'Pending'
           && after.status == 'Processing'
-          && (before.payment.status == 'Paid' || before.payment.method == 'Cash on Delivery')
-          && after.processedAt == request.time
-          && after.payment == before.payment)
-        || (before.status in ['Pending', 'Processing']
+          && before.payment.status == 'Paid'
+          && after.processedAt == request.time)
+        || (before.status == 'Pending'
+          && before.payment.status == 'Unpaid'
           && after.status == 'Cancelled'
           && after.cancelledBy == 'staff'
           && after.cancelledAt == request.time
-          && (!after.keys().hasAny(['cancelReason']) || shortText(after.cancelReason, 200))
-          && after.payment == before.payment)
+          && (!after.keys().hasAny(['cancelReason']) || shortText(after.cancelReason, 200)))
         || (before.status == 'Processing'
           && after.status == 'Shipped'
           && after.shippedAt == request.time
           && after.shipment.keys().hasOnly(['courier', 'trackingNumber'])
           && shortText(after.shipment.courier, 60)
           && after.shipment.trackingNumber is string
-          && after.shipment.trackingNumber.size() <= 60
-          && after.payment == before.payment)
+          && after.shipment.trackingNumber.size() <= 60)
         || (before.status == 'Shipped'
           && after.status == 'Delivered'
           && after.deliveredAt == request.time);
     }
 
-    // Staff and admins can never touch who ordered what, the items, the amounts or the payment terms.
+    // Staff and admins can never touch who ordered what, the items, the amounts or the payment.
     function validStaffOrderUpdate(before, after) {
-      return after.diff(before).affectedKeys().hasOnly(['status', 'payment', 'shipment', 'processedAt', 'shippedAt',
+      return after.diff(before).affectedKeys().hasOnly(['status', 'shipment', 'processedAt', 'shippedAt',
           'deliveredAt', 'cancelledAt', 'cancelledBy', 'cancelReason', 'updatedAt'])
         && after.updatedAt == request.time
-        && validPaymentChange(before.payment, after.payment, after.status)
-        && (after.status == before.status
-          ? (before.payment == after.payment || before.status == 'Pending')
-            && !after.diff(before).affectedKeys().hasAny(['shipment', 'processedAt', 'shippedAt', 'deliveredAt',
-              'cancelledAt', 'cancelledBy', 'cancelReason'])
-          : validStatusChange(before, after));
+        && after.status != before.status
+        && validStatusChange(before, after);
     }
 
-    // A customer's order. Customers place their own and can cancel it until staff verify the payment, or send the
-    // reference number again after a rejected payment. Staff and admins see every order and move it along.
+    // A customer's order. Orders are created only by the createOrderCheckout function (which prices them from the
+    // catalog) and paid through PayMongo, whose webhook is the only thing that marks them Paid. Customers can cancel
+    // an unpaid pending order; staff and admins see every order and move it along.
     match /orders/{orderId} {
       allow read: if signedIn() && (resource.data.customerId == request.auth.uid || isStaffOrAdmin());
 
-      allow create: if signedIn() && validNewOrder(request.resource.data);
+      allow create: if false;
 
       allow update: if signedIn() && (
-        // Customer cancels a pending order whose payment hasn't been verified.
+        // Customer cancels a pending order that hasn't been paid.
         (resource.data.customerId == request.auth.uid
           && resource.data.status == 'Pending'
-          && resource.data.payment.status != 'Paid'
+          && resource.data.payment.status == 'Unpaid'
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'updatedAt'])
           && request.resource.data.status == 'Cancelled'
           && request.resource.data.cancelledBy == 'customer'
           && request.resource.data.cancelledAt == request.time
           && (!request.resource.data.keys().hasAny(['cancelReason']) || shortText(request.resource.data.cancelReason, 200))
-          && request.resource.data.updatedAt == request.time)
-        // Customer sends the payment reference again after staff rejected it.
-        || (resource.data.customerId == request.auth.uid
-          && resource.data.status == 'Pending'
-          && resource.data.payment.status == 'Rejected'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payment', 'updatedAt'])
-          && request.resource.data.payment.diff(resource.data.payment).affectedKeys()
-            .hasOnly(['status', 'referenceNumber', 'submittedAt', 'rejectionReason'])
-          && request.resource.data.payment.status == 'Submitted'
-          && shortText(request.resource.data.payment.referenceNumber, 40)
-          && request.resource.data.payment.submittedAt == request.time
           && request.resource.data.updatedAt == request.time)
         // Staff and admins.
         || (isStaffOrAdmin() && validStaffOrderUpdate(resource.data, request.resource.data))
@@ -556,17 +451,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // `counters/orders` = { last }: the number of the latest order. Placing an order moves it up by exactly one (see
-    // validOrderNumber). It holds nothing sensitive beyond how many orders there have been.
+    // `counters/orders` = { last }: the number of the latest order, moved up by createOrderCheckout. It holds nothing
+    // sensitive beyond how many orders there have been.
     match /counters/{counterId} {
       allow read: if signedIn() && counterId == 'orders';
-      allow create: if signedIn() && counterId == 'orders'
-        && request.resource.data.keys().hasOnly(['last'])
-        && request.resource.data.last == 1;
-      allow update: if signedIn() && counterId == 'orders'
-        && request.resource.data.keys().hasOnly(['last'])
-        && request.resource.data.last == resource.data.last + 1;
-      allow delete: if false;
+      allow write: if false;
+    }
+
+    // PayMongo webhook events already applied (idempotency), written only by the Cloud Functions.
+    match /paymongoEvents/{eventId} {
+      allow read, write: if false;
     }
 
     // Emailed sign-in codes (hashed), written and read only by the Cloud Functions (Admin SDK bypasses rules).

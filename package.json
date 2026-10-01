@@ -11,6 +11,7 @@
     "sync:showcase": "node scripts/sync-showcase.mjs",
     "auth:enable-totp": "node scripts/enable-totp.mjs",
     "auth:reset-mfa": "node scripts/reset-mfa.mjs",
+    "paymongo:webhook": "node scripts/paymongo-webhook.mjs",
     "functions:build": "npm --prefix functions run build"
   },
   "private": true,

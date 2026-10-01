@@ -1,24 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { finalize } from 'rxjs';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { PaymentMethod } from '../../../core/models';
 import {
-  PAYMENT_OPTIONS,
-  paymentOption,
-  referenceError,
+  ACCEPTED_PAYMENT_METHODS,
+  UNPAID_ORDER_MINUTES,
 } from '../../../core/payments/payment-methods';
 import { AddressService } from '../../../core/services/address.service';
-import { AuthService } from '../../../core/services/auth.service';
 import { CartService } from '../../../core/services/cart.service';
 import { OrderService, orderErrorMessage } from '../../../core/services/order.service';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
@@ -29,14 +23,12 @@ import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-i
   imports: [
     RouterLink,
     CurrencyPipe,
-    FormsModule,
     NzAlertModule,
     NzButtonModule,
     NzCardModule,
     NzDividerModule,
     NzEmptyModule,
     NzIconModule,
-    NzInputModule,
   ],
   templateUrl: './checkout.component.html',
   styleUrl: './checkout.component.scss',
@@ -45,9 +37,7 @@ import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-i
 export class CheckoutComponent {
   private readonly cart = inject(CartService);
   private readonly orders = inject(OrderService);
-  private readonly auth = inject(AuthService);
   private readonly addresses = inject(AddressService);
-  private readonly router = inject(Router);
   private readonly msg = inject(NzMessageService);
 
   readonly items = this.cart.items;
@@ -61,65 +51,52 @@ export class CheckoutComponent {
     () => new Map(this.problems().map((p) => [p.productId, p.message])),
   );
 
-  readonly paymentOptions = PAYMENT_OPTIONS;
-  readonly method = signal<PaymentMethod | null>(null);
-  readonly reference = signal('');
+  readonly acceptedMethods = ACCEPTED_PAYMENT_METHODS;
+  readonly unpaidMinutes = UNPAID_ORDER_MINUTES;
+  /** True from the click until the browser has left for PayMongo (or the request failed). */
   readonly placing = signal(false);
 
   /** Ships to the customer's default saved address; they change it on the addresses page. */
   readonly address = this.addresses.defaultAddress;
   readonly addressLoading = this.addresses.loading;
 
-  readonly needsReference = computed(() => {
-    const method = this.method();
-    return method !== null && paymentOption(method).needsReference;
-  });
-  /** Shown once the customer has typed something, so the field isn't flagged before they get to it. */
-  readonly referenceProblem = computed(() =>
-    this.needsReference() && this.reference() ? referenceError(this.reference()) : null,
-  );
   readonly canPlace = computed(
     () =>
       !this.placing() &&
       this.items().length > 0 &&
       this.problems().length === 0 &&
-      !!this.address() &&
-      this.method() !== null &&
-      (!this.needsReference() || referenceError(this.reference()) === null),
+      !!this.address(),
   );
 
   readonly placeholder = PLACEHOLDER_IMAGE;
   readonly onImageError = onImageError;
 
-  selectMethod(method: PaymentMethod): void {
-    this.method.set(method);
-  }
-
   fixCart(): void {
     this.cart.fitToStock();
   }
 
+  /** Creates the order on the backend and hands the customer over to PayMongo's checkout page. */
   placeOrder(): void {
     const saved = this.address();
-    const method = this.method();
-    if (!this.canPlace() || !saved || !method) return;
+    if (!this.canPlace() || !saved) return;
     this.placing.set(true);
     // The order keeps a snapshot of the shipping details only, so later edits to the saved address don't alter it.
     const { fullName, addressLine, city, province, zip, mobile } = saved;
     this.orders
-      .place({
+      .checkout({
         items: this.items(),
         address: { fullName, addressLine, city, province, zip, mobile },
-        method,
-        referenceNumber: this.needsReference() ? this.reference() : undefined,
       })
-      .pipe(finalize(() => this.placing.set(false)))
       .subscribe({
-        next: (id) => {
+        next: ({ checkoutUrl }) => {
+          // The order exists now; if the customer comes back without paying, it waits on their Orders page.
           this.cart.clear();
-          this.router.navigate(['/customer/orders', id, 'confirmation']);
+          window.location.assign(checkoutUrl);
         },
-        error: (err) => this.msg.error(orderErrorMessage(err)),
+        error: (err) => {
+          this.placing.set(false);
+          this.msg.error(orderErrorMessage(err));
+        },
       });
   }
 }

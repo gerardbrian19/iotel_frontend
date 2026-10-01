@@ -1,4 +1,5 @@
 import { Order, OrderStatus } from '../models';
+import { UNPAID_ORDER_MINUTES, paymentMethodLabel } from '../payments/payment-methods';
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   Pending: 'warning',
@@ -14,43 +15,55 @@ export interface Badge {
 }
 
 export function paymentBadge(order: Order): Badge {
-  const { method, status } = order.payment;
-  switch (status) {
+  switch (order.payment.status) {
     case 'Paid':
       return { label: 'Paid', color: 'success' };
-    case 'Submitted':
-      return { label: 'Payment under review', color: 'processing' };
-    case 'Rejected':
-      return { label: 'Payment rejected', color: 'error' };
+    case 'Refunded':
+      return { label: 'Refunded', color: 'default' };
     default:
-      return method === 'Cash on Delivery'
-        ? { label: 'Pay on delivery', color: 'default' }
-        : { label: 'Unpaid', color: 'warning' };
+      return order.status === 'Cancelled'
+        ? { label: 'Not paid', color: 'default' }
+        : { label: 'Awaiting payment', color: 'warning' };
   }
 }
 
-/** Cash on Delivery is settled when it arrives, so it needs nothing verified before staff start on it. */
+/** PayMongo confirmed the payment, so staff can start on the order. */
 export function isPaymentSettled(order: Order): boolean {
-  return order.payment.status === 'Paid' || order.payment.method === 'Cash on Delivery';
+  return order.payment.status === 'Paid';
 }
 
-/** The customer can cancel until staff have verified their payment (or accepted a Cash on Delivery order). */
+/** Customers (and staff, without a refund) can cancel an order until it has been paid. */
 export function customerCanCancel(order: Order): boolean {
-  return order.status === 'Pending' && order.payment.status !== 'Paid';
+  return order.status === 'Pending' && order.payment.status === 'Unpaid';
+}
+
+/** The customer can (still) pay: pending, unpaid and the PayMongo checkout is open. */
+export function canPay(order: Order): boolean {
+  return customerCanCancel(order) && !!order.payment.checkoutUrl;
+}
+
+/** Staff can refund a paid order that hasn't left the shop, or one that was paid after it was cancelled. */
+export function canRefund(order: Order): boolean {
+  return (
+    order.payment.status === 'Paid' &&
+    (order.status === 'Pending' || order.status === 'Processing' || order.status === 'Cancelled')
+  );
 }
 
 /** What staff have to do to move the order along, or null when it is waiting on someone else or finished. */
-export type StaffAction = 'verify-payment' | 'start-processing' | 'ship' | 'deliver';
+export type StaffAction = 'start-processing' | 'ship' | 'deliver' | 'refund';
 
 export function staffAction(order: Order): StaffAction | null {
   switch (order.status) {
     case 'Pending':
-      if (order.payment.status === 'Submitted') return 'verify-payment';
       return isPaymentSettled(order) ? 'start-processing' : null;
     case 'Processing':
       return 'ship';
     case 'Shipped':
       return 'deliver';
+    case 'Cancelled':
+      // Paid after it was cancelled (e.g. the checkout was completed late): the money has to go back.
+      return order.payment.status === 'Paid' ? 'refund' : null;
     default:
       return null;
   }
@@ -60,10 +73,21 @@ export function staffAction(order: Order): StaffAction | null {
 export function orderHint(order: Order, staff: boolean): string {
   const { payment } = order;
   switch (order.status) {
-    case 'Cancelled':
-      return order.cancelledBy === 'customer'
-        ? 'This order was cancelled by the customer.'
-        : 'This order was cancelled by our team.';
+    case 'Cancelled': {
+      const by =
+        order.cancelledBy === 'customer'
+          ? 'This order was cancelled by the customer.'
+          : order.cancelledBy === 'system'
+            ? 'This order was cancelled because it was not paid in time.'
+            : 'This order was cancelled by our team.';
+      if (payment.status === 'Paid') {
+        return staff
+          ? `${by} It was paid anyway, so refund the payment.`
+          : `${by} We received a payment for it and will refund it.`;
+      }
+      if (payment.status === 'Refunded') return `${by} The payment was refunded.`;
+      return by;
+    }
     case 'Delivered':
       return staff ? 'Delivered to the customer.' : 'Delivered. Thank you for shopping with IOTEL!';
     case 'Shipped':
@@ -75,22 +99,14 @@ export function orderHint(order: Order, staff: boolean): string {
         ? 'Pack the items, then hand the parcel to the courier and mark it shipped.'
         : 'We are preparing your order for shipping.';
     default:
-      if (payment.status === 'Submitted') {
+      if (payment.status === 'Paid') {
         return staff
-          ? `Check ${payment.method} reference ${payment.referenceNumber} against your records, then verify or reject it.`
-          : 'We received your payment details and will verify them shortly.';
+          ? 'Paid through PayMongo. Start processing to take the items out of stock.'
+          : 'Payment received. We will start preparing your order soon.';
       }
-      if (payment.status === 'Rejected') {
-        return staff
-          ? 'Waiting for the customer to submit their payment again.'
-          : `We could not verify your payment${payment.rejectionReason ? `: ${payment.rejectionReason}` : '.'} Please submit the reference number again.`;
-      }
-      if (staff) {
-        return `${payment.status === 'Paid' ? 'Payment verified' : 'Cash on Delivery'}. Start processing to take the items out of stock.`;
-      }
-      return payment.status === 'Paid'
-        ? 'Payment verified. We will start preparing your order soon.'
-        : 'Your order is placed. We will start preparing it soon.';
+      return staff
+        ? 'Waiting for the customer to pay through PayMongo.'
+        : `Waiting for your payment. Unpaid orders are cancelled after ${UNPAID_ORDER_MINUTES} minutes.`;
   }
 }
 
@@ -108,14 +124,15 @@ export function orderTimeline(order: Order): TimelineStep[] {
   const { payment } = order;
   const steps: TimelineStep[] = [{ label: 'Order placed', date: order.createdAt, state: 'done' }];
 
-  if (payment.method !== 'Cash on Delivery') {
-    if (payment.status === 'Paid') {
-      steps.push({ label: 'Payment verified', date: payment.paidAt, state: 'done' });
-    } else if (payment.status === 'Rejected') {
-      steps.push({ label: 'Payment rejected', detail: payment.rejectionReason, state: 'error' });
-    } else if (!cancelled) {
-      steps.push({ label: 'Payment verification', detail: 'Waiting for our team', state: 'todo' });
-    }
+  if (payment.status === 'Paid' || payment.status === 'Refunded') {
+    steps.push({
+      label: 'Payment received',
+      detail: paymentMethodLabel(payment.method) || undefined,
+      date: payment.paidAt,
+      state: 'done',
+    });
+  } else if (!cancelled) {
+    steps.push({ label: 'Payment', detail: 'Waiting for your PayMongo payment', state: 'todo' });
   }
 
   const rank: Record<OrderStatus, number> = {
@@ -156,6 +173,9 @@ export function orderTimeline(order: Order): TimelineStep[] {
       date: order.cancelledAt,
       state: 'error',
     });
+    if (payment.status === 'Refunded') {
+      steps.push({ label: 'Refunded', date: payment.refundedAt, state: 'done' });
+    }
   } else {
     // The first step still ahead is the one in progress.
     const next = steps.find((step) => step.state === 'todo');

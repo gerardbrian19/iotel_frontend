@@ -11,6 +11,7 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { Order, OrderStatus } from '../../../core/models';
 import { ORDER_STATUS_COLORS, paymentBadge, staffAction } from '../../../core/orders/order-view';
+import { paymentMethodLabel } from '../../../core/payments/payment-methods';
 import { OrderService } from '../../../core/services/order.service';
 import { OrderActionsComponent } from '../../../shared/components/order-actions/order-actions.component';
 import { OrderDetailComponent } from '../../../shared/components/order-detail/order-detail.component';
@@ -45,6 +46,7 @@ export class StaffOrdersComponent {
 
   readonly statusColors = ORDER_STATUS_COLORS;
   readonly paymentBadge = paymentBadge;
+  readonly paymentMethodLabel = paymentMethodLabel;
   readonly placeholder = PLACEHOLDER_IMAGE;
   readonly onImageError = onImageError;
 

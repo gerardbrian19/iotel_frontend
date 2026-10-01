@@ -96,17 +96,17 @@ export class HelpComponent {
         {
           question: 'Which payment methods do you accept?',
           answer:
-            'GCash, Bank Transfer and Cash on Delivery for orders. Service bookings are paid by GCash or Bank Transfer after we confirm and quote the job.',
+            "GCash, Maya, credit and debit cards, GrabPay and QR Ph, all through PayMongo's secure checkout. Service bookings are paid the same way after we confirm and quote the job. We do not offer Cash on Delivery.",
         },
         {
-          question: 'How do GCash and Bank Transfer payments work?',
+          question: 'How does paying work?',
           answer:
-            'Send the payment, then enter the payment reference number. We do not have an online payment gateway, so our staff check the reference number by hand and update your order or booking once they have matched it. For orders this can take up to 24 hours.',
+            "When you press Pay, you are taken to PayMongo's secure page to finish the payment. Your order or booking is marked paid as soon as PayMongo confirms it, usually within seconds. If you leave without paying, use Pay now on the order; unpaid orders are cancelled after an hour.",
         },
         {
           question: 'Does IOTEL store my card or bank details?',
           answer:
-            'No. IOTEL does not save bank accounts, cards or wallet balances. You only give us a payment reference number for the payment you have already made.',
+            "No. You enter your card or wallet details on PayMongo's page, not in IOTEL. We only keep the PayMongo payment ID, the method you used and the amount.",
         },
       ],
     },

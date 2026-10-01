@@ -4,7 +4,6 @@ import {
   QueryDocumentSnapshot,
   WriteBatch,
   collection,
-  deleteField,
   doc,
   onSnapshot,
   query,
@@ -12,18 +11,14 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { Observable, from } from 'rxjs';
+import { httpsCallable } from 'firebase/functions';
+import { Observable, defer, from } from 'rxjs';
 import { formatSlot, slotId, toDateKey } from '../booking/schedule';
-import { FIRESTORE } from '../firebase/firebase';
+import { functionErrorMessage } from '../firebase/auth-errors';
+import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { dataOf, isoOf } from '../firebase/timestamps';
-import {
-  BOOKING_PAYMENT_METHODS,
-  Booking,
-  BookingPayment,
-  BookingPaymentMethod,
-  BookingStatus,
-  Service,
-} from '../models';
+import { toPayment } from '../payments/payment-methods';
+import { Booking, BookingStatus, Service } from '../models';
 import { AuthService } from './auth.service';
 import { MessageService } from './message.service';
 
@@ -39,12 +34,17 @@ const STATUSES: readonly BookingStatus[] = [
   'Cancelled',
 ];
 
-/** A booking staff still have to act on: a new request to quote, or a submitted payment to verify. */
+/** A booking staff still have to act on: a new request to quote, or a payment to refund (paid after cancelling). */
 export function needsStaffAction(booking: Booking): boolean {
   return (
     booking.status === 'Pending' ||
-    (booking.status === 'Confirmed' && booking.payment?.status === 'Submitted')
+    (booking.status === 'Cancelled' && booking.payment?.status === 'Paid')
   );
+}
+
+/** Confirmed with a quote and not paid yet: the customer can open the PayMongo checkout. */
+export function awaitingPayment(booking: Booking): boolean {
+  return booking.status === 'Confirmed' && booking.payment?.status !== 'Paid';
 }
 
 /** What the customer fills in. The rest of the booking (status, ids, timestamps) is set here. */
@@ -92,15 +92,7 @@ function toBooking(snap: QueryDocumentSnapshot<DocumentData>): Booking {
           quotedAt: isoOf(quote['quotedAt']),
         }
       : undefined,
-    payment: payment
-      ? ({
-          method: BOOKING_PAYMENT_METHODS.includes(payment['method']) ? payment['method'] : 'GCash',
-          referenceNumber: String(payment['referenceNumber'] ?? ''),
-          amount: Number(payment['amount']) || 0,
-          status: payment['status'] === 'Verified' ? 'Verified' : 'Submitted',
-          submittedAt: isoOf(payment['submittedAt']),
-        } satisfies BookingPayment)
-      : undefined,
+    payment: payment ? toPayment(payment) : undefined,
     createdAt: isoOf(data['createdAt']),
     updatedAt: isoOf(data['updatedAt']),
   };
@@ -110,6 +102,8 @@ const peso = (amount: number) => `₱${amount.toLocaleString('en-PH')}`;
 
 /** A message for the user for whatever went wrong while changing a booking. */
 export function bookingErrorMessage(err: unknown): string {
+  const fromFunction = functionErrorMessage(err);
+  if (fromFunction) return fromFunction;
   const code = (err as { code?: string } | null)?.code;
   if (code === 'permission-denied') {
     return 'That change was not allowed. The time slot may have just been taken or the booking changed, so please refresh and try again.';
@@ -131,11 +125,14 @@ export function bookingErrorMessage(err: unknown): string {
  *   problem, the quotation and any change of date. Every status change also posts an `event` line there.
  *
  * Flow: the customer books (Pending) → staff and customer discuss in chat → staff confirms with a quote
- * (Confirmed) → the customer pays and submits the reference number → staff verifies it (Paid) → Completed.
+ * (Confirmed) → the customer pays the quote through PayMongo (`createBookingCheckout`), and PayMongo's webhook marks
+ * the booking Paid and says so in the chat → staff mark it Completed. A paid booking is cancelled only by refunding it
+ * (`refund`, the `refundPayment` function), which also frees its slot.
  */
 @Injectable({ providedIn: 'root' })
 export class BookingService {
   private readonly db = inject(FIRESTORE);
+  private readonly functions = inject(FUNCTIONS);
   private readonly auth = inject(AuthService);
   private readonly messages = inject(MessageService);
 
@@ -253,11 +250,18 @@ export class BookingService {
     });
   }
 
-  /** Cancels a booking and frees its slot. Customers can cancel until they submit a payment; staff and admins any time. */
+  /** Cancels an unpaid booking and frees its slot (customer, staff or admin). Paid ones are cancelled with `refund`. */
   cancel(booking: Booking): Observable<void> {
     return this.commit((batch) => {
       const user = this.requireUser();
-      this.requireStatus(booking, ['Pending', 'Confirmed', 'Paid']);
+      this.requireStatus(booking, ['Pending', 'Confirmed']);
+      if (this.current(booking).payment?.status === 'Paid') {
+        throw new Error(
+          user.role === 'customer'
+            ? 'This booking is already paid. Please message us to cancel it.'
+            : 'This booking is paid. Use "Cancel & refund" instead.',
+        );
+      }
       batch.update(this.bookingRef(booking), { status: 'Cancelled', updatedAt: serverTimestamp() });
       batch.delete(this.slotRef(booking.preferredDate, booking.preferredTime));
       this.messages.stageMessage(
@@ -270,14 +274,14 @@ export class BookingService {
   }
 
   /**
-   * Staff: settles the quotation and asks the customer to pay. Can be repeated to change the amount until a payment
-   * has been submitted.
+   * Staff: settles the quotation and asks the customer to pay. Can be repeated to change the amount until it is paid;
+   * a checkout opened for the old amount is replaced the next time the customer pays.
    */
   confirm(booking: Booking, amount: number, note: string): Observable<void> {
     return this.commit((batch) => {
       this.requireStatus(booking, ['Pending', 'Confirmed']);
-      if (booking.payment)
-        throw new Error('The customer has already submitted a payment for this booking.');
+      if (this.current(booking).payment?.status === 'Paid')
+        throw new Error('The customer has already paid for this booking.');
       if (!Number.isFinite(amount) || amount <= 0) throw new Error('Enter the amount to charge.');
       const quote = {
         amount: Math.round(amount * 100) / 100,
@@ -325,71 +329,33 @@ export class BookingService {
     });
   }
 
-  /** Customer: reports a payment of the quoted amount; staff then verify the reference number. */
-  submitPayment(
-    booking: Booking,
-    method: BookingPaymentMethod,
-    referenceNumber: string,
-  ): Observable<void> {
-    return this.commit((batch) => {
+  /** Customer: opens (or reuses) the PayMongo checkout for the quote. Emits the checkout page to send them to. */
+  payQuote(booking: Booking): Observable<string> {
+    return defer(async () => {
       this.requireStatus(booking, ['Confirmed']);
-      if (booking.payment) throw new Error('A payment was already submitted for this booking.');
-      if (!booking.quote) throw new Error('This booking has no confirmed amount yet.');
-      const reference = referenceNumber.trim();
-      const payment = {
-        method,
-        referenceNumber: reference,
-        amount: booking.quote.amount,
-        status: 'Submitted',
-        submittedAt: serverTimestamp(),
-      };
-      batch.update(this.bookingRef(booking), { payment, updatedAt: serverTimestamp() });
-      this.messages.stageMessage(
-        batch,
-        booking.conversationId,
-        `Payment of ${peso(booking.quote.amount)} sent via ${method} (reference ${reference}). Waiting for verification.`,
-        'event',
-      );
+      const res = await httpsCallable<
+        { bookingId: string; origin: string },
+        { checkoutUrl: string }
+      >(
+        this.functions,
+        'createBookingCheckout',
+      )({ bookingId: booking.id, origin: window.location.origin });
+      return res.data.checkoutUrl;
     });
   }
 
-  /** Staff: accepts the submitted payment. */
-  verifyPayment(booking: Booking): Observable<void> {
-    return this.commit((batch) => {
-      this.requireStatus(booking, ['Confirmed']);
-      if (booking.payment?.status !== 'Submitted')
-        throw new Error('There is no payment to verify.');
-      batch.update(this.bookingRef(booking), {
-        status: 'Paid',
-        'payment.status': 'Verified',
-        updatedAt: serverTimestamp(),
-      });
-      this.messages.stageMessage(
-        batch,
-        booking.conversationId,
-        'Payment verified. Thank you!',
-        'event',
-      );
-    });
-  }
-
-  /** Staff: rejects a submitted payment (wrong reference, amount not received) so the customer can submit it again. */
-  rejectPayment(booking: Booking, reason: string): Observable<void> {
-    return this.commit((batch) => {
-      this.requireStatus(booking, ['Confirmed']);
-      if (booking.payment?.status !== 'Submitted')
-        throw new Error('There is no payment to reject.');
-      batch.update(this.bookingRef(booking), {
-        payment: deleteField(),
-        updatedAt: serverTimestamp(),
-      });
-      const why = reason.trim();
-      this.messages.stageMessage(
-        batch,
-        booking.conversationId,
-        `We couldn't verify your payment${why ? `: ${why}` : '.'} Please submit it again.`,
-        'event',
-      );
+  /**
+   * Staff: refunds the booking's PayMongo payment in full, cancels the booking (freeing its slot) and says so in the
+   * chat. Runs in the `refundPayment` function.
+   */
+  refund(booking: Booking, reason = ''): Observable<void> {
+    return defer(async () => {
+      const user = this.requireUser();
+      if (user.role === 'customer') throw new Error('Only staff can do that.');
+      await httpsCallable<{ kind: 'booking'; id: string; reason: string }, { ok: boolean }>(
+        this.functions,
+        'refundPayment',
+      )({ kind: 'booking', id: booking.id, reason: reason.trim() });
     });
   }
 
@@ -419,9 +385,14 @@ export class BookingService {
     batch.set(this.slotRef(date, time), { date, time, bookingId });
   }
 
+  /** The live copy of a booking: the screens hold on to the one they rendered, which can be a moment behind. */
+  private current(booking: Booking): Booking {
+    return this.byId().get(booking.id) ?? booking;
+  }
+
   /** The screens hide actions that don't apply, but a booking can change under an open dialog. */
   private requireStatus(booking: Booking, allowed: readonly BookingStatus[]): void {
-    const current = this.byId().get(booking.id)?.status ?? booking.status;
+    const current = this.current(booking).status;
     if (!allowed.includes(current))
       throw new Error(`This booking is already ${current.toLowerCase()}.`);
   }

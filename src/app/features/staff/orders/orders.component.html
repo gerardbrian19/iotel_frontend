@@ -45,7 +45,7 @@
         >
           <ng-template nz-card-extra>
             <nz-tag [nzColor]="statusColors[order.status]">{{ order.status }}</nz-tag>
-            @if (order.status !== 'Cancelled') {
+            @if (order.status !== 'Cancelled' || order.payment.status !== 'Unpaid') {
               <nz-tag [nzColor]="paymentBadge(order).color">{{ paymentBadge(order).label }}</nz-tag>
             }
           </ng-template>
@@ -54,9 +54,9 @@
             {{ order.customerName || order.address.fullName }} · {{ order.address.city }}
           </p>
           <p class="payment-info">
-            {{ order.createdAt | date: 'MMM d, h:mm a' }} · {{ order.payment.method }}
-            @if (order.payment.referenceNumber) {
-              · Ref: {{ order.payment.referenceNumber }}
+            {{ order.createdAt | date: 'MMM d, h:mm a' }}
+            @if (paymentMethodLabel(order.payment.method); as method) {
+              · {{ method }}
             }
           </p>
 

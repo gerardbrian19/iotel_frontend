@@ -1,4 +1,4 @@
-import { PaymentMethod } from './payment.model';
+import { Payment } from './payment.model';
 
 /** A bookable service. `id` is the `services/{id}` document id (a slug). */
 export interface Service {
@@ -12,17 +12,13 @@ export interface Service {
 /**
  * Pending    – submitted by the customer, waiting for staff to discuss and quote.
  * Confirmed  – staff agreed the quote and date with the customer; the customer can now pay.
- * Paid       – staff verified the customer's payment.
+ * Paid       – PayMongo confirmed the customer's payment.
  * Completed  – the service was carried out.
  */
 export type BookingStatus = 'Pending' | 'Confirmed' | 'Paid' | 'Completed' | 'Cancelled';
 
 /** Only statuses that still hold their time slot. */
 export const ACTIVE_BOOKING_STATUSES: readonly BookingStatus[] = ['Pending', 'Confirmed', 'Paid'];
-
-export type BookingPaymentMethod = Exclude<PaymentMethod, 'Cash on Delivery'>;
-
-export const BOOKING_PAYMENT_METHODS: readonly BookingPaymentMethod[] = ['GCash', 'Bank Transfer'];
 
 export interface BookingQuote {
   /** Final price in PHP that the customer pays. */
@@ -31,14 +27,8 @@ export interface BookingQuote {
   quotedAt?: string;
 }
 
-/** Submitted by the customer, then verified by staff against the reference number. */
-export interface BookingPayment {
-  method: BookingPaymentMethod;
-  referenceNumber: string;
-  amount: number;
-  status: 'Submitted' | 'Verified';
-  submittedAt?: string;
-}
+/** Created when the customer opens the PayMongo checkout for the quote; marked Paid by the backend webhook. */
+export type BookingPayment = Payment;
 
 export interface Booking {
   /** `bookings/{id}` document id. */

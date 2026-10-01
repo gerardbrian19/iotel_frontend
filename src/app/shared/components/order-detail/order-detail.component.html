@@ -70,16 +70,19 @@
     <section>
       <h4 class="od-heading">Payment</h4>
       <p class="od-line">
-        {{ order().payment.method }}
+        PayMongo{{ method() ? ' · ' + method() : '' }}
         <nz-tag [nzColor]="payment().color">{{ payment().label }}</nz-tag>
       </p>
-      @if (order().payment.referenceNumber) {
-        <p class="od-line">
-          Reference: <strong>{{ order().payment.referenceNumber }}</strong>
-        </p>
+      @if (order().payment.paidAt) {
+        <p class="od-line">Paid on {{ order().payment.paidAt | date: 'medium' }}</p>
       }
-      @if (order().payment.status === 'Paid' && order().payment.paidAt) {
-        <p class="od-line">Paid on {{ order().payment.paidAt | date: 'mediumDate' }}</p>
+      @if (order().payment.refundedAt) {
+        <p class="od-line">Refunded on {{ order().payment.refundedAt | date: 'medium' }}</p>
+      }
+      @if (showCustomer() && order().payment.paymentId) {
+        <p class="od-line">
+          PayMongo payment: <strong>{{ order().payment.paymentId }}</strong>
+        </p>
       }
     </section>
 

@@ -4,7 +4,11 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { Booking } from '../../../core/models';
-import { BookingService, needsStaffAction } from '../../../core/services/booking.service';
+import {
+  BookingService,
+  awaitingPayment,
+  needsStaffAction,
+} from '../../../core/services/booking.service';
 import { BookingPanelComponent } from '../booking-panel/booking-panel.component';
 
 interface Group {
@@ -35,21 +39,23 @@ export class BookingsBoardComponent {
   readonly groups = computed<Group[]>(() => {
     const all = this.bookingService.bookings();
     const needsAction = all.filter(needsStaffAction);
-    const awaitingPayment = all.filter((b) => b.status === 'Confirmed' && !b.payment);
+    const waiting = all.filter(awaitingPayment);
     const scheduled = all.filter((b) => b.status === 'Paid');
-    const history = all.filter((b) => b.status === 'Completed' || b.status === 'Cancelled');
+    const history = all.filter(
+      (b) => (b.status === 'Completed' || b.status === 'Cancelled') && !needsStaffAction(b),
+    );
     return [
       {
         key: 'action',
         title: 'Needs action',
-        empty: 'Nothing waiting on you. New requests and payments to verify show up here.',
+        empty: 'Nothing waiting on you. New requests and payments to refund show up here.',
         bookings: needsAction.sort(bySlot),
       },
       {
         key: 'payment',
         title: 'Awaiting payment',
         empty: 'No confirmed bookings are waiting for payment.',
-        bookings: awaitingPayment.sort(bySlot),
+        bookings: waiting.sort(bySlot),
       },
       {
         key: 'scheduled',

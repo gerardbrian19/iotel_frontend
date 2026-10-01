@@ -12,7 +12,7 @@
       />
     }
 
-    <nz-tabs>
+    <nz-tabs [nzSelectedIndex]="tabIndex()" (nzSelectedIndexChange)="tabIndex.set($event)">
       <nz-tab nzTitle="Available Services">
         @if (loading() && !services().length) {
           <div class="state-box"><nz-spin nzSimple /></div>
@@ -46,8 +46,15 @@
           </nz-empty>
         } @else {
           <div class="bookings-list">
-            @for (booking of bookings(); track booking.id) {
-              <app-booking-panel [booking]="booking" [showChatLink]="true" />
+            @if (returned(); as note) {
+              <nz-alert [nzType]="note.type" nzShowIcon [nzMessage]="note.text" />
+            }
+            @for (item of bookings(); track item.id) {
+              <app-booking-panel
+                [booking]="item"
+                [showChatLink]="true"
+                [startExpanded]="item.id === booking()"
+              />
             }
           </div>
         }

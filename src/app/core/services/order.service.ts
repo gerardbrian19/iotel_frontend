@@ -5,7 +5,6 @@ import {
   QueryDocumentSnapshot,
   Transaction,
   collection,
-  deleteField,
   doc,
   onSnapshot,
   query,
@@ -14,53 +13,35 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { Observable, defer } from 'rxjs';
-import { toDateKey } from '../booking/schedule';
-import { FIRESTORE } from '../firebase/firebase';
+import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
+import { functionErrorMessage } from '../firebase/auth-errors';
 import { dataOf, isoOf } from '../firebase/timestamps';
 import { customerCanCancel, isPaymentSettled } from '../orders/order-view';
-import {
-  PAYMENT_OPTIONS,
-  PAYMENT_PROVIDER,
-  needsReference,
-  paymentOption,
-  referenceError,
-} from '../payments/payment-methods';
-import {
-  CartItem,
-  ORDER_STATUSES,
-  Order,
-  OrderItem,
-  OrderPayment,
-  PaymentMethod,
-  PaymentStatus,
-  ShippingAddress,
-} from '../models';
+import { toPayment } from '../payments/payment-methods';
+import { CartItem, ORDER_STATUSES, Order, OrderItem, ShippingAddress } from '../models';
 import { AuthService } from './auth.service';
-import { SHIPPING_FEE, cartProblems } from './cart.service';
+import { cartProblems } from './cart.service';
 import { ProductService } from './product.service';
 
 const ORDERS = 'orders';
-const COUNTERS = 'counters';
 const PRODUCTS = 'products';
-
-/** Shown as the estimated delivery date; counted from the day the order is placed. */
-export const ESTIMATED_DELIVERY_DAYS = 5;
-
-const PAYMENT_STATUSES: readonly PaymentStatus[] = ['Unpaid', 'Submitted', 'Paid', 'Rejected'];
-const PAYMENT_METHODS: readonly PaymentMethod[] = PAYMENT_OPTIONS.map((option) => option.method);
 
 export function orderCode(number: number): string {
   return `ORD-${String(number).padStart(4, '0')}`;
 }
 
-/** What the customer chose at checkout. Prices, totals, ids and timestamps are worked out by `place`. */
+/** What the customer chose at checkout. Prices, totals and the order itself are worked out by the backend. */
 export interface PlaceOrder {
   items: readonly CartItem[];
   address: ShippingAddress;
-  method: PaymentMethod;
-  /** Required for GCash and Bank Transfer. */
-  referenceNumber?: string;
+}
+
+/** The new order and the PayMongo checkout page to send the customer to. */
+export interface OrderCheckout {
+  orderId: string;
+  checkoutUrl: string;
 }
 
 function optionalIso(value: unknown): string | undefined {
@@ -69,7 +50,6 @@ function optionalIso(value: unknown): string | undefined {
 
 function toOrder(snap: QueryDocumentSnapshot<DocumentData>): Order {
   const data = dataOf(snap);
-  const payment = data['payment'] ?? {};
   const address = data['address'] ?? {};
   const shipment = data['shipment'];
   const number = Number(data['number']) || 0;
@@ -94,16 +74,7 @@ function toOrder(snap: QueryDocumentSnapshot<DocumentData>): Order {
     subtotal: Number(data['subtotal']) || 0,
     shippingFee: Number(data['shippingFee']) || 0,
     total: Number(data['total']) || 0,
-    payment: {
-      provider: payment['provider'] === 'paymongo' ? 'paymongo' : 'manual',
-      method: PAYMENT_METHODS.includes(payment['method']) ? payment['method'] : 'GCash',
-      status: PAYMENT_STATUSES.includes(payment['status']) ? payment['status'] : 'Unpaid',
-      amount: Number(payment['amount']) || 0,
-      referenceNumber: payment['referenceNumber'] ? String(payment['referenceNumber']) : undefined,
-      rejectionReason: payment['rejectionReason'] ? String(payment['rejectionReason']) : undefined,
-      submittedAt: optionalIso(payment['submittedAt']),
-      paidAt: optionalIso(payment['paidAt']),
-    } satisfies OrderPayment,
+    payment: toPayment(data['payment']),
     address: {
       fullName: String(address['fullName'] ?? ''),
       addressLine: String(address['addressLine'] ?? ''),
@@ -119,10 +90,9 @@ function toOrder(snap: QueryDocumentSnapshot<DocumentData>): Order {
         }
       : undefined,
     estimatedDelivery: data['estimatedDelivery'] ? String(data['estimatedDelivery']) : undefined,
-    cancelledBy:
-      data['cancelledBy'] === 'customer' || data['cancelledBy'] === 'staff'
-        ? data['cancelledBy']
-        : undefined,
+    cancelledBy: ['customer', 'staff', 'system'].includes(data['cancelledBy'])
+      ? data['cancelledBy']
+      : undefined,
     cancelReason: data['cancelReason'] ? String(data['cancelReason']) : undefined,
     createdAt: isoOf(data['createdAt']),
     updatedAt: isoOf(data['updatedAt']),
@@ -135,6 +105,8 @@ function toOrder(snap: QueryDocumentSnapshot<DocumentData>): Order {
 
 /** A message for the user for whatever went wrong while placing or changing an order. */
 export function orderErrorMessage(err: unknown): string {
+  const fromFunction = functionErrorMessage(err);
+  if (fromFunction) return fromFunction;
   const code = (err as { code?: string } | null)?.code;
   if (code === 'permission-denied') {
     return 'That change was not allowed. The order may have just changed, so please refresh and try again.';
@@ -154,25 +126,21 @@ export function orderErrorMessage(err: unknown): string {
  * Orders, stored in Firestore.
  *
  * - `orders/{id}`: one per order. Customers see their own; staff and admins see all of them.
- * - `counters/orders`: `{ last }`, the last order number. Placing an order bumps it in the same transaction, and the
- *   rules only accept `number == last`, so numbers are unique, sequential and can't be reused.
+ * - `counters/orders`: `{ last }`, the last order number, kept by the backend.
  *
- * Flow: the customer places the order (Pending; GCash / Bank Transfer come with their reference number, see
- * `payment-methods.ts`) → staff verify the payment (or accept Cash on Delivery) → staff start processing, which takes
- * the items out of stock in one transaction → staff mark it shipped with the courier → delivered (Cash on Delivery is
- * marked paid then). Cancelling a processing order puts its items back in stock.
+ * Flow: checkout calls the `createOrderCheckout` function, which prices the cart from the live catalog, writes the
+ * order (Pending, payment Unpaid) and opens a PayMongo checkout → the customer pays there and PayMongo's webhook marks
+ * the payment Paid (unpaid orders are cancelled after an hour) → staff start processing, which takes the items out
+ * of stock in one transaction → staff mark it shipped with the courier → delivered.
  *
- * Stock is taken when staff start processing, not when the customer places the order: customers can't write to
- * `products` (only staff can adjust stock), and this way a reference number that turns out to be fake never holds
- * stock. The cart already caps quantities at the live stock, and starting to process fails if stock has run out since.
- *
- * `total` and the item prices are computed on the client from the live catalog, and the rules only check what they
- * can (shipping fee, `total == subtotal + shippingFee`, the payment shape). Staff verify every payment by hand today;
- * with PayMongo these amounts should be recomputed by the backend that creates the payment.
+ * Stock is taken when staff start processing, not at checkout: an abandoned checkout never holds stock, and starting
+ * to process fails if stock has run out since. A paid order is only ever cancelled through `refund` (the
+ * `refundPayment` function), which also puts a processing order's items back in stock.
  */
 @Injectable({ providedIn: 'root' })
 export class OrderService {
   private readonly db = inject(FIRESTORE);
+  private readonly functions = inject(FUNCTIONS);
   private readonly auth = inject(AuthService);
   private readonly products = inject(ProductService);
 
@@ -225,14 +193,35 @@ export class OrderService {
     });
   }
 
-  /** Customer: places the order from the cart's lines. Emits the new order's id. */
-  place(input: PlaceOrder): Observable<string> {
-    return defer(() => this.placeOrder(input));
+  /**
+   * Customer: turns the cart into an order and a PayMongo checkout. Emits the order id and the checkout page to send
+   * the customer to.
+   */
+  checkout(input: PlaceOrder): Observable<OrderCheckout> {
+    return defer(async () => {
+      this.requireUser();
+      if (!input.items.length) throw new Error('Your cart is empty.');
+      if (this.products.loading())
+        throw new Error('The catalog is still loading. Please try again in a moment.');
+      // The backend checks all of this again against the live documents; this just answers faster.
+      const problem = cartProblems(input.items, this.products.byId())[0];
+      if (problem) throw new Error(problem.message);
+      const { fullName, addressLine, city, province, zip, mobile } = input.address;
+      const res = await httpsCallable<unknown, OrderCheckout>(
+        this.functions,
+        'createOrderCheckout',
+      )({
+        items: input.items.map((item) => ({ productId: item.productId, qty: item.qty })),
+        address: { fullName, addressLine, city, province, zip, mobile },
+        origin: window.location.origin,
+      });
+      return res.data;
+    });
   }
 
   /**
-   * Customer: cancels a pending order until staff have verified the payment. Staff and admins can cancel while it is
-   * pending or processing; a processing order's items go back into stock.
+   * Cancels a pending order that hasn't been paid (customer, staff or admin); its PayMongo checkout is closed by the
+   * backend. Paid orders are cancelled with `refund` instead.
    */
   cancel(order: Order, reason = ''): Observable<void> {
     return defer(async () => {
@@ -242,21 +231,14 @@ export class OrderService {
       const why = reason.trim();
       await runTransaction(this.db, async (tx) => {
         const fresh = await this.freshOrder(tx, ref);
-        if (
-          staff
-            ? fresh.status !== 'Pending' && fresh.status !== 'Processing'
-            : !customerCanCancel(fresh)
-        ) {
+        if (!customerCanCancel(fresh)) {
           throw new Error(
-            fresh.status === 'Pending'
-              ? 'Your payment was already verified, so this order can no longer be cancelled here. Please message us.'
+            fresh.status === 'Pending' && fresh.payment.status === 'Paid'
+              ? staff
+                ? 'This order is paid. Use "Cancel & refund" instead.'
+                : 'Your payment already went through, so this order can no longer be cancelled here. Please message us.'
               : `This order is already ${fresh.status.toLowerCase()}, so it can no longer be cancelled.`,
           );
-        }
-        // All reads come before any write.
-        const stock = fresh.status === 'Processing' ? await this.readStock(tx, fresh.items) : [];
-        for (const line of stock) {
-          if (line.snap.exists()) tx.update(line.snap.ref, { stock: line.stock + line.qty });
         }
         tx.update(ref, {
           status: 'Cancelled',
@@ -269,57 +251,21 @@ export class OrderService {
     });
   }
 
-  /** Customer: sends the reference number again after staff rejected the payment. */
-  submitPayment(order: Order, referenceNumber: string): Observable<void> {
+  /**
+   * Staff: refunds the order's PayMongo payment in full and cancels it if it isn't already (a processing order's
+   * items go back in stock). Runs in the `refundPayment` function.
+   */
+  refund(order: Order, reason = ''): Observable<void> {
     return defer(async () => {
-      const current = this.current(order);
-      if (current.status !== 'Pending' || current.payment.status !== 'Rejected') {
-        throw new Error('This order is not waiting for a new payment reference.');
-      }
-      const problem = referenceError(referenceNumber);
-      if (problem) throw new Error(problem);
-      await updateDoc(doc(this.db, ORDERS, order.id), {
-        'payment.status': 'Submitted',
-        'payment.referenceNumber': referenceNumber.trim(),
-        'payment.submittedAt': serverTimestamp(),
-        'payment.rejectionReason': deleteField(),
-        updatedAt: serverTimestamp(),
-      });
+      this.requireStaff();
+      await httpsCallable<{ kind: 'order'; id: string; reason: string }, { ok: boolean }>(
+        this.functions,
+        'refundPayment',
+      )({ kind: 'order', id: order.id, reason: reason.trim() });
     });
   }
 
-  /** Staff: accepts the reported payment. */
-  verifyPayment(order: Order): Observable<void> {
-    return defer(async () => {
-      const current = this.current(order);
-      if (current.status !== 'Pending' || current.payment.status !== 'Submitted') {
-        throw new Error('There is no payment to verify on this order.');
-      }
-      await updateDoc(doc(this.db, ORDERS, order.id), {
-        'payment.status': 'Paid',
-        'payment.paidAt': serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    });
-  }
-
-  /** Staff: rejects a reported payment (wrong reference, money not received) so the customer can submit it again. */
-  rejectPayment(order: Order, reason: string): Observable<void> {
-    return defer(async () => {
-      const current = this.current(order);
-      if (current.status !== 'Pending' || current.payment.status !== 'Submitted') {
-        throw new Error('There is no payment to reject on this order.');
-      }
-      const why = reason.trim();
-      await updateDoc(doc(this.db, ORDERS, order.id), {
-        'payment.status': 'Rejected',
-        ...(why ? { 'payment.rejectionReason': why } : {}),
-        updatedAt: serverTimestamp(),
-      });
-    });
-  }
-
-  /** Staff: accepts a pending order (payment verified, or Cash on Delivery) and takes its items out of stock. */
+  /** Staff: accepts a paid pending order and takes its items out of stock. */
   startProcessing(order: Order): Observable<void> {
     return defer(async () => {
       this.requireStaff();
@@ -328,8 +274,7 @@ export class OrderService {
         const fresh = await this.freshOrder(tx, ref);
         if (fresh.status !== 'Pending')
           throw new Error(`This order is already ${fresh.status.toLowerCase()}.`);
-        if (!isPaymentSettled(fresh))
-          throw new Error("Verify the customer's payment before processing this order.");
+        if (!isPaymentSettled(fresh)) throw new Error('This order has not been paid yet.');
 
         const stock = await this.readStock(tx, fresh.items);
         const short = stock
@@ -370,92 +315,19 @@ export class OrderService {
     });
   }
 
-  /** Staff: the customer received the parcel. Cash on Delivery orders count as paid from here. */
+  /** Staff: the customer received the parcel. */
   markDelivered(order: Order): Observable<void> {
     return defer(async () => {
       this.requireStaff();
       const current = this.current(order);
       if (current.status !== 'Shipped')
         throw new Error('Only a shipped order can be marked delivered.');
-      const collectCash =
-        current.payment.method === 'Cash on Delivery' && current.payment.status !== 'Paid';
       await updateDoc(doc(this.db, ORDERS, order.id), {
         status: 'Delivered',
         deliveredAt: serverTimestamp(),
-        ...(collectCash ? { 'payment.status': 'Paid', 'payment.paidAt': serverTimestamp() } : {}),
         updatedAt: serverTimestamp(),
       });
     });
-  }
-
-  private async placeOrder(input: PlaceOrder): Promise<string> {
-    const user = this.requireUser();
-    if (!input.items.length) throw new Error('Your cart is empty.');
-    if (this.products.loading())
-      throw new Error('The catalog is still loading. Please try again in a moment.');
-    const catalog = this.products.byId();
-    const problem = cartProblems(input.items, catalog)[0];
-    if (problem) throw new Error(problem.message);
-
-    const option = paymentOption(input.method);
-    const reference = (input.referenceNumber ?? '').trim();
-    if (needsReference(input.method)) {
-      const invalid = referenceError(reference);
-      if (invalid) throw new Error(invalid);
-    }
-
-    // Priced from the live catalog, which `cartProblems` just confirmed matches the cart.
-    const items: OrderItem[] = input.items.map((item) => {
-      const product = catalog.get(item.productId)!;
-      return {
-        productId: product.id,
-        name: product.name,
-        price: product.price!,
-        qty: item.qty,
-        imageUrl: product.imageUrl,
-      };
-    });
-    const subtotal =
-      Math.round(items.reduce((sum, item) => sum + item.price * item.qty, 0) * 100) / 100;
-    const total = subtotal + SHIPPING_FEE;
-    const { fullName, addressLine, city, province, zip, mobile } = input.address;
-
-    const orderRef = doc(collection(this.db, ORDERS));
-    const counterRef = doc(this.db, COUNTERS, 'orders');
-    await runTransaction(this.db, async (tx) => {
-      const counter = await tx.get(counterRef);
-      const number = (counter.exists() ? Number(counter.data()['last']) || 0 : 0) + 1;
-      tx.set(counterRef, { last: number });
-      tx.set(orderRef, {
-        number,
-        customerId: user.id,
-        customerName: user.name,
-        customerEmail: user.email,
-        items,
-        subtotal,
-        shippingFee: SHIPPING_FEE,
-        total,
-        address: { fullName, addressLine, city, province, zip, mobile },
-        // The customer only ever creates an unverified payment; `Paid` is set by staff (later by PayMongo's webhook).
-        payment: option.needsReference
-          ? {
-              provider: PAYMENT_PROVIDER,
-              method: input.method,
-              status: 'Submitted',
-              amount: total,
-              referenceNumber: reference,
-              submittedAt: serverTimestamp(),
-            }
-          : { provider: PAYMENT_PROVIDER, method: input.method, status: 'Unpaid', amount: total },
-        status: 'Pending',
-        estimatedDelivery: toDateKey(
-          new Date(Date.now() + ESTIMATED_DELIVERY_DAYS * 24 * 60 * 60 * 1000),
-        ),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    });
-    return orderRef.id;
   }
 
   /** The live copy of an order: the screens hold on to the one they rendered, which can be a moment behind. */

@@ -1,7 +1,7 @@
 import { OrderPayment } from './payment.model';
 
 /**
- * Pending    – placed; waiting for staff (to verify the payment, then to start on it).
+ * Pending    – placed; waiting for the PayMongo payment, then for staff to start on it.
  * Processing – staff accepted it and took the items out of stock; being packed.
  * Shipped    – handed to the courier.
  * Delivered  – received by the customer.
@@ -60,7 +60,8 @@ export interface Order {
   shipment?: OrderShipment;
   /** Local calendar date, `YYYY-MM-DD`. */
   estimatedDelivery?: string;
-  cancelledBy?: 'customer' | 'staff';
+  /** `system`: cancelled automatically because it wasn't paid in time. */
+  cancelledBy?: 'customer' | 'staff' | 'system';
   cancelReason?: string;
   createdAt: string;
   updatedAt: string;
