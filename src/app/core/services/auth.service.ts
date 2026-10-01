@@ -32,6 +32,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
+import { TWO_STEP_SIGN_IN } from '../auth/auth-flags';
 import { AppAuthError, authErrorMessage } from '../firebase/auth-errors';
 import { FIREBASE_AUTH, FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../legal/legal-documents';
@@ -88,8 +89,10 @@ function isMultiFactorRequired(err: unknown): err is MultiFactorError {
  * Sign-up always yields the `customer` role; only admins can create staff/admin accounts or change roles
  * (enforced by firestore.rules, see UserService).
  *
- * A password alone never signs anyone in: `currentUser` is published only once the second step is done (emailed code
- * for customers, authenticator app for staff/admins), and firestore.rules check the same thing on the ID token.
+ * With `TWO_STEP_SIGN_IN` on, a password alone never signs anyone in: `currentUser` is published only once the second
+ * step is done (emailed code for customers, authenticator app for staff/admins), and firestore.rules check the same
+ * thing on the ID token. With it off, email + password is enough (an account that already has an authenticator app
+ * still gets asked for its code, because Firebase Auth itself requires it).
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -421,12 +424,18 @@ export class AuthService {
   }
 
   private async secondStepDone(fbUser: FirebaseUser, role: UserRole): Promise<boolean> {
+    if (!TWO_STEP_SIGN_IN) return true;
     const { claims, signInSecondFactor } = await fbUser.getIdTokenResult();
     if (signInSecondFactor === TOTP) return true;
     return role === 'customer' && claims['otpAuthTime'] === claims['auth_time'];
   }
 
+  /** With two-step sign-in off (`TWO_STEP_SIGN_IN`), the password is enough and the user is published straight away. */
   private async beginSecondStep(fbUser: FirebaseUser, profile: User): Promise<void> {
+    if (!TWO_STEP_SIGN_IN) {
+      this.finishSignIn(profile);
+      return;
+    }
     this.pendingProfile = profile;
     this._pendingEmail.set(fbUser.email);
     if (profile.role === 'customer' || !fbUser.emailVerified) {

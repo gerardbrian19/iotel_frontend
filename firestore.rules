@@ -13,34 +13,47 @@ service cloud.firestore {
       return request.auth.token.firebase.get('sign_in_second_factor', null) == 'totp';
     }
 
+    // Two-step sign-in on/off. Mirrors TWO_STEP_SIGN_IN in src/app/core/auth/auth-flags.ts and functions/src/flags.ts.
+    // false: a password-only session counts as signed in, and staff/admins don't need the authenticator app.
+    function twoStepSignIn() {
+      return false;
+    }
+
+    // Staff/admin sessions: the authenticator app, when two-step sign-in is on.
+    function staffSecondStep() {
+      return !twoStepSignIn() || hasTotp();
+    }
+
     // The second sign-in step is done for this session: the emailed code (the `verifyLoginCode` function sets
     // `otpAuthTime` to the session's `auth_time`; a new sign-in changes `auth_time`) or an authenticator app.
     function secondStep() {
-      return request.auth.token.get('otpAuthTime', -1) == request.auth.token.auth_time || hasTotp();
+      return !twoStepSignIn()
+        || request.auth.token.get('otpAuthTime', -1) == request.auth.token.auth_time
+        || hasTotp();
     }
 
     function signedIn() {
       return authed() && secondStep();
     }
 
-    // Staff and admin powers need a session signed in with the authenticator app.
+    // Staff and admin powers need a session signed in with the authenticator app (when two-step sign-in is on).
     function isAdmin() {
       return signedIn()
-        && hasTotp()
+        && staffSecondStep()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isStaff() {
       return signedIn()
-        && hasTotp()
+        && staffSecondStep()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
     }
 
     function isStaffOrAdmin() {
       return signedIn()
-        && hasTotp()
+        && staffSecondStep()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['staff', 'admin'];
     }

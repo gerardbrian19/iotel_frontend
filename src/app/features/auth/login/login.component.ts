@@ -60,6 +60,8 @@ export class LoginComponent {
     try {
       await this.auth.login(email, password);
       this.form.controls.password.reset('');
+      // Two-step sign-in off (TWO_STEP_SIGN_IN): the password alone signed the user in.
+      if (this.auth.currentUser()) await this.goToPortal();
     } catch (err) {
       this.error.set(authErrorMessage(err));
     } finally {

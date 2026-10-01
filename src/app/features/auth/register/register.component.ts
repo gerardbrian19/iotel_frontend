@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -28,6 +28,7 @@ import {
   requiredTrimmed,
   strongPassword,
 } from '../../../shared/utils/validators';
+import { safeReturnUrl } from '../../../shared/utils/return-url';
 
 @Component({
   selector: 'app-register',
@@ -52,6 +53,7 @@ export class RegisterComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly passwordVisible = signal(false);
   readonly error = signal<string | null>(null);
@@ -108,6 +110,16 @@ export class RegisterComponent {
     const { name, email, password } = this.form.getRawValue();
     try {
       await this.auth.register(name, email, password);
+      // Two-step sign-in off (TWO_STEP_SIGN_IN): the new customer is already signed in.
+      const user = this.auth.currentUser();
+      if (user) {
+        const returnUrl = safeReturnUrl(
+          this.route.snapshot.queryParamMap.get('returnUrl'),
+          user.role,
+        );
+        await this.router.navigateByUrl(returnUrl ?? `/${user.role}`);
+        return;
+      }
       // The login page shows the emailed-code step and then sends the user on to `returnUrl`.
       await this.router.navigate(['/auth/login'], { queryParamsHandling: 'preserve' });
     } catch (err) {

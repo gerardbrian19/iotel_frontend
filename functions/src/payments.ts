@@ -21,6 +21,7 @@ import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { CallableRequest, HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { db } from './app.js';
+import { TWO_STEP_SIGN_IN } from './flags.js';
 
 const PAYMONGO_SECRET_KEY = defineSecret('PAYMONGO_SECRET_KEY');
 const PAYMONGO_WEBHOOK_SECRET = defineSecret('PAYMONGO_WEBHOOK_SECRET');
@@ -107,7 +108,7 @@ async function expireSession(sessionId: string): Promise<void> {
 async function requireCustomer(req: CallableRequest): Promise<{ uid: string; name: string; email: string }> {
   if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in again.');
   const { uid, token } = req.auth;
-  if (token['otpAuthTime'] !== token.auth_time) throw new HttpsError('unauthenticated', 'Please sign in again.');
+  if (TWO_STEP_SIGN_IN && token['otpAuthTime'] !== token.auth_time) throw new HttpsError('unauthenticated', 'Please sign in again.');
   const profile = await db.doc(`users/${uid}`).get();
   if (profile.get('role') !== 'customer') throw new HttpsError('permission-denied', 'Only customers can pay here.');
   return { uid, name: String(profile.get('name') ?? ''), email: String(profile.get('email') ?? token.email ?? '') };
@@ -116,7 +117,7 @@ async function requireCustomer(req: CallableRequest): Promise<{ uid: string; nam
 /** Staff or an admin, signed in with their authenticator app (as `isStaffOrAdmin()` in firestore.rules). */
 async function requireStaff(req: CallableRequest): Promise<{ uid: string; name: string; role: string }> {
   if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in again.');
-  if (req.auth.token.firebase?.sign_in_second_factor !== 'totp') {
+  if (TWO_STEP_SIGN_IN && req.auth.token.firebase?.sign_in_second_factor !== 'totp') {
     throw new HttpsError('permission-denied', 'Sign in with your authenticator app first.');
   }
   const profile = await db.doc(`users/${req.auth.uid}`).get();

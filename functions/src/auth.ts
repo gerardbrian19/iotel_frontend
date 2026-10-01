@@ -13,6 +13,7 @@ import { defineInt, defineSecret, defineString } from 'firebase-functions/params
 import { logger } from 'firebase-functions';
 import { createTransport, Transporter } from 'nodemailer';
 import { db } from './app.js';
+import { TWO_STEP_SIGN_IN } from './flags.js';
 
 // SMTP relay (Brevo today). Host/port/sender live in functions/.env; the login and key are Secret Manager secrets.
 const SMTP_HOST = defineString('SMTP_HOST', { default: 'smtp-relay.brevo.com' });
@@ -188,7 +189,7 @@ export const verifyLoginCode = onCall(async (req) => {
 /** Admin action: removes another account's authenticator app and signs it out everywhere. */
 export const resetAuthenticator = onCall(async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in again.');
-  if (req.auth.token.firebase?.sign_in_second_factor !== 'totp') {
+  if (TWO_STEP_SIGN_IN && req.auth.token.firebase?.sign_in_second_factor !== 'totp') {
     throw new HttpsError('permission-denied', 'Sign in with your authenticator app first.');
   }
   const caller = await db.doc(`users/${req.auth.uid}`).get();
