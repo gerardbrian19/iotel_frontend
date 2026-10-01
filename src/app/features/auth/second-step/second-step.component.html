@@ -1,0 +1,103 @@
+@switch (step()) {
+  @case ('email-code') {
+    <h2 class="step-title">Check your email</h2>
+    @if (setupAfterCode()) {
+      <p class="step-desc">
+        Step 1 of 2: confirm your email address (only needed once). Next you'll set up your
+        authenticator app.
+      </p>
+    }
+    <p class="step-desc">
+      We sent a 6-digit code to <strong>{{ maskedEmail() }}</strong
+      >. It expires in 10 minutes.
+    </p>
+    @if (sendError()) {
+      <nz-alert nzType="warning" [nzMessage]="sendError()!" nzShowIcon class="mb-4" />
+    }
+  }
+  @case ('totp-code') {
+    <h2 class="step-title">Enter your authenticator code</h2>
+    <p class="step-desc">Open your authenticator app and enter the 6-digit code for IOTEL.</p>
+  }
+  @case ('totp-enroll') {
+    <h2 class="step-title">Set up your authenticator app</h2>
+    <p class="step-desc">
+      Staff and admin accounts need an authenticator app (Google Authenticator, Microsoft
+      Authenticator, or similar). Scan this QR code with it, then enter the 6-digit code it shows.
+    </p>
+    @if (setupError()) {
+      <nz-alert nzType="error" [nzMessage]="setupError()!" nzShowIcon class="mb-4" />
+      <button nz-button nzBlock class="mb-4" (click)="startSetup()">Try again</button>
+    } @else if (setup(); as s) {
+      <div class="qr-wrap">
+        <nz-qrcode [nzValue]="s.qrUrl" [nzSize]="180" />
+      </div>
+      <p class="key-label">Can't scan it? Enter this key in the app:</p>
+      <div class="key-row">
+        <code class="key">{{ s.secretKey }}</code>
+        <button
+          nz-button
+          nzType="text"
+          type="button"
+          (click)="copyKey(s.secretKey)"
+          aria-label="Copy key"
+        >
+          <span nz-icon nzType="copy"></span>
+        </button>
+      </div>
+    } @else {
+      <p class="step-desc">Preparing your key…</p>
+    }
+  }
+}
+
+@if (error()) {
+  <nz-alert nzType="error" [nzMessage]="error()!" nzShowIcon class="mb-4" />
+}
+
+<form nz-form nzLayout="vertical" [formGroup]="form" (ngSubmit)="submit()">
+  <nz-form-item>
+    <nz-form-label nzRequired>6-digit code</nz-form-label>
+    <nz-form-control nzErrorTip="Enter the 6 digits">
+      <input
+        nz-input
+        class="code-input"
+        formControlName="code"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        maxlength="7"
+        placeholder="123456"
+      />
+    </nz-form-control>
+  </nz-form-item>
+
+  <button nz-button nzType="primary" nzBlock type="submit" class="login-btn" [nzLoading]="busy()">
+    @if (step() === 'totp-enroll') {
+      Confirm and finish setup
+    } @else {
+      Verify
+    }
+  </button>
+</form>
+
+<div class="step-links">
+  @if (step() === 'email-code') {
+    <button
+      nz-button
+      nzType="link"
+      type="button"
+      [disabled]="resendIn() > 0"
+      [nzLoading]="resending()"
+      (click)="resend()"
+    >
+      @if (resendIn() > 0) {
+        Resend code in {{ resendIn() }}s
+      } @else {
+        Resend code
+      }
+    </button>
+  }
+  <button nz-button nzType="link" type="button" class="cancel-link" (click)="cancel()">
+    Cancel and sign in again
+  </button>
+</div>

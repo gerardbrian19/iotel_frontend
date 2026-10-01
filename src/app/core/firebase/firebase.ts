@@ -2,6 +2,7 @@ import { InjectionToken, inject } from '@angular/core';
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
 import { Firestore, connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
+import { Functions, connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 import { environment } from '../../../environments/environment';
 
 export const FIREBASE_APP = new InjectionToken<FirebaseApp>('FIREBASE_APP', {
@@ -30,5 +31,17 @@ export const FIRESTORE = new InjectionToken<Firestore>('FIRESTORE', {
       connectFirestoreEmulator(firestore, 'localhost', 8080);
     }
     return firestore;
+  },
+});
+
+/** Callable Cloud Functions (`functions/`), deployed to Singapore. */
+export const FUNCTIONS = new InjectionToken<Functions>('FUNCTIONS', {
+  providedIn: 'root',
+  factory: () => {
+    const functions = getFunctions(inject(FIREBASE_APP), 'asia-southeast1');
+    if (environment.useEmulators) {
+      connectFunctionsEmulator(functions, 'localhost', 5001);
+    }
+    return functions;
   },
 });

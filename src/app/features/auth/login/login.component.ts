@@ -7,6 +7,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { AuthService } from '../../../core/services/auth.service';
+import { SecondStepComponent } from '../second-step/second-step.component';
 import { authErrorMessage } from '../../../core/firebase/auth-errors';
 import { safeReturnUrl } from '../../../shared/utils/return-url';
 import { emailFormat, requiredTrimmed } from '../../../shared/utils/validators';
@@ -22,6 +23,7 @@ import { emailFormat, requiredTrimmed } from '../../../shared/utils/validators';
     NzAlertModule,
     NzIconModule,
     RouterLink,
+    SecondStepComponent,
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
@@ -36,6 +38,9 @@ export class LoginComponent {
   readonly passwordVisible = signal(false);
   readonly error = signal<string | null>(null);
   readonly loading = signal(false);
+  readonly step = this.auth.pendingStep;
+  readonly notice = this.auth.notice;
+  readonly signInError = this.auth.signInError;
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [requiredTrimmed, emailFormat]],
@@ -53,16 +58,20 @@ export class LoginComponent {
     this.error.set(null);
     const { email, password } = this.form.getRawValue();
     try {
-      const user = await this.auth.login(email, password);
-      const returnUrl = safeReturnUrl(
-        this.route.snapshot.queryParamMap.get('returnUrl'),
-        user.role,
-      );
-      await this.router.navigateByUrl(returnUrl ?? `/${user.role}`);
+      await this.auth.login(email, password);
+      this.form.controls.password.reset('');
     } catch (err) {
       this.error.set(authErrorMessage(err));
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** Called by the second step once the user is fully signed in. */
+  async goToPortal(): Promise<void> {
+    const user = this.auth.currentUser();
+    if (!user) return;
+    const returnUrl = safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'), user.role);
+    await this.router.navigateByUrl(returnUrl ?? `/${user.role}`);
   }
 }

@@ -35,3 +35,9 @@
   background: #cc2020 !important;
   border-color: #cc2020 !important;
 }
+
+.actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

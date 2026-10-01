@@ -1067,14 +1067,14 @@ function accountReply(q: string): AssistantReply {
       followUps: ['How do I checkout?', 'How much is shipping?'],
     };
   }
-  // Disabled while the Security and Notifications settings pages are switched off (see settings.routes.ts).
-  // if (test(q, /\b(password|security|login|log in|sign in)\b/)) {
-  //   return {
-  //     text: 'Change your password and other sign-in options under Settings → Security.',
-  //     links: [{ label: 'Open Security settings', url: '/customer/settings/security' }],
-  //     followUps: ['How do I update my address?', 'I want to talk to a human'],
-  //   };
-  // }
+  if (test(q, /\b(password|security|login|log in|sign in|code|otp)\b/)) {
+    return {
+      text: 'Change your password under Settings → Account Security. Each sign-in also needs a 6-digit code we email you. Forgot your password? Use "Forgot password?" on the sign-in page.',
+      links: [{ label: 'Open Account Security', url: '/customer/settings/security' }],
+      followUps: ['How do I update my address?', 'I want to talk to a human'],
+    };
+  }
+  // Disabled while the Notifications settings page is switched off (see settings.routes.ts).
   // if (test(q, /\b(notification|notifications)\b/)) {
   //   return {
   //     text: 'Choose which updates you receive under Settings → Notifications.',

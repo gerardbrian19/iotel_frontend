@@ -45,6 +45,7 @@ export class SettingsComponent {
       items: [
         { label: 'Profile', icon: 'user', route: '/customer/settings/profile' },
         { label: 'My Addresses', icon: 'environment', route: '/customer/settings/addresses' },
+        { label: 'Account Security', icon: 'safety', route: '/customer/settings/security' },
         // Disabled: we don't store bank accounts, cards or wallet balances.
         // { label: 'Bank Accounts / Cards', icon: 'credit-card', route: '/customer/settings/payment-methods' },
         // { label: 'My Wallet', icon: 'wallet', route: '/customer/settings/wallet' },
@@ -56,7 +57,6 @@ export class SettingsComponent {
     //   items: [
     //     { label: 'Notifications', icon: 'bell', route: '/customer/settings/notifications' },
     //     { label: 'Privacy Settings', icon: 'lock', route: '/customer/settings/privacy' },
-    //     { label: 'Account Security', icon: 'safety', route: '/customer/settings/security' },
     //     { label: 'Language', icon: 'global', route: '/customer/settings/language' },
     //     { label: 'Chat Settings', icon: 'message', route: '/customer/settings/chat' },
     //   ],

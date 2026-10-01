@@ -10,6 +10,7 @@ import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserService } from '../../../core/services/user.service';
@@ -40,6 +41,7 @@ import {
     NzModalModule,
     NzFormModule,
     NzAlertModule,
+    NzPopconfirmModule,
   ],
   templateUrl: './users.component.html',
   styleUrl: './users.component.scss',
@@ -59,6 +61,8 @@ export class AdminUsersComponent {
   readonly modalVisible = signal(false);
   readonly saving = signal(false);
   readonly formError = signal<string | null>(null);
+  /** Id of the account an action is running for. */
+  readonly busyId = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [requiredTrimmed, personName]],
@@ -94,6 +98,32 @@ export class AdminUsersComponent {
       this.formError.set(authErrorMessage(err));
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  async resetAuthenticator(user: User): Promise<void> {
+    if (this.busyId()) return;
+    this.busyId.set(user.id);
+    try {
+      await this.userService.resetAuthenticator(user.id);
+      this.msg.success(`${user.name} will set up a new authenticator app at their next sign-in`);
+    } catch (err) {
+      this.msg.error(authErrorMessage(err));
+    } finally {
+      this.busyId.set(null);
+    }
+  }
+
+  async sendPasswordReset(user: User): Promise<void> {
+    if (this.busyId()) return;
+    this.busyId.set(user.id);
+    try {
+      await this.auth.sendPasswordReset(user.email);
+      this.msg.success(`Password reset email sent to ${user.email}`);
+    } catch (err) {
+      this.msg.error(authErrorMessage(err));
+    } finally {
+      this.busyId.set(null);
     }
   }
 

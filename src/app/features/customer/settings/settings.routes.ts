@@ -17,6 +17,13 @@ export const SETTINGS_ROUTES: Routes = [
         loadComponent: () =>
           import('../addresses/addresses.component').then(m => m.AddressesComponent),
       },
+      {
+        path: 'security',
+        loadComponent: () =>
+          import('../../../shared/components/account-security/account-security.component').then(
+            m => m.AccountSecurityComponent,
+          ),
+      },
       // Disabled: we don't store bank accounts, cards or wallet balances.
       // {
       //   path: 'payment-methods',
@@ -38,11 +45,6 @@ export const SETTINGS_ROUTES: Routes = [
       //   path: 'privacy',
       //   loadComponent: () =>
       //     import('./privacy/privacy.component').then(m => m.PrivacyComponent),
-      // },
-      // {
-      //   path: 'security',
-      //   loadComponent: () =>
-      //     import('./security/security.component').then(m => m.SecurityComponent),
       // },
       // {
       //   path: 'language',

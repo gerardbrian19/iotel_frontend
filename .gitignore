@@ -61,3 +61,8 @@ Thumbs.db
 
 # GitHub Copilot private context (internal docs — do not push)
 .github/
+
+# Firebase CLI
+firebase-debug.log
+firebase-debug.*.log
+.firebase/

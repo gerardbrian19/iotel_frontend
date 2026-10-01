@@ -17,6 +17,7 @@
         <th>Email</th>
         <th>Role</th>
         <th>Created</th>
+        <th>Sign-in help</th>
       </tr>
     </thead>
     <tbody>
@@ -42,6 +43,38 @@
             </nz-select>
           </td>
           <td>{{ u.createdAt ? (u.createdAt | date: 'mediumDate') : '—' }}</td>
+          <td class="actions-cell">
+            @if (u.id !== currentUserId()) {
+              <button
+                nz-button
+                nzSize="small"
+                [disabled]="busyId() !== null"
+                nz-popconfirm
+                [nzPopconfirmTitle]="'Email ' + u.name + ' a link to reset their password?'"
+                (nzOnConfirm)="sendPasswordReset(u)"
+              >
+                <span nz-icon nzType="key"></span> Reset password
+              </button>
+              @if (u.role !== 'customer') {
+                <button
+                  nz-button
+                  nzSize="small"
+                  nzDanger
+                  [nzLoading]="busyId() === u.id"
+                  [disabled]="busyId() !== null && busyId() !== u.id"
+                  nz-popconfirm
+                  [nzPopconfirmTitle]="
+                    'Remove ' +
+                    u.name +
+                    '\'s authenticator app and sign them out? They set up a new one at their next sign-in.'
+                  "
+                  (nzOnConfirm)="resetAuthenticator(u)"
+                >
+                  <span nz-icon nzType="mobile"></span> Reset authenticator
+                </button>
+              }
+            }
+          </td>
         </tr>
       }
     </tbody>

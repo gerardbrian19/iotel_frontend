@@ -1,0 +1,143 @@
+<div class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">Account Security</h2>
+    <p class="section-desc">Your password and the extra sign-in step that protects your account.</p>
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <!-- Second sign-in step -->
+  <div class="security-block">
+    <h3 class="block-title">
+      <span nz-icon nzType="safety-certificate"></span> Two-step sign-in
+      <nz-tag nzColor="green">On</nz-tag>
+    </h3>
+    @if (isCustomer()) {
+      <p class="block-desc">
+        Every time you sign in, we email a 6-digit code to <strong>{{ user()?.email }}</strong
+        >. You need it along with your password, so keep your email account secure.
+      </p>
+    } @else if (authenticator().enrolled) {
+      <p class="block-desc">
+        You sign in with your password and a code from your authenticator app
+        @if (authenticator().enrolledAt) {
+          (set up {{ authenticator().enrolledAt | date: 'mediumDate' }})
+        }
+        .
+      </p>
+      <p class="block-desc">
+        Got a new phone? Replace the app: you'll be signed out and asked to set up the new one when
+        you sign in again. Lost your phone? Ask an admin to reset your authenticator.
+      </p>
+      @if (removeError()) {
+        <nz-alert nzType="error" [nzMessage]="removeError()!" nzShowIcon class="my-2" />
+      }
+      <button
+        nz-button
+        class="mt-2"
+        [nzLoading]="removing()"
+        nz-popconfirm
+        nzPopconfirmTitle="Remove this authenticator app and sign out?"
+        nzOkText="Remove and sign out"
+        (nzOnConfirm)="replaceAuthenticator()"
+      >
+        <span nz-icon nzType="mobile"></span> Replace authenticator app
+      </button>
+    }
+  </div>
+
+  <nz-divider></nz-divider>
+
+  <!-- Change Password -->
+  <div class="security-block">
+    <h3 class="block-title"><span nz-icon nzType="key"></span> Change Password</h3>
+    <p class="block-desc mb-3">
+      You'll be signed out afterwards and can sign in again with the new password.
+    </p>
+    @if (passwordError()) {
+      <nz-alert
+        nzType="error"
+        [nzMessage]="passwordError()!"
+        nzShowIcon
+        class="mb-3 security-form"
+      />
+    }
+    <form
+      nz-form
+      nzLayout="vertical"
+      class="security-form"
+      [formGroup]="form"
+      (ngSubmit)="changePassword()"
+    >
+      <nz-form-item>
+        <nz-form-label nzRequired>Current Password</nz-form-label>
+        <nz-form-control nzErrorTip="Please enter your current password">
+          <input
+            nz-input
+            type="password"
+            formControlName="current"
+            autocomplete="current-password"
+          />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzRequired>New Password</nz-form-label>
+        <nz-form-control
+          [nzErrorTip]="passwordErrors"
+          nzExtra="At least 8 characters, with a letter and a number."
+        >
+          <input
+            nz-input
+            type="password"
+            formControlName="next"
+            autocomplete="new-password"
+            maxlength="64"
+          />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzRequired>Confirm New Password</nz-form-label>
+        <nz-form-control nzErrorTip="Passwords do not match">
+          <input
+            nz-input
+            type="password"
+            formControlName="confirm"
+            autocomplete="new-password"
+            maxlength="64"
+          />
+        </nz-form-control>
+      </nz-form-item>
+      @if (needsTotp()) {
+        <nz-form-item>
+          <nz-form-label nzRequired>Authenticator code</nz-form-label>
+          <nz-form-control>
+            <input
+              nz-input
+              formControlName="totp"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              placeholder="123456"
+            />
+          </nz-form-control>
+        </nz-form-item>
+      }
+
+      <ng-template #passwordErrors let-control>
+        @if (control.hasError('required')) {
+          Please enter a new password
+        } @else if (control.hasError('minlength')) {
+          Password must be at least 8 characters
+        } @else if (control.hasError('maxlength')) {
+          Password must be at most 64 characters
+        } @else {
+          Password must contain at least one letter and one number
+        }
+      </ng-template>
+
+      <button nz-button nzType="primary" type="submit" [nzLoading]="changingPassword()">
+        Update Password
+      </button>
+    </form>
+  </div>
+</div>

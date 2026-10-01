@@ -41,6 +41,9 @@
         <li nz-menu-item routerLink="/admin/users" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="team"></span><span>Users</span>
         </li>
+        <li nz-menu-item routerLink="/admin/account" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="safety"></span><span>Account</span>
+        </li>
       </ul>
       <div class="drawer-footer">
         <span class="drawer-user-name">{{ user()?.name }}</span>
@@ -88,6 +91,9 @@
         </li>
         <li nz-menu-item routerLink="/admin/users" routerLinkActive="ant-menu-item-selected">
           <span nz-icon nzType="team"></span><span>Users</span>
+        </li>
+        <li nz-menu-item routerLink="/admin/account" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="safety"></span><span>Account</span>
         </li>
       </ul>
       <div class="sider-footer">

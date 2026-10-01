@@ -10,7 +10,8 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { AppAuthError } from '../firebase/auth-errors';
-import { FIREBASE_APP, FIRESTORE, useAuthEmulatorIfEnabled } from '../firebase/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { FIREBASE_APP, FIRESTORE, FUNCTIONS, useAuthEmulatorIfEnabled } from '../firebase/firebase';
 import { User, UserRole } from '../models';
 import { toUser } from './auth.service';
 
@@ -26,6 +27,7 @@ export interface NewAccount {
 export class UserService {
   private readonly app = inject(FIREBASE_APP);
   private readonly db = inject(FIRESTORE);
+  private readonly functions = inject(FUNCTIONS);
 
   private readonly _users = signal<User[]>([]);
   readonly users = this._users.asReadonly();
@@ -53,6 +55,17 @@ export class UserService {
     destroyRef.onDestroy(stop);
   }
 
+  /**
+   * Removes a staff/admin account's authenticator app (lost phone) and signs it out everywhere; their next sign-in
+   * sets up a new one. Runs in the `resetAuthenticator` Cloud Function.
+   */
+  async resetAuthenticator(uid: string): Promise<void> {
+    await httpsCallable<{ uid: string }, { ok: boolean }>(
+      this.functions,
+      'resetAuthenticator',
+    )({ uid });
+  }
+
   updateRole(uid: string, role: UserRole): Promise<void> {
     return updateDoc(doc(this.db, 'users', uid), { role });
   }
@@ -60,6 +73,7 @@ export class UserService {
   /**
    * Creates an Auth account plus its profile with the given role. The account is created on a throwaway secondary
    * Firebase app because creating a user on the main app would sign the admin out and in as the new user.
+   * Staff/admins confirm their email with an emailed code and set up an authenticator app at their first sign-in.
    */
   async createAccount({ name, email, password, role }: NewAccount): Promise<void> {
     const cleanName = name.trim().replace(/\s+/g, ' ');

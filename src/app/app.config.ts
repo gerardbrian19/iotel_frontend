@@ -70,6 +70,10 @@ import {
   ClusterOutline,
   FileProtectOutline,
   ThunderboltOutline,
+  CopyOutline,
+  SafetyOutline,
+  SafetyCertificateOutline,
+  KeyOutline,
 } from '@ant-design/icons-angular/icons';
 
 registerLocaleData(en);
@@ -139,6 +143,10 @@ export const appConfig: ApplicationConfig = {
       ClusterOutline,
       FileProtectOutline,
       ThunderboltOutline,
+      CopyOutline,
+      SafetyOutline,
+      SafetyCertificateOutline,
+      KeyOutline,
     ]),
   ],
 };

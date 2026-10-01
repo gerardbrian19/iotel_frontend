@@ -12,6 +12,7 @@ export const STAFF_ROUTES: Routes = [
       { path: 'inventory', loadComponent: () => import('./inventory/inventory.component').then(m => m.StaffInventoryComponent) },
       { path: 'bookings', loadComponent: () => import('../../shared/components/bookings-board/bookings-board.component').then(m => m.BookingsBoardComponent) },
       { path: 'messages', loadComponent: () => import('./messages/messages.component').then(m => m.StaffMessagesComponent) },
+      { path: 'account', loadComponent: () => import('../../shared/components/account-security/account-security.component').then(m => m.AccountSecurityComponent) },
     ],
   },
 ];

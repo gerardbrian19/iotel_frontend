@@ -7,74 +7,92 @@
       </div>
     </div>
 
-    <h2 class="login-title">Sign in to your account</h2>
+    @if (step() !== 'none') {
+      <app-second-step (signedIn)="goToPortal()" />
+    } @else {
+      <h2 class="login-title">Sign in to your account</h2>
 
-    @if (error()) {
-      <nz-alert nzType="error" [nzMessage]="error()!" nzShowIcon class="mb-4" />
+      @if (notice()) {
+        <nz-alert nzType="success" [nzMessage]="notice()!" nzShowIcon class="mb-4" />
+      }
+
+      @if (error() || signInError()) {
+        <nz-alert
+          nzType="error"
+          [nzMessage]="(error() || signInError())!"
+          nzShowIcon
+          class="mb-4"
+        />
+      }
+
+      <form nz-form [formGroup]="form" (ngSubmit)="submit()" nzLayout="vertical">
+        <nz-form-item>
+          <nz-form-label nzRequired>Email</nz-form-label>
+          <nz-form-control [nzErrorTip]="emailErrors">
+            <nz-input-group nzPrefixIcon="mail">
+              <input
+                nz-input
+                type="email"
+                placeholder="you@example.com"
+                formControlName="email"
+                autocomplete="email"
+                maxlength="254"
+              />
+            </nz-input-group>
+          </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+          <nz-form-label nzRequired>Password</nz-form-label>
+          <nz-form-control nzErrorTip="Please enter your password">
+            <nz-input-group nzPrefixIcon="lock" [nzSuffix]="suffixTemplate">
+              <input
+                nz-input
+                [type]="passwordVisible() ? 'text' : 'password'"
+                placeholder="••••••••"
+                formControlName="password"
+                autocomplete="current-password"
+              />
+            </nz-input-group>
+            <ng-template #suffixTemplate>
+              <span
+                nz-icon
+                [nzType]="passwordVisible() ? 'eye' : 'eye-invisible'"
+                (click)="passwordVisible.set(!passwordVisible())"
+                class="cursor-pointer"
+              ></span>
+            </ng-template>
+          </nz-form-control>
+        </nz-form-item>
+
+        <ng-template #emailErrors let-control>
+          @if (control.hasError('required')) {
+            Please enter your email
+          } @else {
+            Please enter a valid email address
+          }
+        </ng-template>
+
+        <div class="forgot-row">
+          <a routerLink="/auth/forgot-password" queryParamsHandling="preserve">Forgot password?</a>
+        </div>
+
+        <button
+          nz-button
+          nzType="primary"
+          nzBlock
+          [nzLoading]="loading()"
+          type="submit"
+          class="login-btn"
+        >
+          Sign In
+        </button>
+      </form>
+
+      <p class="switch-auth">
+        New to IOTEL?
+        <a routerLink="/auth/register" queryParamsHandling="preserve">Create an account</a>
+      </p>
     }
-
-    <form nz-form [formGroup]="form" (ngSubmit)="submit()" nzLayout="vertical">
-      <nz-form-item>
-        <nz-form-label nzRequired>Email</nz-form-label>
-        <nz-form-control [nzErrorTip]="emailErrors">
-          <nz-input-group nzPrefixIcon="mail">
-            <input
-              nz-input
-              type="email"
-              placeholder="you@example.com"
-              formControlName="email"
-              autocomplete="email"
-              maxlength="254"
-            />
-          </nz-input-group>
-        </nz-form-control>
-      </nz-form-item>
-
-      <nz-form-item>
-        <nz-form-label nzRequired>Password</nz-form-label>
-        <nz-form-control nzErrorTip="Please enter your password">
-          <nz-input-group nzPrefixIcon="lock" [nzSuffix]="suffixTemplate">
-            <input
-              nz-input
-              [type]="passwordVisible() ? 'text' : 'password'"
-              placeholder="••••••••"
-              formControlName="password"
-              autocomplete="current-password"
-            />
-          </nz-input-group>
-          <ng-template #suffixTemplate>
-            <span
-              nz-icon
-              [nzType]="passwordVisible() ? 'eye' : 'eye-invisible'"
-              (click)="passwordVisible.set(!passwordVisible())"
-              class="cursor-pointer"
-            ></span>
-          </ng-template>
-        </nz-form-control>
-      </nz-form-item>
-
-      <ng-template #emailErrors let-control>
-        @if (control.hasError('required')) {
-          Please enter your email
-        } @else {
-          Please enter a valid email address
-        }
-      </ng-template>
-
-      <button
-        nz-button
-        nzType="primary"
-        nzBlock
-        [nzLoading]="loading()"
-        type="submit"
-        class="login-btn"
-      >
-        Sign In
-      </button>
-    </form>
-
-    <p class="switch-auth">
-      New to IOTEL? <a routerLink="/auth/register" queryParamsHandling="preserve">Create an account</a>
-    </p>
   </div>
 </div>

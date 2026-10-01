@@ -50,12 +50,12 @@ add(p: Omit<Product, 'id'>): Observable<void> {
 Use `withConverter` (or a mapper) to turn `Timestamp` into ISO strings; models use `string` dates. Write `serverTimestamp()` for `createdAt`/`sentAt`.
 
 ### 3. Auth (done — see `AuthService`, `UserService`, `firestore.rules`)
-- Firebase Auth email/password + a `users/{uid}` profile doc (`name`, `email`, `role`, `createdAt`). The role is stored in the profile doc and enforced by `firestore.rules` (users can't change their own role; only admins create staff/admin accounts or change roles). Custom claims were considered and not used because they need a Cloud Function / Admin SDK.
+- Firebase Auth email/password + a `users/{uid}` profile doc (`name`, `email`, `role`, `createdAt`). The role is stored in the profile doc and enforced by `firestore.rules` (users can't change their own role; only admins create staff/admin accounts or change roles). The role is not a custom claim; the only custom claim is `otpAuthTime`, set by the `verifyLoginCode` function for the two-step sign-in (see CLAUDE.md).
 - Guards stay synchronous because `provideAppInitializer(() => inject(AuthService).ready)` restores the session before routing. Client guards are UX only; rules are the enforcement.
 - Sign-up is always `customer`. Admin-created accounts use a throwaway secondary Firebase app (`UserService.createAccount`) so the admin's own session isn't replaced.
 - Forms use `shared/utils/validators.ts` (`emailFormat`, `personName`, `strongPassword`, `matchesControl`, `requiredTrimmed`) and `authErrorMessage()` for Firebase errors.
 - Race-proofing: `AuthService` bumps a `version` on every auth event so a slow profile read can't overwrite a newer state.
-- Not done: email verification, password reset, disabling accounts, deleting accounts (needs the Admin SDK).
+- Done since: two-step sign-in (emailed code / TOTP), email verification via the code, password reset. Not done: disabling or deleting accounts (would go in `functions/`).
 
 ### 4. Firestore data modelling (replaces `MOCK_*` + `of(...)`)
 - Keep the same `readonly` signal names services already expose, and the same Observable return types for writes (see section 2).

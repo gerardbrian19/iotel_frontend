@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -19,7 +19,6 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
 import { AuthService } from '../../../core/services/auth.service';
 import { authErrorMessage } from '../../../core/firebase/auth-errors';
 import { LEGAL_DOCUMENTS, LegalDocumentId } from '../../../core/legal/legal-documents';
-import { safeReturnUrl } from '../../../shared/utils/return-url';
 import { LegalDocumentComponent } from '../../../shared/components/legal-document/legal-document.component';
 import {
   emailDomainTypo,
@@ -53,7 +52,6 @@ export class RegisterComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
 
   readonly passwordVisible = signal(false);
   readonly error = signal<string | null>(null);
@@ -109,12 +107,9 @@ export class RegisterComponent {
     this.error.set(null);
     const { name, email, password } = this.form.getRawValue();
     try {
-      const user = await this.auth.register(name, email, password);
-      const returnUrl = safeReturnUrl(
-        this.route.snapshot.queryParamMap.get('returnUrl'),
-        user.role,
-      );
-      await this.router.navigateByUrl(returnUrl ?? `/${user.role}`);
+      await this.auth.register(name, email, password);
+      // The login page shows the emailed-code step and then sends the user on to `returnUrl`.
+      await this.router.navigate(['/auth/login'], { queryParamsHandling: 'preserve' });
     } catch (err) {
       this.error.set(authErrorMessage(err));
     } finally {

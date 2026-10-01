@@ -37,8 +37,8 @@ export interface LegalDocument {
   sections: readonly LegalSection[];
 }
 
-export const TERMS_VERSION = '1.0';
-export const PRIVACY_VERSION = '1.0';
+export const TERMS_VERSION = '1.1';
+export const PRIVACY_VERSION = '1.1';
 
 const CONTACT_CONFIRM =
   'Goldcomm Corporation to provide: registered business address, customer-support email address and telephone number, and business hours.';
@@ -118,15 +118,19 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       blocks: [
         {
           kind: 'p',
-          text: 'Sign-in is handled by Firebase Authentication, a service of Google. Keep your password private and do not reuse a password you use elsewhere. Sign out when you use a shared or public device, because IOTEL keeps you signed in on that browser until you sign out.',
+          text: 'Sign-in is handled by Firebase Authentication, a service of Google, and takes two steps. Customers enter their password and then a 6-digit code that we email to them at every sign-in; the code expires after 10 minutes. Staff and administrators enter their password and then a code from an authenticator app on their phone.',
         },
         {
           kind: 'p',
-          text: 'If you think someone else has used your account, or you can no longer sign in, contact us as soon as possible so we can help secure it.',
+          text: 'Keep your password private, do not reuse a password you use elsewhere, and keep your email account secure, because the sign-in code is sent there. Never share a sign-in code with anyone; Goldcomm staff will never ask you for one. Sign out when you use a shared or public device, because IOTEL keeps you signed in on that browser until you sign out.',
         },
         {
-          kind: 'confirm',
-          text: 'IOTEL does not currently offer an in-app password reset. Goldcomm Corporation to confirm how customers should request help with a forgotten password or a compromised account.',
+          kind: 'p',
+          text: 'If you forget your password, use "Forgot password?" on the sign-in page to receive a link for setting a new one. You still need the emailed code to sign in afterwards.',
+        },
+        {
+          kind: 'p',
+          text: 'If you think someone else has used your account, or you can no longer sign in, change your password and contact us as soon as possible so we can help secure it.',
         },
       ],
     },
@@ -492,6 +496,9 @@ export const PRIVACY_POLICY: LegalDocument = {
             'Your account role (customer, staff or administrator), a unique account ID and the date the account was created.',
             'Your profile photo, if you choose to add one. It is resized to a small image and stored with your profile. You can change or remove it at any time.',
             'A record of the versions of the Terms of Service and this Privacy Policy you accepted when you registered, and the time you accepted them.',
+            'Whether your email address has been verified. Entering a sign-in code we emailed you verifies it.',
+            'Sign-in codes: each time you sign in we create a 6-digit code and email it to you. We store only a scrambled (hashed) copy of the code, when it expires and how many wrong codes were entered, until it is used or replaced, and the times codes were sent to your account in the past hour, to limit abuse.',
+            "For staff and administrators: whether an authenticator app is set up and when. The app's secret key is held by Firebase Authentication, not in IOTEL's database.",
           ],
         },
       ],
@@ -581,6 +588,14 @@ export const PRIVACY_POLICY: LegalDocument = {
           text: "Google's servers may be located outside the Philippines. Where your information is stored or processed abroad, Goldcomm remains responsible for it under the Data Privacy Act.",
         },
         {
+          kind: 'p',
+          text: 'Sign-in code emails are sent through Brevo (Sendinblue SAS, France), an email delivery service. Brevo receives your email address and the code only to deliver that email, and keeps delivery logs (for example, whether the email was delivered or bounced). Password-reset emails are sent by Firebase Authentication.',
+        },
+        {
+          kind: 'confirm',
+          text: "Goldcomm Corporation to confirm that its agreement with Brevo covers data processing, and the retention of Brevo's delivery logs.",
+        },
+        {
           kind: 'confirm',
           text: 'Goldcomm Corporation to confirm the Cloud Firestore location selected for the project (visible in the Firebase Console), where the IOTEL website itself is hosted, and that its agreement with Google covers data processing.',
         },
@@ -595,6 +610,8 @@ export const PRIVACY_POLICY: LegalDocument = {
           kind: 'list',
           items: [
             "sign-in through Firebase Authentication, so passwords are never stored in IOTEL's database;",
+            'a second sign-in step: a 6-digit code emailed at every customer sign-in, and an authenticator app for staff and administrators, checked by the database rules as well as the app;',
+            'limits on how often sign-in codes can be requested and how many wrong codes can be entered;',
             'database access rules that let a customer read and change only their own profile, addresses, favorites, orders, bookings and conversations;',
             'role-based access: staff and administrator features are available only to accounts that Goldcomm has given that role, and customers cannot change their own role;',
             'rules that stop customers from marking their own payments as paid, changing the amounts of an order after it is placed, or editing sent messages;',
@@ -622,6 +639,7 @@ export const PRIVACY_POLICY: LegalDocument = {
             'Goldcomm staff and administrators can see all orders, bookings and conversations, including the names, email addresses, delivery addresses, mobile numbers and payment references in them, so that they can process and support them. Administrators can also see all account profiles.',
             'Couriers receive the name, delivery address and mobile number needed to deliver your order.',
             'Google, as our cloud service provider, stores and processes the information on our behalf.',
+            'Brevo, our email delivery provider, receives your email address and sign-in codes in order to deliver them.',
             'Government authorities, courts or regulators, when the law requires it.',
           ],
         },

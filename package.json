@@ -8,7 +8,10 @@
     "watch": "ng build --watch --configuration development",
     "seed:products": "node scripts/seed-products.mjs",
     "seed:services": "node scripts/seed-services.mjs",
-    "sync:showcase": "node scripts/sync-showcase.mjs"
+    "sync:showcase": "node scripts/sync-showcase.mjs",
+    "auth:enable-totp": "node scripts/enable-totp.mjs",
+    "auth:reset-mfa": "node scripts/reset-mfa.mjs",
+    "functions:build": "npm --prefix functions run build"
   },
   "private": true,
   "packageManager": "npm@10.8.2",

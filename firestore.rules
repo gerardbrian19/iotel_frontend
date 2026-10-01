@@ -3,24 +3,44 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
+    // Password checked, second step not necessarily done. Only for reading/creating your own profile during sign-in.
+    function authed() {
       return request.auth != null;
     }
 
+    // Signed in with an authenticator app (TOTP second factor).
+    function hasTotp() {
+      return request.auth.token.firebase.get('sign_in_second_factor', null) == 'totp';
+    }
+
+    // The second sign-in step is done for this session: the emailed code (the `verifyLoginCode` function sets
+    // `otpAuthTime` to the session's `auth_time`; a new sign-in changes `auth_time`) or an authenticator app.
+    function secondStep() {
+      return request.auth.token.get('otpAuthTime', -1) == request.auth.token.auth_time || hasTotp();
+    }
+
+    function signedIn() {
+      return authed() && secondStep();
+    }
+
+    // Staff and admin powers need a session signed in with the authenticator app.
     function isAdmin() {
       return signedIn()
+        && hasTotp()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isStaff() {
       return signedIn()
+        && hasTotp()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
     }
 
     function isStaffOrAdmin() {
       return signedIn()
+        && hasTotp()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['staff', 'admin'];
     }
@@ -90,11 +110,13 @@ service cloud.firestore {
     // One profile per account, keyed by Firebase Auth uid. `role` decides which portal the user can open.
     match /users/{uid} {
       // Read your own profile; admins can read and list everyone's.
-      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // (`authed()`: the profile, and so the role, is read right after the password, before the second step.)
+      allow get: if (authed() && request.auth.uid == uid) || isAdmin();
       allow list: if isAdmin();
 
       // Self sign-up (and first sign-in of an account that has no profile): always a customer.
-      allow create: if signedIn()
+      // (`authed()`: sign-up creates the profile before the emailed-code step.)
+      allow create: if authed()
         && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt', 'legalAcceptance'])
         && request.resource.data.role == 'customer'
@@ -545,6 +567,11 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['last'])
         && request.resource.data.last == resource.data.last + 1;
       allow delete: if false;
+    }
+
+    // Emailed sign-in codes (hashed), written and read only by the Cloud Functions (Admin SDK bypasses rules).
+    match /loginCodes/{uid} {
+      allow read, write: if false;
     }
 
     // Everything else stays locked until its feature is migrated to Firestore.
