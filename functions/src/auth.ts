@@ -16,11 +16,12 @@ import { createTransport, Transporter } from 'nodemailer';
 import { db } from './app.js';
 import { TWO_STEP_SIGN_IN } from './flags.js';
 
-// SMTP relay (Brevo today). Host/port/sender live in functions/.env; the login and key are Secret Manager secrets.
-const SMTP_HOST = defineString('SMTP_HOST', { default: 'smtp-relay.brevo.com' });
-const SMTP_PORT = defineInt('SMTP_PORT', { default: 587 });
+// SMTP relay (Resend today: login `resend`, password = API key). Host/port/sender live in functions/.env;
+// the login and key are Secret Manager secrets.
+const SMTP_HOST = defineString('SMTP_HOST', { default: 'smtp.resend.com' });
+const SMTP_PORT = defineInt('SMTP_PORT', { default: 465 });
 const MAIL_FROM = defineString('MAIL_FROM', {
-  description: 'Verified sender address in Brevo (just the address, e.g. no-reply@example.com)',
+  description: 'Sender address on the domain verified in Resend (just the address, e.g. no-reply@iotel.app)',
 });
 const SMTP_USER = defineSecret('SMTP_USER');
 const SMTP_PASS = defineSecret('SMTP_PASS');

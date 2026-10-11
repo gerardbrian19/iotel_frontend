@@ -10,8 +10,9 @@ Today every sign-in uses only a password (`AuthService.login`). The earlier plan
 
 - **Customers:** password, then a 6-digit code sent to their email, **on every login**.
 - **Staff and admins:** password, then a code from an authenticator app (Firebase TOTP), **required**.
-- Codes are emailed through **Brevo** (transactional SMTP relay; free plan 300 emails/day). Gmail App Passwords
-  weren't available on the owner's account.
+- Codes are emailed through **Resend** over SMTP, from `no-reply@iotel.app` (free plan about 3,000 emails/month,
+  100/day). Switched from Brevo on 2026-10-11, after Brevo suspended the account over bounces.
+  Gmail App Passwords weren't available on the owner's account.
 - Entering an emailed code correctly **marks the email as verified**, so there is no separate verification-link step.
 
 Firebase can't send a 6-digit email code by itself, so the customer code needs our own server code: Cloud Functions
@@ -31,12 +32,12 @@ Identity Platform upgrade and a verified email. The email code handles that veri
 - Provider-neutral SMTP via nodemailer:
   - secrets `SMTP_USER` and `SMTP_PASS` (`defineSecret`);
   - params `SMTP_HOST`, `SMTP_PORT` and `MAIL_FROM` (`defineString`, in `functions/.env`).
-  - Brevo values: `SMTP_HOST=smtp-relay.brevo.com`, `SMTP_PORT=587` (STARTTLS, `secure: false`).
-    - `SMTP_USER` is Brevo's SMTP login (looks like `xxxx@smtp-brevo.com`).
-    - `SMTP_PASS` is a Brevo **SMTP key**, not the API key.
-    - `MAIL_FROM` is `"IOTEL by Goldcomm" <verified sender>`.
+  - Resend values: `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465` (implicit TLS, `secure: true`).
+    - `SMTP_USER` is the literal string `resend`.
+    - `SMTP_PASS` is a Resend **API key** with sending access to `iotel.app`.
+    - `MAIL_FROM` is `no-reply@iotel.app` (the sender name "IOTEL by Goldcomm" is added in code).
   - Switching provider later means changing only these values.
-  - If Brevo rejects a send (sender not verified, account not activated, daily limit reached), the function logs
+  - If Resend rejects a send (domain not verified, daily limit reached), the function logs
     the SMTP error. The client gets `unavailable` and shows "We couldn't send the code right now".
 - `sendLoginCode` (callable, caller must be signed in):
   - Generates a 6-digit code with `crypto.randomInt` and stores `{ hash (sha256 + salt), expiresAt: now + 10 min,
@@ -100,8 +101,9 @@ Identity Platform upgrade and a verified email. The email code handles that veri
 
 ## 3a. Password reset (forgot password)
 
-Uses Firebase's built-in reset email, sent from `noreply@iotel-e9a72.firebaseapp.com`. No function or Brevo quota
-is involved. Firebase's Templates → SMTP settings could later route these through Brevo too, but that's optional.
+Uses Firebase's built-in reset email. No function or Resend quota is involved. `iotel.app` is set up as the
+templates' custom domain (Firebase's SPF, `firebase=` TXT and two DKIM CNAMEs are in Cloudflare DNS), so these can be
+sent from an `@iotel.app` address instead of `noreply@iotel-e9a72.firebaseapp.com`.
 
 - **`AuthService`:**
   - `sendPasswordReset(email)` → `sendPasswordResetEmail(auth, email, { url: <origin>/auth/login })`;
@@ -180,21 +182,12 @@ function signedIn() { return authed() && secondStep(); }
 ## 5a. Your setup steps (no coding; I'll write the scripts they run)
 
 **Before I start**
-1. ✅ Done. **Create a free Brevo account** at brevo.com. Fill in the company profile (Goldcomm Corporation, address, phone).
-   Brevo sometimes reviews new accounts before allowing transactional email; if it asks, answer that these are
-   one-time sign-in codes for your own customers.
-2. ✅ Done (default sender = the account's Gmail for now; the domain address comes later). **Add and verify the sender:** Brevo → Senders, Domains & Dedicated IPs → **Senders** → Add a sender:
-   - name "IOTEL by Goldcomm", plus the address the codes come from;
-   - click the confirmation link Brevo emails to that address.
-   - Better deliverability: once Goldcomm has its own domain, add it under **Domains** and set the DNS records Brevo
-     gives you (DKIM, DMARC), then send from e.g. `no-reply@<domain>`. A free `@gmail.com` sender works for testing
-     but is more likely to land in spam.
-3. ✅ Done. **Create an SMTP key:** Brevo → your name (top right) → **SMTP & API** → **SMTP** tab → "Generate a new SMTP
-   key", named "IOTEL functions".
-   - Copy the key; it's shown once.
-   - Also note the **Login** shown on that page (e.g. `xxxx@smtp-brevo.com`).
-   - Keep both for step 7.
-   - Don't use the "API keys" tab.
+1. ✅ Done 2026-10-11 (replaced the original Brevo account). **Create a Resend account** at resend.com.
+2. ✅ Done 2026-10-11. **Verify the domain:** Resend → Domains → Add `iotel.app` (region Tokyo, ap-northeast-1) →
+   Cloudflare **Auto configure**. It adds the `resend._domainkey` TXT and the `send` / `rsend` CNAMEs. Add DMARC by
+   hand in Cloudflare: TXT `_dmarc`, `v=DMARC1; p=none;`.
+3. **Create an API key:** Resend → API Keys → Create, permission **Sending access**, domain `iotel.app`.
+   - Copy the `re_…` key; it's shown once. It's the SMTP password in step 7.
 4. ✅ Done (CLI 15.30.0, has access to iotel-e9a72). **Install and sign in to the Firebase CLI** if you haven't: `npm i -g firebase-tools`, `firebase login` (as an
    owner of `iotel-e9a72`).
 5. ✅ **Done 2026-10-01 (verified `subtype: IDENTITY_PLATFORM`).** **Upgrade Auth to Identity Platform.** Free at this size, nothing needs migrating, and required for the
@@ -211,8 +204,9 @@ function signedIn() { return authed() && secondStep(); }
 
 **When I say the code is ready**
 
-7. ✅ **Done 2026-10-01 (SMTP_USER v1, SMTP_PASS v1 enabled; exposed keys rotated).** **Store the SMTP secrets:** `firebase functions:secrets:set SMTP_USER` (paste the Brevo SMTP login), then
-   `firebase functions:secrets:set SMTP_PASS` (paste the SMTP key). The CLI offers to enable the Secret Manager API;
+7. ✅ **Done 2026-10-01 (SMTP_USER v1, SMTP_PASS v1 enabled; exposed keys rotated).** **Store the SMTP secrets:** `firebase functions:secrets:set SMTP_USER` (type `resend`), then
+   `firebase functions:secrets:set SMTP_PASS` (paste the Resend API key). Re-set both when switching provider (done for
+   Brevo on 2026-10-01; redo for Resend). The CLI offers to enable the Secret Manager API;
    say yes. Tell me the verified sender address so I can put it in `functions/.env` as `MAIL_FROM`.
 8. **Deploy the functions:** `firebase deploy --only functions`. On first deploy, accept enabling Cloud Functions,
    Cloud Build, Artifact Registry and Cloud Run.
@@ -222,7 +216,8 @@ function signedIn() { return authed() && secondStep(); }
     URL" and set it to `https://<your-domain>/auth/reset-password`.
 11. **Authorized domains:** Authentication → Settings → Authorized domains. Add the production domain once it exists.
 12. **Test with real inboxes:** one test customer and one test staff account. If the first code emails land in spam,
-    mark them "Not spam". Brevo → Transactional → Logs shows whether each email was delivered, bounced or blocked.
+    mark them "Not spam". Resend → Emails shows whether each email was delivered, bounced or marked as spam. Never test with made-up
+    addresses (bounces get the account suspended); use `delivered@resend.dev` / `bounced@resend.dev` instead.
 
 **Rollout**
 
@@ -239,7 +234,7 @@ function signedIn() { return authed() && secondStep(); }
 1. Firebase Console: upgrade Auth to **Identity Platform** (free).
 2. `scripts/enable-totp.mjs` (Admin SDK `projectConfigManager().updateProjectConfig`, `adjacentIntervals: 5`) turns
    on TOTP.
-3. Create the Brevo sender and SMTP key, then set the secrets. Deploy with `firebase deploy --only functions`.
+3. Verify the domain in Resend and create its API key, then set the secrets. Deploy with `firebase deploy --only functions`.
 4. Ship the app. Everyone is signed out once, because restored sessions have no second step yet.
 5. Staff and admins enroll at their next login.
 6. Deploy `firestore.rules` only after they have all enrolled.
@@ -249,7 +244,7 @@ function signedIn() { return authed() && secondStep(); }
 ## 7. Documents
 
 - `core/legal/legal-documents.ts`:
-  - Privacy Policy: sign-in codes sent by email through Brevo (Sendinblue SAS, France) as an email processor; authenticator enrollment for staff; email
+  - Privacy Policy: sign-in codes sent by email through Resend (originally Brevo) as an email processor; authenticator enrollment for staff; email
     verification status.
   - Terms: Account Security section.
   - Bump `TERMS_VERSION` and `PRIVACY_VERSION`.
@@ -260,7 +255,7 @@ function signedIn() { return authed() && secondStep(); }
   - remove the outdated "needs Blaze" notes.
 - Update the `otp-auth-plan` memory.
 - Add `firebase-debug.log` and `functions/.env.local` to `.gitignore`. The debug log currently isn't ignored.
-- `MAIL_FROM` in `functions/.env`: the user supplies the verified Brevo sender address; a placeholder until then.
+- `MAIL_FROM` in `functions/.env`: `no-reply@iotel.app`.
 
 ## Critical files
 

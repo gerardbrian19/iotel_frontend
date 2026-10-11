@@ -38,7 +38,7 @@ export interface LegalDocument {
 }
 
 export const TERMS_VERSION = '1.2';
-export const PRIVACY_VERSION = '1.2';
+export const PRIVACY_VERSION = '1.3';
 
 const CONTACT_CONFIRM =
   'Goldcomm Corporation to provide: registered business address, customer-support email address and telephone number, and business hours.';
@@ -580,11 +580,11 @@ export const PRIVACY_POLICY: LegalDocument = {
         },
         {
           kind: 'p',
-          text: 'Sign-in code emails are sent through Brevo (Sendinblue SAS, France), an email delivery service. Brevo receives your email address and the code only to deliver that email, and keeps delivery logs (for example, whether the email was delivered or bounced). Password-reset emails are sent by Firebase Authentication.',
+          text: 'Sign-in code emails are sent through Resend, an email delivery service based in the United States. Resend receives your email address and the code only to deliver that email, and keeps delivery logs (for example, whether the email was delivered or bounced). Password-reset emails are sent by Firebase Authentication.',
         },
         {
           kind: 'confirm',
-          text: "Goldcomm Corporation to confirm that its agreement with Brevo covers data processing, and the retention of Brevo's delivery logs.",
+          text: "Goldcomm Corporation to confirm that its agreement with Resend covers data processing, and the retention of Resend's delivery logs.",
         },
         {
           kind: 'p',
@@ -638,7 +638,7 @@ export const PRIVACY_POLICY: LegalDocument = {
             'Goldcomm staff and administrators can see all orders, bookings and conversations, including the names, email addresses, delivery addresses, mobile numbers and payment details in them, so that they can process and support them. Administrators can also see all account profiles.',
             'Couriers receive the name, delivery address and mobile number needed to deliver your order.',
             'Google, as our cloud service provider, stores and processes the information on our behalf.',
-            'Brevo, our email delivery provider, receives your email address and sign-in codes in order to deliver them.',
+            'Resend, our email delivery provider, receives your email address and sign-in codes in order to deliver them.',
             'PayMongo, our payment provider, receives your name, email address and the order or booking details needed to take your payment and issue refunds.',
             'Government authorities, courts or regulators, when the law requires it.',
           ],
