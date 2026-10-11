@@ -212,8 +212,11 @@ function signedIn() { return authed() && secondStep(); }
    Cloud Build, Artifact Registry and Cloud Run.
 9. **Turn on TOTP:** `node scripts/enable-totp.mjs`, which uses the service-account key in the repo root.
 10. **Edit the password-reset email:** Firebase Console → Authentication → Templates → Password reset. Set the sender
-    name to "IOTEL by Goldcomm" and adjust the subject and text. Once the site is hosted, click "Customize action
-    URL" and set it to `https://<your-domain>/auth/reset-password`.
+    name to "IOTEL by Goldcomm" and adjust the subject and text. ✅ Sender name and the `iotel.app` custom domain done
+    2026-10-11. Leave the action URL at the default: Firebase rejects any action URL that isn't on a Firebase Hosting
+    domain (`EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED`), and the site is on Vercel. Our `/auth/reset-password` page is
+    only reachable if we send reset emails ourselves (Admin SDK `generatePasswordResetLink`, rewritten to our page,
+    sent through Resend).
 11. **Authorized domains:** Authentication → Settings → Authorized domains. Add the production domain once it exists.
 12. **Test with real inboxes:** one test customer and one test staff account. If the first code emails land in spam,
     mark them "Not spam". Resend → Emails shows whether each email was delivered, bounced or marked as spam. Never test with made-up

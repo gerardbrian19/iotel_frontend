@@ -16,7 +16,7 @@ service cloud.firestore {
     // Two-step sign-in on/off. Mirrors TWO_STEP_SIGN_IN in src/app/core/auth/auth-flags.ts and functions/src/flags.ts.
     // false: a password-only session counts as signed in, and staff/admins don't need the authenticator app.
     function twoStepSignIn() {
-      return false;
+      return true;
     }
 
     // Staff/admin sessions: the authenticator app, when two-step sign-in is on.

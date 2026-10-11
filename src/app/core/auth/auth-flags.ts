@@ -5,4 +5,4 @@
  * Mirrored in `twoStepSignIn()` in firestore.rules and `TWO_STEP_SIGN_IN` in functions/src/flags.ts, which enforce
  * it on the server; change all three together (then deploy rules and functions).
  */
-export const TWO_STEP_SIGN_IN = false;
+export const TWO_STEP_SIGN_IN = true;
