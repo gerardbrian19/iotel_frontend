@@ -23,6 +23,20 @@
   max-width: 480px;
 }
 
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+
+.form-col {
+  flex: 1 1 200px;
+}
+
+.full-width {
+  width: 100%;
+}
+
 .form-actions {
   padding-top: 8px;
 }

@@ -17,14 +17,17 @@ import { formatSlot, slotId, toDateKey } from '../booking/schedule';
 import { functionErrorMessage } from '../firebase/auth-errors';
 import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { dataOf, isoOf } from '../firebase/timestamps';
-import { toPayment } from '../payments/payment-methods';
+import { MIN_CHECKOUT_AMOUNT, toPayment } from '../payments/payment-methods';
 import { Booking, BookingStatus, Service } from '../models';
+import { normalizeMobile } from '../../shared/utils/validators';
 import { AuthService } from './auth.service';
 import { MessageService } from './message.service';
 
 const SERVICES = 'services';
 const BOOKINGS = 'bookings';
 const SLOTS = 'bookingSlots';
+/** Shortest problem description accepted. Mirrored in the booking form and firestore.rules (`validNewBooking`). */
+export const BOOKING_NOTES_MIN = 10;
 
 const STATUSES: readonly BookingStatus[] = [
   'Pending',
@@ -216,9 +219,12 @@ export class BookingService {
       if (this._takenSlots().has(slotId(input.preferredDate, input.preferredTime))) {
         throw new Error('That time slot has just been booked. Please pick another one.');
       }
+      const notes = input.notes.trim();
+      if (notes.length < BOOKING_NOTES_MIN) {
+        throw new Error('Please describe what you need done so our team can prepare a quotation.');
+      }
       const bookingRef = doc(collection(this.db, BOOKINGS));
       const conversationId = this.messages.newId();
-      const notes = input.notes.trim();
 
       batch.set(bookingRef, {
         serviceId: input.service.id,
@@ -227,7 +233,7 @@ export class BookingService {
         customerId: user.id,
         customerName: input.customerName.trim(),
         customerEmail: input.customerEmail.trim(),
-        customerMobile: input.customerMobile.replace(/[\s-]/g, ''),
+        customerMobile: normalizeMobile(input.customerMobile),
         preferredDate: input.preferredDate,
         preferredTime: input.preferredTime,
         notes,
@@ -274,7 +280,8 @@ export class BookingService {
   }
 
   /**
-   * Staff: settles the quotation and asks the customer to pay. Can be repeated to change the amount until it is paid;
+   * Staff: sends the quotation and asks the customer to pay (status `Confirmed`, shown as "Awaiting payment"; the
+   * booking only counts as booked once it is paid). Can be repeated to change the amount until it is paid;
    * a checkout opened for the old amount is replaced the next time the customer pays.
    */
   confirm(booking: Booking, amount: number, note: string): Observable<void> {
@@ -282,7 +289,9 @@ export class BookingService {
       this.requireStatus(booking, ['Pending', 'Confirmed']);
       if (this.current(booking).payment?.status === 'Paid')
         throw new Error('The customer has already paid for this booking.');
-      if (!Number.isFinite(amount) || amount <= 0) throw new Error('Enter the amount to charge.');
+      if (!Number.isFinite(amount) || amount < MIN_CHECKOUT_AMOUNT) {
+        throw new Error(`Enter an amount of at least ${peso(MIN_CHECKOUT_AMOUNT)}.`);
+      }
       const quote = {
         amount: Math.round(amount * 100) / 100,
         note: note.trim(),
@@ -296,8 +305,8 @@ export class BookingService {
       this.messages.stageMessage(
         batch,
         booking.conversationId,
-        `Booking confirmed for ${formatSlot(booking.preferredDate, booking.preferredTime)}. ` +
-          `Amount to pay: ${peso(quote.amount)}.${quote.note ? ` ${quote.note}` : ''}`,
+        `Quotation for ${formatSlot(booking.preferredDate, booking.preferredTime)}: ${peso(quote.amount)}.` +
+          `${quote.note ? ` ${quote.note}` : ''} Your booking is confirmed once it is paid in My Bookings.`,
         'event',
       );
     });

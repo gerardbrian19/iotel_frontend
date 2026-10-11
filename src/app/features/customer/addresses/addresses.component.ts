@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Location } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
@@ -15,13 +17,21 @@ import { authErrorMessage } from '../../../core/firebase/auth-errors';
 import { Address } from '../../../core/models';
 import { AddressService } from '../../../core/services/address.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { personName, phMobile, requiredTrimmed, zipCode } from '../../../shared/utils/validators';
+import { MobileInputDirective } from '../../../shared/directives/mobile-input.directive';
+import {
+  normalizeMobile,
+  personName,
+  phMobile,
+  requiredTrimmed,
+  zipCode,
+} from '../../../shared/utils/validators';
 
 @Component({
   selector: 'app-addresses',
   standalone: true,
   imports: [
     ReactiveFormsModule,
+    MobileInputDirective,
     NzCardModule,
     NzButtonModule,
     NzModalModule,
@@ -43,6 +53,8 @@ export class AddressesComponent {
   private readonly modal = inject(NzModalService);
   private readonly addressService = inject(AddressService);
   private readonly auth = inject(AuthService);
+  private readonly location = inject(Location);
+  private readonly router = inject(Router);
 
   readonly addresses = this.addressService.addresses;
   readonly loading = this.addressService.loading;
@@ -76,7 +88,8 @@ export class AddressesComponent {
 
   openEdit(addr: Address): void {
     this.editingId.set(addr.id);
-    this.form.reset({ ...addr, makeDefault: addr.isDefault });
+    // An address saved before the 11-digit rule (`+639…`, spaces) opens already converted, so it can be saved as is.
+    this.form.reset({ ...addr, mobile: normalizeMobile(addr.mobile), makeDefault: addr.isDefault });
     this.modalVisible.set(true);
   }
 
@@ -144,11 +157,18 @@ export class AddressesComponent {
     const errors = this.form.controls[name].errors;
     if (!errors) return '';
     if (errors['required']) return 'This field is required.';
-    if (errors['mobile']) return 'Enter a valid PH mobile number, e.g. 09171234567.';
+    if (errors['mobile']) return errors['mobile'];
     if (errors['zip']) return 'ZIP code must be 4 digits.';
     if (errors['name']) return 'Use letters, spaces, dots, apostrophes and hyphens only.';
     if (errors['minlength']) return 'Too short.';
     if (errors['maxlength']) return 'Too long.';
     return 'Invalid value.';
+  }
+
+  /** Back to the page the customer came from (user menu, checkout, assistant); the catalog if they landed here. */
+  goBack(): void {
+    // The router numbers its navigations in history.state; 1 means this page was the first one loaded.
+    if ((history.state?.navigationId ?? 1) > 1) this.location.back();
+    else this.router.navigateByUrl('/customer/catalog');
   }
 }

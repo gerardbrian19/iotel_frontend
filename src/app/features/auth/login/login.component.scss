@@ -16,6 +16,25 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
+// Back to the landing page (login and register share this stylesheet).
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -16px 0 16px -4px;
+  padding: 4px;
+  color: #595959;
+  font-size: 14px;
+  text-decoration: none;
+  transition: color 0.2s;
+
+  &:hover,
+  &:focus-visible {
+    color: #cc2020;
+  }
+}
+
+// IOTEL wordmark on the forgot/reset password cards (sign-in and sign-up use app-auth-brand instead).
 .brand {
   text-align: center;
   margin-bottom: 32px;
@@ -50,6 +69,13 @@
   text-align: center;
 }
 
+.login-subtitle {
+  margin: -16px 0 24px;
+  text-align: center;
+  font-size: 14px;
+  color: #595959;
+}
+
 .login-btn {
   background-color: #cc2020 !important;
   border-color: #cc2020 !important;
@@ -58,9 +84,9 @@
   font-weight: 600;
   margin-top: 8px;
 
-  &:hover {
-    background-color: darken(#cc2020, 8%) !important;
-    border-color: darken(#cc2020, 8%) !important;
+  &:hover:not([disabled]) {
+    background-color: #a81a1a !important;
+    border-color: #a81a1a !important;
   }
 }
 
@@ -83,5 +109,108 @@
 
   a {
     color: #cc2020;
+  }
+}
+
+// Sign-in / sign-up: brand panel (app-auth-brand) on the left, form on the right. Forgot/reset password keep the
+// centred card above.
+.login-page.split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: stretch;
+  padding: 0;
+  background: #ffffff;
+
+  .auth-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+  }
+
+  .login-card {
+    max-width: 420px;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .back-link {
+    margin: 0 0 32px -4px;
+  }
+
+  .login-title {
+    margin-bottom: 24px;
+    text-align: left;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .login-subtitle {
+    margin: -16px 0 32px;
+    text-align: left;
+    font-size: 15px;
+  }
+
+  .login-btn {
+    height: 48px;
+    border-radius: 8px;
+    box-shadow: 0 6px 16px rgba(204, 32, 32, 0.22);
+  }
+
+  // Inputs: rounded, gold focus ring (brand accent) instead of ng-zorro's blue; error states keep their red.
+  ::ng-deep {
+    .ant-form-item-label > label {
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .ant-input-affix-wrapper {
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+
+    .ant-input-prefix {
+      margin-right: 10px;
+      color: #8c8c8c;
+    }
+
+    .ant-input-affix-wrapper:not(.ant-input-affix-wrapper-status-error) {
+      &:hover {
+        border-color: #c9a84c;
+      }
+
+      &.ant-input-affix-wrapper-focused {
+        border-color: #c9a84c;
+        box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.2);
+      }
+    }
+
+    .ant-checkbox-checked .ant-checkbox-inner {
+      background-color: #cc2020;
+      border-color: #cc2020;
+    }
+
+    .ant-checkbox-wrapper:hover .ant-checkbox-inner,
+    .ant-checkbox-input:focus-visible + .ant-checkbox-inner {
+      border-color: #cc2020;
+    }
+  }
+}
+
+@media (max-width: 900px) {
+  .login-page.split {
+    grid-template-columns: 1fr;
+    align-content: start;
+
+    .auth-main {
+      padding: 32px 20px 48px;
+    }
+
+    .login-title {
+      font-size: 26px;
+    }
   }
 }

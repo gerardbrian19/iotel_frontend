@@ -54,7 +54,7 @@ export class BookingsBoardComponent {
       {
         key: 'payment',
         title: 'Awaiting payment',
-        empty: 'No confirmed bookings are waiting for payment.',
+        empty: 'No quotations are waiting for payment.',
         bookings: waiting.sort(bySlot),
       },
       {

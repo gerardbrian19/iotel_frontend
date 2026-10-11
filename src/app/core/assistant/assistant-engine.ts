@@ -7,7 +7,10 @@ import {
   firstBookableDate,
   formatSlot,
   formatTime,
+  formatTimeRange,
   isOpenDate,
+  LUNCH_BREAK,
+  slotEnd,
   slotId,
   toDateKey,
 } from '../booking/schedule';
@@ -221,9 +224,29 @@ function freeTimes(dateKey: string, taken: ReadonlySet<string>): string[] {
   return BOOKING_SLOTS.filter((time) => !taken.has(slotId(dateKey, time)));
 }
 
-function timesText(times: readonly string[], max = 4): string {
-  const shown = times.slice(0, max).map(formatTime).join(', ');
+function timesText(times: readonly string[], max = 3): string {
+  const shown = times
+    .slice(0, max)
+    .map((t) => formatTimeRange(t))
+    .join(', ');
   return times.length > max ? `${shown} +${times.length - max} more` : shown;
+}
+
+/** The given slots as 1-hour ranges, grouped into morning and afternoon around the lunch break. */
+function slotsText(times: readonly string[]): string {
+  const section = (title: string, list: readonly string[]) =>
+    `${title}:\n${list.length ? bullets(list.map((t) => formatTimeRange(t))) : '• Fully booked'}`;
+  return [
+    section(
+      'Morning',
+      times.filter((t) => t < LUNCH_BREAK.start),
+    ),
+    `Lunch Break:\n${bullets([`${formatTimeRange(LUNCH_BREAK.start, LUNCH_BREAK.end)} — Unavailable`])}`,
+    section(
+      'Afternoon',
+      times.filter((t) => t >= LUNCH_BREAK.end),
+    ),
+  ].join('\n\n');
 }
 
 /** The next dates (from the earliest bookable day) that are open and still have a free slot. */
@@ -247,11 +270,11 @@ const SCHEDULE_FOLLOW_UPS = [
 
 function hoursText(): string {
   const closed = CLOSED_WEEKDAYS.map(weekdayName).join(' and ');
-  const times = BOOKING_SLOTS.map(formatTime);
-  const last = times.pop();
+  const first = BOOKING_SLOTS[0];
+  const last = BOOKING_SLOTS[BOOKING_SLOTS.length - 1];
   return (
-    `Service appointments are every day except ${closed}, in hourly slots: ${times.join(', ')} and ${last} ` +
-    `(lunch break 12:00–1:00 PM). Each slot takes one booking, and you can book from ` +
+    `Service appointments are every day except ${closed}, from ${formatTime(first)} to ${formatTime(slotEnd(last))} ` +
+    `in 1-hour slots.\n\n${slotsText(BOOKING_SLOTS)}\n\nEach slot takes one booking, and you can book from ` +
     `${plural(BOOKING_LEAD_DAYS, 'day')} ahead up to ${BOOKING_HORIZON_DAYS} days out.`
   );
 }
@@ -318,9 +341,14 @@ function availabilityReply(q: string, ctx: AssistantContext): AssistantReply {
         followUps: SCHEDULE_FOLLOW_UPS,
       };
     }
+    const shortLabel = requested.toLocaleDateString('en-PH', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+    });
     return {
       text:
-        `${label} has ${plural(free.length, 'open slot')}: ${free.map(formatTime).join(', ')}.\n\n` +
+        `Here are the available slots for ${shortLabel}:\n\n${slotsText(free)}\n\n` +
         `Slots are first come, first served, so book soon to keep yours.`,
       links,
       followUps: SCHEDULE_FOLLOW_UPS,
@@ -352,21 +380,31 @@ function availabilityReply(q: string, ctx: AssistantContext): AssistantReply {
 // ─── bookings ──────────────────────────────────────────────────────────────────
 
 const STATUS_WORDS: [RegExp, BookingStatus][] = [
-  [/\bpending\b/, 'Pending'],
-  [/\bconfirmed\b/, 'Confirmed'],
-  [/\b(paid)\b/, 'Paid'],
+  [/\b(pending|requested)\b/, 'Pending'],
+  // A booking counts as confirmed once it is paid; `Confirmed` bookings are quotes awaiting payment.
+  [/\b(unpaid|awaiting payment|quoted)\b/, 'Confirmed'],
+  [/\b(paid|confirmed)\b/, 'Paid'],
   [/\b(completed|done|finished)\b/, 'Completed'],
   [/\b(cancelled|canceled)\b/, 'Cancelled'],
 ];
 
+/** How a status reads to the customer: a booking is only "confirmed" once it is paid. */
+const STATUS_LABELS: Record<BookingStatus, string> = {
+  Pending: 'requested',
+  Confirmed: 'awaiting payment',
+  Paid: 'confirmed',
+  Completed: 'completed',
+  Cancelled: 'cancelled',
+};
+
 function nextStep(b: Booking): string {
   switch (b.status) {
     case 'Pending':
-      return 'Staff are reviewing it. They will chat with you and send a quote.';
+      return 'Requested. Staff are reviewing it and will chat with you and send a quote.';
     case 'Confirmed':
-      return `Quote ready${b.quote ? `: ${peso(b.quote.amount)}` : ''}. Pay it through PayMongo in My Bookings to lock it in.`;
+      return `Quote ready${b.quote ? `: ${peso(b.quote.amount)}` : ''}. Pay it through PayMongo in My Bookings to confirm your booking.`;
     case 'Paid':
-      return 'Payment received. Your slot is confirmed.';
+      return 'Payment received. Your booking is confirmed.';
     case 'Completed':
       return 'All done.';
     case 'Cancelled':
@@ -388,7 +426,7 @@ function bookingsReply(q: string, ctx: AssistantContext): AssistantReply {
   const pool = filter ? all.filter((b) => b.status === filter) : all;
   if (!pool.length) {
     return {
-      text: `You have no ${filter?.toLowerCase()} bookings. You have ${plural(all.length, 'booking')} in total.`,
+      text: `You have no ${filter ? STATUS_LABELS[filter] : ''} bookings. You have ${plural(all.length, 'booking')} in total.`,
       links: [MY_BOOKINGS],
       followUps: ["What's the status of my bookings?", 'When is the next available slot?'],
     };
@@ -406,15 +444,15 @@ function bookingsReply(q: string, ctx: AssistantContext): AssistantReply {
 
   const lines = shown.map(
     (b) =>
-      `${b.serviceName}\n   ${formatSlot(b.preferredDate, b.preferredTime)} · ${b.status}\n   ↳ ${nextStep(b)}`,
+      `${b.serviceName}\n   ${formatSlot(b.preferredDate, b.preferredTime)} · ${STATUS_LABELS[b.status]}\n   ↳ ${nextStep(b)}`,
   );
   const more = ordered.length - shown.length;
   const pastNote =
     active.length && past.length ? ` (${plural(past.length, 'past booking')} in My Bookings)` : '';
   const head = filter
     ? pool.length === 1
-      ? `Your ${filter.toLowerCase()} booking:`
-      : `Your ${pool.length} ${filter.toLowerCase()} bookings:`
+      ? `Your ${STATUS_LABELS[filter]} booking:`
+      : `Your ${pool.length} ${STATUS_LABELS[filter]} bookings:`
     : active.length
       ? `You have ${plural(active.length, 'active booking')}${pastNote}:`
       : `You have no active bookings. Your latest:`;
@@ -460,8 +498,8 @@ function chatLink(b: Booking | undefined): AssistantLink[] {
 function cancelBookingReply(ctx: AssistantContext): AssistantReply {
   return {
     text:
-      'Open My Bookings and press Cancel on the booking. You can cancel while it is Pending, or Confirmed as long as ' +
-      "you haven't paid yet, and its time slot is freed right away.\n\n" +
+      'Open My Bookings and press Cancel on the booking. You can cancel any time before you pay the quotation, ' +
+      'and its time slot is freed right away.\n\n' +
       "If you've already paid, message staff in the booking's chat and they'll handle it.",
     links: [MY_BOOKINGS, ...chatLink(firstActive(ctx))],
     followUps: ['How do I reschedule a booking?', "What's the status of my bookings?"],
@@ -483,12 +521,12 @@ function bookingPaymentReply(ctx: AssistantContext): AssistantReply {
     (b) => b.status === 'Confirmed' && b.payment?.status !== 'Paid',
   );
   const personal = awaiting
-    ? `\n\nYou have a confirmed booking for ${awaiting.serviceName}${awaiting.quote ? ` with a quote of ${peso(awaiting.quote.amount)}` : ''}, ready to pay in My Bookings.`
+    ? `\n\nYou have a quotation for ${awaiting.serviceName}${awaiting.quote ? ` with a quote of ${peso(awaiting.quote.amount)}` : ''}, ready to pay in My Bookings.`
     : '';
   return {
     text:
-      "Once staff confirm your booking and send a quote, press Pay in My Bookings. You pay on PayMongo's secure page with GCash, Maya, a credit or debit card, GrabPay or QR Ph, " +
-      'and the booking becomes Paid as soon as the payment goes through.' +
+      "Once staff send your quotation, press Pay in My Bookings. You pay on PayMongo's secure page with GCash, Maya, a credit or debit card, GrabPay or QR Ph, " +
+      'and your booking is confirmed as soon as the payment goes through.' +
       personal,
     links: [MY_BOOKINGS],
     followUps: ["What's the status of my bookings?", 'How do I cancel a booking?'],
@@ -1266,7 +1304,7 @@ export function answer(input: string, ctx: AssistantContext): AssistantReply {
     bookingCue &&
     test(
       q,
-      /\b(my|mine|status|check|track|upcoming|pending|confirmed|completed|cancelled|canceled|paid|do i have|latest|update)\b/,
+      /\b(my|mine|status|check|track|upcoming|pending|requested|confirmed|unpaid|awaiting|completed|cancelled|canceled|paid|do i have|latest|update)\b/,
     ) &&
     !test(q, /\b(how do i|how to|how can i)\b/)
   ) {

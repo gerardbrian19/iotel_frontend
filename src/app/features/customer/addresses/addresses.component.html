@@ -1,5 +1,8 @@
 <div class="addr-page">
   <div class="addr-container">
+    <button nz-button nzType="text" class="back-btn" (click)="goBack()">
+      <span nz-icon nzType="arrow-left"></span> Back
+    </button>
     <div class="page-header">
       <h1 class="page-title">My Addresses</h1>
       @if (isCustomer()) {
@@ -74,7 +77,7 @@
         <nz-form-item class="flex-1">
           <nz-form-label nzRequired>Mobile</nz-form-label>
           <nz-form-control [nzErrorTip]="errorTip('mobile')">
-            <input nz-input formControlName="mobile" placeholder="09171234567" autocomplete="tel" />
+            <input nz-input appMobileInput formControlName="mobile" placeholder="09171234567" autocomplete="tel" />
           </nz-form-control>
         </nz-form-item>
       </div>

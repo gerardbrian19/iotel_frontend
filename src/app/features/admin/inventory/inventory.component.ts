@@ -31,7 +31,7 @@ export class AdminInventoryComponent {
   readonly onImageError = onImageError;
   readonly search = signal('');
   readonly stockFilter = signal<StockFilter>('All');
-  readonly editingStock = signal<Record<string, number | undefined>>({});
+  readonly editingStock = signal<Record<string, number | null | undefined>>({});
 
   readonly products = this.productService.products;
 
@@ -56,13 +56,18 @@ export class AdminInventoryComponent {
     return { label: 'In Stock', color: 'success' };
   }
 
-  setEditStock(id: string, val: number) {
+  setEditStock(id: string, val: number | null) {
     this.editingStock.update(m => ({ ...m, [id]: val }));
   }
 
   saveStock(id: string) {
     const qty = this.editingStock()[id];
     if (qty === undefined) return;
+    // A cleared field is null; stock is a whole number (firestore.rules `validStock`).
+    if (qty === null || !Number.isInteger(qty) || qty < 0) {
+      this.msg.error('Enter the stock as a whole number of 0 or more.');
+      return;
+    }
     this.productService.adjustStock(id, qty).subscribe({
       next: () => {
         this.msg.success('Stock updated');

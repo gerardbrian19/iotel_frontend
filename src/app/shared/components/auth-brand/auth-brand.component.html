@@ -1,0 +1,34 @@
+<div class="rings" aria-hidden="true">
+  <span class="ring ring-gold"></span>
+  <span class="ring ring-red"></span>
+  <span class="ring ring-inner"></span>
+</div>
+
+<div class="panel">
+  <div class="identity">
+    <span class="logo-badge">
+      <img src="/images/goldcomm-logo.png" alt="Goldcomm Corporation logo" width="64" height="64" />
+    </span>
+    <span class="wordmark">
+      <span class="wordmark-name">IOTEL</span>
+      <span class="wordmark-sub">by Goldcomm</span>
+    </span>
+  </div>
+
+  <div class="pitch">
+    <h2 class="headline">Keep your teams <span class="accent">connected.</span></h2>
+    <p class="lead">
+      Your all-in-one platform for two-way radio equipment, professional installations and technical services.
+    </p>
+    <ul class="features">
+      @for (f of features; track f.icon) {
+        <li>
+          <span class="feature-icon"><span nz-icon [nzType]="f.icon"></span></span>
+          {{ f.text }}
+        </li>
+      }
+    </ul>
+  </div>
+
+  <p class="copyright">© {{ year }} Goldcomm Corporation</p>
+</div>

@@ -1,5 +1,8 @@
 <div class="cart-page">
   <div class="cart-container">
+    <a nz-button nzType="text" class="back-btn" routerLink="/customer/catalog">
+      <span nz-icon nzType="arrow-left"></span> Back
+    </a>
     <h1 class="page-title">Shopping Cart</h1>
 
     @if (items().length === 0) {

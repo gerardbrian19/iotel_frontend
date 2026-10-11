@@ -13,6 +13,7 @@ import {
 import { Observable, from } from 'rxjs';
 import { FIRESTORE } from '../firebase/firebase';
 import { Address, ShippingAddress } from '../models';
+import { normalizeMobile } from '../../shared/utils/validators';
 import { AuthService } from './auth.service';
 
 function toAddress(snap: QueryDocumentSnapshot<DocumentData>): Address {
@@ -32,7 +33,7 @@ function toAddress(snap: QueryDocumentSnapshot<DocumentData>): Address {
   };
 }
 
-/** Trims every field and strips spaces/dashes from the mobile number so stored values are uniform. */
+/** Trims every field and puts the mobile number in the `09XXXXXXXXX` form so stored values are uniform. */
 function normalize(input: ShippingAddress): ShippingAddress {
   return {
     fullName: input.fullName.trim(),
@@ -40,7 +41,7 @@ function normalize(input: ShippingAddress): ShippingAddress {
     city: input.city.trim(),
     province: input.province.trim(),
     zip: input.zip.trim(),
-    mobile: input.mobile.replace(/[\s-]/g, ''),
+    mobile: normalizeMobile(input.mobile),
   };
 }
 

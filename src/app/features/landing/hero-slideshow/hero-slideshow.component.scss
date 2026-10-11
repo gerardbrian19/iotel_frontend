@@ -177,7 +177,7 @@
   transform: scale(1.04);
   transition:
     opacity 0.8s ease,
-    transform 5s ease-out;
+    transform 3s ease-out;
 
   &.active {
     opacity: 1;
@@ -264,7 +264,7 @@
   }
 
   &.running::after {
-    animation: dot-fill 5s linear;
+    animation: dot-fill 3s linear;
   }
 }
 

@@ -60,16 +60,16 @@
     <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="save()">
       <nz-form-item>
         <nz-form-label nzRequired>Name</nz-form-label>
-        <nz-form-control><input nz-input formControlName="name" /></nz-form-control>
+        <nz-form-control nzErrorTip="Enter the product name (up to 150 characters)."><input nz-input formControlName="name" maxlength="150" /></nz-form-control>
       </nz-form-item>
       <div class="form-row">
         <nz-form-item class="flex-1">
           <nz-form-label>Brand</nz-form-label>
-          <nz-form-control><input nz-input formControlName="brand" /></nz-form-control>
+          <nz-form-control><input nz-input formControlName="brand" maxlength="60" /></nz-form-control>
         </nz-form-item>
         <nz-form-item class="flex-1">
           <nz-form-label>Model</nz-form-label>
-          <nz-form-control><input nz-input formControlName="model" /></nz-form-control>
+          <nz-form-control><input nz-input formControlName="model" maxlength="100" /></nz-form-control>
         </nz-form-item>
       </div>
       <div class="form-row">
@@ -85,17 +85,17 @@
         </nz-form-item>
         <nz-form-item class="flex-1">
           <nz-form-label>Subcategory</nz-form-label>
-          <nz-form-control><input nz-input formControlName="subcategory" /></nz-form-control>
+          <nz-form-control><input nz-input formControlName="subcategory" maxlength="60" /></nz-form-control>
         </nz-form-item>
       </div>
       <div class="form-row">
         <nz-form-item class="flex-1">
           <nz-form-label>Price (₱)</nz-form-label>
-          <nz-form-control nzExtra="Leave empty for price on request."><nz-input-number formControlName="price" [nzMin]="0" style="width:100%" /></nz-form-control>
+          <nz-form-control nzExtra="Leave empty for price on request."><nz-input-number formControlName="price" [nzMin]="0" [nzPrecision]="2" style="width:100%" /></nz-form-control>
         </nz-form-item>
         <nz-form-item style="width:120px">
           <nz-form-label nzRequired>Stock</nz-form-label>
-          <nz-form-control><nz-input-number formControlName="stock" [nzMin]="0" [nzPrecision]="0" style="width:100%" /></nz-form-control>
+          <nz-form-control nzErrorTip="Required, 0 or more."><nz-input-number formControlName="stock" [nzMin]="0" [nzPrecision]="0" style="width:100%" /></nz-form-control>
         </nz-form-item>
         <nz-form-item style="width:100px">
           <nz-form-label>Active</nz-form-label>
@@ -104,11 +104,11 @@
       </div>
       <nz-form-item>
         <nz-form-label nzRequired>Description</nz-form-label>
-        <nz-form-control><textarea nz-input formControlName="description" rows="3"></textarea></nz-form-control>
+        <nz-form-control nzErrorTip="Enter a description (up to 2,000 characters)."><textarea nz-input formControlName="description" rows="3" maxlength="2000"></textarea></nz-form-control>
       </nz-form-item>
       <nz-form-item>
         <nz-form-label>Image URL</nz-form-label>
-        <nz-form-control><input nz-input formControlName="imageUrl" /></nz-form-control>
+        <nz-form-control nzErrorTip="Use a site image like /images/radio.png or a web address (https://…)."><input nz-input formControlName="imageUrl" placeholder="/images/…" /></nz-form-control>
       </nz-form-item>
       <div class="modal-footer">
         <button nz-button type="button" (click)="modalVisible.set(false)">Cancel</button>

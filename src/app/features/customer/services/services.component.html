@@ -63,7 +63,32 @@
   </div>
 </div>
 
-<nz-modal [(nzVisible)]="modalVisible" nzTitle="Book a Service" [nzFooter]="null" nzWidth="560px">
+<nz-modal
+  [(nzVisible)]="modalVisible"
+  [nzTitle]="bookingTitle"
+  [nzClosable]="false"
+  [nzMaskClosable]="!submitting()"
+  [nzKeyboard]="!submitting()"
+  (nzOnCancel)="closeBooking()"
+  [nzFooter]="null"
+  nzWidth="560px"
+>
+  <ng-template #bookingTitle>
+    <div class="modal-title-row">
+      <button
+        nz-button
+        nzType="text"
+        type="button"
+        class="modal-back-btn"
+        aria-label="Back to services"
+        [disabled]="submitting()"
+        (click)="closeBooking()"
+      >
+        <span nz-icon nzType="arrow-left"></span> Back
+      </button>
+      <span>Book a Service</span>
+    </div>
+  </ng-template>
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="book()">
       <nz-form-item>
@@ -79,13 +104,16 @@
 
       <nz-form-item>
         <nz-form-label nzRequired>Preferred date and time</nz-form-label>
-        <nz-form-control>
+        <nz-form-control
+          [nzValidateStatus]="slotMissing() ? 'error' : ''"
+          [nzErrorTip]="slotMissing() ? (preferredDate() ? 'Choose a time slot.' : 'Choose a date and a time slot.') : ''"
+        >
           <app-slot-picker [(date)]="preferredDate" [(time)]="preferredTime" />
         </nz-form-control>
       </nz-form-item>
 
       <nz-form-item>
-        <nz-form-label>What do you need done?</nz-form-label>
+        <nz-form-label nzRequired>What do you need done?</nz-form-label>
         <nz-form-control [nzErrorTip]="errorTip('notes')">
           <textarea
             nz-input
@@ -108,24 +136,24 @@
         </nz-form-item>
         <nz-form-item class="flex-1">
           <nz-form-label nzRequired>Mobile</nz-form-label>
-          <nz-form-control [nzErrorTip]="errorTip('customerMobile')"><input nz-input formControlName="customerMobile" placeholder="09171234567" /></nz-form-control>
+          <nz-form-control [nzErrorTip]="errorTip('customerMobile')"><input nz-input appMobileInput formControlName="customerMobile" placeholder="09171234567" /></nz-form-control>
         </nz-form-item>
       </div>
 
       <p class="booking-note">
-        Submitting holds your time slot. Our team will chat with you to confirm the quotation and, if needed, adjust the
-        date. You pay only after it is confirmed.
+        Submitting sends a booking request and holds your time slot. Our team will chat with you, send a quotation and,
+        if needed, adjust the date. Your booking is confirmed once you pay the quotation.
       </p>
 
       <div class="modal-footer">
-        <button nz-button type="button" (click)="modalVisible.set(false)">Cancel</button>
+        <button nz-button type="button" [disabled]="submitting()" (click)="closeBooking()">Cancel</button>
         <button
           nz-button
           nzType="primary"
           type="submit"
           class="book-btn"
           [nzLoading]="submitting()"
-          [disabled]="form.invalid || !preferredDate() || !preferredTime()"
+          [disabled]="submitting()"
         >
           Submit Booking
         </button>

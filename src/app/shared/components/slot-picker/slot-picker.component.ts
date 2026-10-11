@@ -5,7 +5,7 @@ import {
   BOOKING_HORIZON_DAYS,
   BOOKING_SLOTS,
   firstBookableDate,
-  formatTime,
+  formatTimeRange,
   fromDateKey,
   isFullyBooked,
   isOpenDate,
@@ -48,7 +48,7 @@ export class SlotPickerComponent {
     return date
       ? BOOKING_SLOTS.map((time) => ({
           time,
-          label: formatTime(time),
+          label: formatTimeRange(time),
           taken: taken.has(slotId(date, time)),
         }))
       : [];

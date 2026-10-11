@@ -46,6 +46,7 @@
                 [ngModel]="editingStock()[p.id] ?? p.stock"
                 (ngModelChange)="setEditStock(p.id, $event)"
                 [nzMin]="0"
+                [nzPrecision]="0"
                 style="width: 80px"
                 nzSize="small"
               />

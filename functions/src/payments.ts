@@ -38,6 +38,8 @@ const ESTIMATED_DELIVERY_DAYS = 5;
 /** Unpaid orders are cancelled after this long (mirrored in the app's order hints). */
 const UNPAID_ORDER_TTL_MS = 60 * 60 * 1000;
 const MAX_ORDER_LINES = 50;
+/** PayMongo's smallest checkout amount, in pesos. Mirrors MIN_CHECKOUT_AMOUNT in the app's payment-methods.ts. */
+const MIN_CHECKOUT_AMOUNT = 20;
 /** What the PayMongo checkout page offers. Add 'dob', 'billease', … here once they are enabled on the account. */
 const PAYMENT_METHOD_TYPES = ['card', 'gcash', 'paymaya', 'grab_pay', 'qrph'];
 
@@ -152,6 +154,11 @@ function docId(value: unknown): string {
 const ADDRESS_LIMITS = { fullName: 60, addressLine: 200, city: 80, province: 80, zip: 10, mobile: 20 } as const;
 type ShippingAddress = Record<keyof typeof ADDRESS_LIMITS, string>;
 
+/** `+63 917-123-4567` → `09171234567`; does not validate. Mirrors `normalizeMobile` in src/app/shared/utils/validators.ts. */
+function localMobile(value: string): string {
+  return value.replace(/[^\d+]/g, '').replace(/^\+?63(?=9)/, '0').replace(/\D/g, '');
+}
+
 function shippingAddress(value: unknown): ShippingAddress {
   const input = (value ?? {}) as Record<string, unknown>;
   const address = {} as ShippingAddress;
@@ -160,6 +167,16 @@ function shippingAddress(value: unknown): ShippingAddress {
     if (!field || field.length > max) throw new HttpsError('invalid-argument', 'Please check your shipping address.');
     address[key] = field;
   }
+  // Exactly 11 digits (09XXXXXXXXX), as the app and firestore.rules require. Addresses saved before that rule may
+  // hold `+639…` or spaces/dashes; those are converted rather than blocking checkout.
+  const mobile = localMobile(address.mobile);
+  if (!/^09\d{9}$/.test(mobile)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Mobile number must be exactly 11 digits (09XXXXXXXXX). Please update it in My Addresses.',
+    );
+  }
+  address.mobile = mobile;
   return address;
 }
 
@@ -360,6 +377,12 @@ export const createBookingCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, 
   if (snap.get('status') !== 'Confirmed') throw new HttpsError('failed-precondition', 'This booking is not waiting for payment.');
   const amount = Number(snap.get('quote.amount'));
   if (!(amount > 0)) throw new HttpsError('failed-precondition', 'This booking has no confirmed amount yet.');
+  if (amount < MIN_CHECKOUT_AMOUNT) {
+    throw new HttpsError(
+      'failed-precondition',
+      `The quoted amount is below ₱${MIN_CHECKOUT_AMOUNT}, the smallest online payment. Please ask us to update it.`,
+    );
+  }
   const payment = snap.get('payment') as DocumentData | undefined;
   if (payment?.['status'] === 'Paid') throw new HttpsError('failed-precondition', 'This booking is already paid.');
 
@@ -517,7 +540,7 @@ async function applyPaidCheckout(event: WebhookEvent): Promise<void> {
         tx,
         snap.get('conversationId'),
         confirmed
-          ? `Payment received${METHOD_LABELS[method] ? ` via ${METHOD_LABELS[method]}` : ''}. Thank you!`
+          ? `Payment received${METHOD_LABELS[method] ? ` via ${METHOD_LABELS[method]}` : ''}. Your booking is confirmed. Thank you!`
           : 'A payment was received for this cancelled booking. Our team will refund it.',
         SYSTEM_SENDER,
       );

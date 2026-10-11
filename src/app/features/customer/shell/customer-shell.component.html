@@ -25,6 +25,9 @@
         <a routerLink="/customer/messages" routerLinkActive="active-link" class="nav-link">
           <span nz-icon nzType="message"></span>
           Messages
+          @if (unreadMessages() > 0) {
+            <nz-badge nzStandalone [nzCount]="unreadMessages()" [nzOverflowCount]="99" class="nav-badge" />
+          }
         </a>
         <a routerLink="/customer/about" routerLinkActive="active-link" class="nav-link">
           <span nz-icon nzType="info-circle"></span>
@@ -110,6 +113,9 @@
         </li>
         <li nz-menu-item routerLink="/customer/messages" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="message"></span><span>Messages</span>
+          @if (unreadMessages() > 0) {
+            <nz-badge nzStandalone [nzCount]="unreadMessages()" [nzOverflowCount]="99" class="nav-badge" />
+          }
         </li>
         <li nz-menu-item routerLink="/customer/settings" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="setting"></span><span>Settings</span>

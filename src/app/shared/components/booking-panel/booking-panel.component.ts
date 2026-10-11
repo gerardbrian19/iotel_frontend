@@ -22,7 +22,7 @@ import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { formatSlot } from '../../../core/booking/schedule';
 import { Booking } from '../../../core/models';
-import { paymentMethodLabel } from '../../../core/payments/payment-methods';
+import { MIN_CHECKOUT_AMOUNT, paymentMethodLabel } from '../../../core/payments/payment-methods';
 import { AuthService } from '../../../core/services/auth.service';
 import {
   BookingService,
@@ -39,8 +39,8 @@ interface StatusView {
 /**
  * One booking with what happens next and the actions that fit the viewer and the booking's status:
  *
- * - Customer: pay a confirmed booking through PayMongo, cancel until it is paid.
- * - Staff / admin: confirm with a quotation, change the quote until it is paid, reschedule, mark it completed, cancel an
+ * - Customer: pay the quotation through PayMongo (that is what confirms the booking), cancel until it is paid.
+ * - Staff / admin: send a quotation, change the quote until it is paid, reschedule, mark it completed, cancel an
  *   unpaid booking, refund a paid one (which cancels it).
  *
  * Used in the customer's booking list, the staff bookings board and above the booking's chat thread.
@@ -74,6 +74,8 @@ export class BookingPanelComponent {
   private readonly modal = inject(NzModalService);
   private readonly fb = inject(FormBuilder);
 
+  readonly minAmount = MIN_CHECKOUT_AMOUNT;
+
   readonly booking = input.required<Booking>();
   /** Shows a link to the booking's chat; leave off where the chat is already open. */
   readonly showChatLink = input(false);
@@ -91,7 +93,7 @@ export class BookingPanelComponent {
   readonly refundReason = signal('');
 
   readonly quoteForm = this.fb.nonNullable.group({
-    amount: [0, [Validators.required, Validators.min(1)]],
+    amount: [0, [Validators.required, Validators.min(MIN_CHECKOUT_AMOUNT)]],
     note: ['', Validators.maxLength(500)],
   });
 
@@ -131,9 +133,9 @@ export class BookingPanelComponent {
     if (this.awaitingPayment()) return { label: 'Awaiting payment', color: 'processing' };
     switch (b.status) {
       case 'Pending':
-        return { label: 'Pending', color: 'warning' };
+        return { label: 'Requested', color: 'warning' };
       case 'Paid':
-        return { label: 'Paid', color: 'success' };
+        return { label: 'Booked · Paid', color: 'success' };
       case 'Completed':
         return { label: 'Completed', color: 'success' };
       case 'Cancelled':
@@ -161,16 +163,16 @@ export class BookingPanelComponent {
     if (b.status === 'Paid') {
       return staff
         ? 'Paid through PayMongo. Mark it completed once the service is done.'
-        : `Payment received. See you on ${this.when()}.`;
+        : `Payment received. Your booking is confirmed. See you on ${this.when()}.`;
     }
     if (this.awaitingPayment()) {
       return staff
         ? 'Waiting for the customer to pay through PayMongo.'
-        : 'Your booking is confirmed. Pay the amount through PayMongo to lock in your slot.';
+        : 'Your quotation is ready. Pay it through PayMongo to confirm your booking; the time slot is held for you until then.';
     }
     return staff
-      ? 'Discuss the job with the customer in chat, then confirm the booking with a quotation.'
-      : 'We will review your request and reply in chat with a quotation. You can also ask to change the date there.';
+      ? 'Discuss the job with the customer in chat, then send them a quotation to pay.'
+      : 'We will review your request and reply in chat with a quotation. Your booking is confirmed once you pay it. You can also ask to change the date there.';
   });
 
   toggle(): void {
@@ -188,7 +190,7 @@ export class BookingPanelComponent {
     const { amount, note } = this.quoteForm.getRawValue();
     this.run(
       this.bookings.confirm(this.booking(), amount, note),
-      'Booking confirmed. The customer can now pay.',
+      'Quotation sent. The customer can now pay.',
       () => this.quoteVisible.set(false),
     );
   }

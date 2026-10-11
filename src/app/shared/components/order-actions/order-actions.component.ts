@@ -16,6 +16,7 @@ import {
 } from '../../../core/orders/order-view';
 import { AuthService } from '../../../core/services/auth.service';
 import { OrderService, orderErrorMessage } from '../../../core/services/order.service';
+import { requiredTrimmed } from '../../utils/validators';
 
 /**
  * What happens next with an order, and the actions that fit the viewer and the order's status:
@@ -59,7 +60,7 @@ export class OrderActionsComponent {
   readonly refundReason = signal('');
 
   readonly shipForm = this.fb.nonNullable.group({
-    courier: ['', [Validators.required, Validators.maxLength(60)]],
+    courier: ['', [requiredTrimmed, Validators.maxLength(60)]],
     trackingNumber: ['', Validators.maxLength(60)],
   });
 

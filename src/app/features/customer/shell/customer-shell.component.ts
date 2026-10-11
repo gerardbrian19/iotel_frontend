@@ -11,6 +11,7 @@ import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { AuthService } from '../../../core/services/auth.service';
 import { CartService } from '../../../core/services/cart.service';
 import { FavoritesService } from '../../../core/services/favorites.service';
+import { MessageService } from '../../../core/services/message.service';
 import { ChatbotWidgetComponent } from '../../../shared/components/chatbot-widget/chatbot-widget.component';
 
 @Component({
@@ -38,10 +39,13 @@ export class CustomerShellComponent {
   private readonly auth = inject(AuthService);
   private readonly cart = inject(CartService);
   private readonly favorites = inject(FavoritesService);
+  private readonly messages = inject(MessageService);
 
   readonly user = this.auth.currentUser;
   readonly cartCount = computed(() => this.cart.count);
   readonly favoritesCount = this.favorites.count;
+  /** Messages from staff/admins the customer hasn't opened yet, across all threads. */
+  readonly unreadMessages = this.messages.unreadTotal;
   readonly drawerVisible = signal(false);
 
   logout(): void {

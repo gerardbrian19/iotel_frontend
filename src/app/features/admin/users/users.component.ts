@@ -7,7 +7,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
@@ -51,6 +51,7 @@ export class AdminUsersComponent {
   private readonly userService = inject(UserService);
   private readonly auth = inject(AuthService);
   private readonly msg = inject(NzMessageService);
+  private readonly modal = inject(NzModalService);
   private readonly fb = inject(FormBuilder);
 
   readonly roles = USER_ROLES;
@@ -120,6 +121,32 @@ export class AdminUsersComponent {
     try {
       await this.auth.sendPasswordReset(user.email);
       this.msg.success(`Password reset email sent to ${user.email}`);
+    } catch (err) {
+      this.msg.error(authErrorMessage(err));
+    } finally {
+      this.busyId.set(null);
+    }
+  }
+
+  /** Customers only; the `deleteCustomerAccount` function refuses staff/admin accounts as well. */
+  confirmRemove(user: User): void {
+    if (user.role !== 'customer' || this.busyId()) return;
+    this.modal.confirm({
+      nzTitle: 'Are you sure you want to remove this customer account?',
+      nzContent: `${user.name} (${user.email}). This action cannot be undone.`,
+      nzOkText: 'Remove Account',
+      nzOkDanger: true,
+      nzCancelText: 'Cancel',
+      nzOnOk: () => this.removeAccount(user),
+    });
+  }
+
+  private async removeAccount(user: User): Promise<void> {
+    this.busyId.set(user.id);
+    try {
+      // The list is live (onSnapshot), so the removed profile drops out of the table by itself.
+      await this.userService.deleteCustomerAccount(user.id);
+      this.msg.success('Customer account removed successfully.');
     } catch (err) {
       this.msg.error(authErrorMessage(err));
     } finally {

@@ -3,7 +3,10 @@
  * (one service team), so the slot's document id is what makes double-booking impossible (see firestore.rules).
  */
 
-/** Slot start times, `HH:mm` (12:00-13:00 is lunch). */
+/**
+ * Slot start times, `HH:mm`. Service hours are 9:00 AM-5:00 PM with lunch 12:00-1:00 PM, and every slot is exactly
+ * 1 hour, so the last one starts at 4:00 PM. Mirrored in firestore.rules (`bookingTime`).
+ */
 export const BOOKING_SLOTS: readonly string[] = [
   '09:00',
   '10:00',
@@ -13,6 +16,12 @@ export const BOOKING_SLOTS: readonly string[] = [
   '15:00',
   '16:00',
 ];
+
+/** Length of every slot. */
+export const SLOT_MINUTES = 60;
+
+/** Not bookable. */
+export const LUNCH_BREAK = { start: '12:00', end: '13:00' } as const;
 
 /** Earliest bookable day is this many days from today. */
 export const BOOKING_LEAD_DAYS = 1;
@@ -75,6 +84,18 @@ export function formatTime(time: string): string {
   const [h, m] = time.split(':').map(Number);
   const hour = h % 12 === 0 ? 12 : h % 12;
   return `${hour}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+/** End of the slot that starts at `time`: `09:00` → `10:00`. */
+export function slotEnd(time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const end = h * 60 + m + SLOT_MINUTES;
+  return `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`;
+}
+
+/** `09:00` → `9:00 AM – 10:00 AM`. */
+export function formatTimeRange(start: string, end = slotEnd(start)): string {
+  return `${formatTime(start)} – ${formatTime(end)}`;
 }
 
 /** `Fri, Sep 25, 2026 at 10:00 AM`, for messages and labels. */

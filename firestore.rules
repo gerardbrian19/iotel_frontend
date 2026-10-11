@@ -58,9 +58,23 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['staff', 'admin'];
     }
 
+    // A customer whose profile still exists. A removed account's ID token stays valid for up to an hour after the admin
+    // removes it (rules can't see revocation), and its profile is gone, so this keeps it from creating new work.
+    function isCustomer() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'customer';
+    }
+
     // Only call after signedIn() and once the caller's profile is known to exist (errors deny the request).
     function userProfile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Booking slot start times: 9:00 AM-5:00 PM in 1-hour slots, lunch 12:00-1:00 PM. Mirrors BOOKING_SLOTS in
+    // src/app/core/booking/schedule.ts.
+    function bookingTime(time) {
+      return time in ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
     }
 
     function bookingPath(bookingId) {
@@ -87,6 +101,11 @@ service cloud.firestore {
       return value is string && value.trim().size() > 0 && value.size() <= max;
     }
 
+    // PH mobile number: exactly 11 digits, 09XXXXXXXXX. Mirrors `phMobile` in src/app/shared/utils/validators.ts.
+    function validMobile(value) {
+      return value is string && value.matches('^09[0-9]{9}$');
+    }
+
     function validAddress(address) {
       return address.keys().hasOnly(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile', 'isDefault', 'createdAt'])
         && address.keys().hasAll(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile', 'isDefault', 'createdAt'])
@@ -107,6 +126,25 @@ service cloud.firestore {
     function validPhoto(photo) {
       return photo == null
         || (photo is string && photo.size() <= 150000 && photo.matches('data:image/jpeg;base64,.*'));
+    }
+
+    // Optional profile details. Mirrors GENDERS in src/app/core/models/user.model.ts.
+    function validGender(gender) {
+      return gender == null || gender in ['male', 'female', 'other', 'prefer-not-to-say'];
+    }
+
+    // Optional phone (same format as every mobile number) and short bio. Mirrors BIO_MAX_LENGTH in user.model.ts.
+    function validPhone(phone) {
+      return phone == null || validMobile(phone);
+    }
+
+    function validBio(bio) {
+      return bio == null || (bio is string && bio.size() <= 300);
+    }
+
+    // `YYYY-MM-DD`, from 1900 on; the app also keeps it in the past.
+    function validBirthDate(date) {
+      return date == null || (date is string && date.matches('^(19|20)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'));
     }
 
     // Which Terms of Service / Privacy Policy versions (legal-documents.ts) the user accepted at sign-up, stamped with
@@ -131,6 +169,8 @@ service cloud.firestore {
       // (`authed()`: sign-up creates the profile before the emailed-code step.)
       allow create: if authed()
         && request.auth.uid == uid
+        // Not with the leftover ID token of an account an admin removed (deleteCustomerAccount leaves this marker).
+        && !exists(/databases/$(database)/documents/deletedAccounts/$(uid))
         && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt', 'legalAcceptance'])
         && request.resource.data.role == 'customer'
         && request.resource.data.email == request.auth.token.email
@@ -147,12 +187,18 @@ service cloud.firestore {
         && validName(request.resource.data.name)
         && request.resource.data.createdAt == request.time;
 
-      // Users may rename themselves and set or clear their profile picture, but never change their role or email.
+      // Users may rename themselves, set or clear their profile picture, gender, date of birth, phone and bio, but never
+      // change their role or email.
       allow update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photoURL'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'photoURL', 'gender', 'dateOfBirth', 'phone', 'bio'])
         && validName(request.resource.data.name)
-        && validPhoto(request.resource.data.get('photoURL', null));
+        && validPhoto(request.resource.data.get('photoURL', null))
+        && validGender(request.resource.data.get('gender', null))
+        && validBirthDate(request.resource.data.get('dateOfBirth', null))
+        && validPhone(request.resource.data.get('phone', null))
+        && validBio(request.resource.data.get('bio', null));
 
       // Admins change other people's roles (not their own, so the last admin cannot be demoted by accident).
       allow update: if isAdmin()
@@ -166,7 +212,7 @@ service cloud.firestore {
     // A customer's liked products: users/{uid}/favorites/{productId}. Only the owner can see or change them.
     match /users/{uid}/favorites/{productId} {
       allow read: if signedIn() && request.auth.uid == uid;
-      allow create: if signedIn()
+      allow create: if isCustomer()
         && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['createdAt'])
         && request.resource.data.createdAt == request.time;
@@ -178,13 +224,16 @@ service cloud.firestore {
     // `isDefault` is kept unique by the client (batched writes); rules only check that each document is well formed.
     match /users/{uid}/addresses/{addressId} {
       allow read: if signedIn() && request.auth.uid == uid;
-      allow create: if signedIn()
+      allow create: if isCustomer()
         && request.auth.uid == uid
         && validAddress(request.resource.data)
+        && validMobile(request.resource.data.mobile)
         && request.resource.data.createdAt == request.time;
       allow update: if signedIn()
         && request.auth.uid == uid
         && validAddress(request.resource.data)
+        // Addresses saved before the 11-digit rule (e.g. `+639…`) can still be made default; a new number must be valid.
+        && (validMobile(request.resource.data.mobile) || request.resource.data.mobile == resource.data.mobile)
         && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if signedIn() && request.auth.uid == uid;
     }
@@ -254,7 +303,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['date', 'time', 'bookingId'])
         && request.resource.data.date is string
         && request.resource.data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
-        && request.resource.data.time in ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00']
+        && bookingTime(request.resource.data.time)
         && request.resource.data.bookingId is string
         && slotId == request.resource.data.date + 'T' + request.resource.data.time
         && existsAfter(bookingPath(request.resource.data.bookingId))
@@ -300,10 +349,11 @@ service cloud.firestore {
         && booking.servicePrice is number && booking.servicePrice >= 0
         && shortText(booking.customerName, 60)
         && shortText(booking.customerEmail, 100)
-        && shortText(booking.customerMobile, 20)
+        && validMobile(booking.customerMobile)
         && booking.preferredDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
-        && booking.preferredTime in ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00']
-        && booking.notes is string && booking.notes.size() <= 1000
+        && bookingTime(booking.preferredTime)
+        // What needs doing, at least 10 characters (BOOKING_NOTES_MIN in booking.service.ts).
+        && booking.notes is string && booking.notes.trim().size() >= 10 && booking.notes.size() <= 1000
         && booking.createdAt == request.time
         && booking.updatedAt == request.time
         // The slot and the booking's chat come with it in the same batch.
@@ -320,7 +370,7 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow read: if signedIn() && (resource.data.customerId == request.auth.uid || isStaffOrAdmin());
 
-      allow create: if signedIn() && validNewBooking(request.resource.data, bookingId);
+      allow create: if isCustomer() && validNewBooking(request.resource.data, bookingId);
 
       allow update: if signedIn() && (
         // Customer cancels, until it is paid.
@@ -342,6 +392,11 @@ service cloud.firestore {
           && (request.resource.data.status != 'Cancelled' || resource.data.status == 'Cancelled'
             || !bookingPaid(resource.data))
           && (!request.resource.data.keys().hasAny(['quote']) || validQuote(request.resource.data.quote))
+          // Rescheduling: only to a real slot time, whose bookingSlots doc is created for this booking in the same batch.
+          // (A slot doc that already belongs to another booking can't be overwritten: its update is denied.)
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preferredDate', 'preferredTime'])
+            || (bookingTime(request.resource.data.preferredTime)
+              && getAfter(/databases/$(database)/documents/bookingSlots/$(request.resource.data.preferredDate + 'T' + request.resource.data.preferredTime)).data.bookingId == bookingId))
           && request.resource.data.updatedAt == request.time)
       );
 
@@ -473,6 +528,11 @@ service cloud.firestore {
 
     // PayMongo webhook events already applied (idempotency), written only by the Cloud Functions.
     match /paymongoEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    // Customer accounts an admin removed (deleteCustomerAccount); only the Cloud Functions read and write them.
+    match /deletedAccounts/{uid} {
       allow read, write: if false;
     }
 

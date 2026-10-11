@@ -72,6 +72,20 @@
                 >
                   <span nz-icon nzType="mobile"></span> Reset authenticator
                 </button>
+                <nz-tag class="protected-tag">
+                  <span nz-icon nzType="safety"></span> Protected account
+                </nz-tag>
+              } @else {
+                <button
+                  nz-button
+                  nzSize="small"
+                  nzDanger
+                  [nzLoading]="busyId() === u.id"
+                  [disabled]="busyId() !== null && busyId() !== u.id"
+                  (click)="confirmRemove(u)"
+                >
+                  <span nz-icon nzType="delete"></span> Remove Account
+                </button>
               }
             }
           </td>

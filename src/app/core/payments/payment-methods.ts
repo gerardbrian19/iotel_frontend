@@ -15,6 +15,9 @@ export const PAYMENT_PROVIDER: PaymentProvider = 'paymongo';
 /** Unpaid orders are cancelled after this long (`UNPAID_ORDER_TTL_MS` in functions/src/payments.ts). */
 export const UNPAID_ORDER_MINUTES = 60;
 
+/** PayMongo's smallest checkout amount, in pesos. Mirrored as MIN_CHECKOUT_AMOUNT in functions/src/payments.ts. */
+export const MIN_CHECKOUT_AMOUNT = 20;
+
 /** What the PayMongo checkout offers (`PAYMENT_METHOD_TYPES` in functions/src/payments.ts), for the screens. */
 export const ACCEPTED_PAYMENT_METHODS: readonly { label: string; icon: string }[] = [
   { label: 'GCash', icon: '📱' },

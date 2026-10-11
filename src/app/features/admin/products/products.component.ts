@@ -17,6 +17,10 @@ import { Observable } from 'rxjs';
 import { ProductService } from '../../../core/services/product.service';
 import { PRODUCT_CATEGORIES, Product, ProductCategory } from '../../../core/models';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
+import { requiredTrimmed } from '../../../shared/utils/validators';
+
+/** A site image (`/images/…`) or a web address. */
+const IMAGE_URL_RE = /^(\/\S+|https?:\/\/\S+)$/i;
 
 @Component({
   selector: 'app-admin-products',
@@ -46,16 +50,16 @@ export class AdminProductsComponent {
   readonly saving = signal(false);
 
   readonly form = this.fb.nonNullable.group({
-    name: ['', Validators.required],
-    brand: [''],
-    model: [''],
+    name: ['', [requiredTrimmed, Validators.maxLength(150)]],
+    brand: ['', Validators.maxLength(60)],
+    model: ['', Validators.maxLength(100)],
     category: ['Radios' as ProductCategory, Validators.required],
-    subcategory: [''],
+    subcategory: ['', Validators.maxLength(60)],
     price: [null as number | null, Validators.min(0)],
     stock: [0, [Validators.required, Validators.min(0)]],
     isActive: [true],
-    imageUrl: [''],
-    description: ['', Validators.required],
+    imageUrl: ['', Validators.pattern(IMAGE_URL_RE)],
+    description: ['', [requiredTrimmed, Validators.maxLength(2000)]],
   });
 
   readonly products = this.productService.products;
@@ -87,7 +91,14 @@ export class AdminProductsComponent {
   }
 
   save() {
-    if (this.form.invalid) return;
+    if (this.saving()) return;
+    if (this.form.invalid) {
+      Object.values(this.form.controls).forEach((c) => {
+        c.markAsDirty();
+        c.updateValueAndValidity({ onlySelf: true });
+      });
+      return;
+    }
     const v = this.form.getRawValue();
     const id = this.editingId();
     const fields = {

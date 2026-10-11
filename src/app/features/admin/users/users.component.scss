@@ -25,6 +25,12 @@
 .you-tag {
   margin-left: 8px;
 }
+.protected-tag {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .modal-footer {
   display: flex;
   justify-content: flex-end;

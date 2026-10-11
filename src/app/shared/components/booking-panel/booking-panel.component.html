@@ -29,7 +29,7 @@
     @if (isStaff()) {
       @if (canQuote()) {
         <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" (click)="openQuote()">
-          {{ booking().status === 'Pending' ? 'Confirm & quote' : 'Change quote' }}
+          {{ booking().status === 'Pending' ? 'Send quote' : 'Change quote' }}
         </button>
       }
       @if (booking().status === 'Paid') {
@@ -102,17 +102,17 @@
 </section>
 
 <!-- Staff: quotation -->
-<nz-modal [(nzVisible)]="quoteVisible" nzTitle="Confirm booking & quotation" [nzFooter]="null" nzWidth="440px">
+<nz-modal [(nzVisible)]="quoteVisible" nzTitle="Send quotation" [nzFooter]="null" nzWidth="440px">
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="quoteForm" nzLayout="vertical" (ngSubmit)="saveQuote()">
       <p class="modal-copy">
-        Confirm this only after agreeing the price and date with {{ booking().customerName }} in chat. They will be asked to pay
-        this amount.
+        Send this only after agreeing the price and date with {{ booking().customerName }} in chat. They will be asked to pay
+        this amount, and the booking is confirmed once they do.
       </p>
       <nz-form-item>
         <nz-form-label nzRequired>Amount to charge (₱)</nz-form-label>
-        <nz-form-control nzErrorTip="Enter an amount above zero.">
-          <nz-input-number formControlName="amount" [nzMin]="1" [nzStep]="50" [nzPrecision]="2" style="width: 100%" />
+        <nz-form-control [nzErrorTip]="'Enter an amount of at least ₱' + minAmount + '.'">
+          <nz-input-number formControlName="amount" [nzMin]="minAmount" [nzStep]="50" [nzPrecision]="2" style="width: 100%" />
         </nz-form-control>
       </nz-form-item>
       <nz-form-item>
@@ -124,7 +124,7 @@
       <div class="modal-footer">
         <button nz-button type="button" (click)="quoteVisible.set(false)">Close</button>
         <button nz-button nzType="primary" class="brand-btn" type="submit" [disabled]="quoteForm.invalid || busy()" [nzLoading]="busy()">
-          Confirm booking
+          Send quotation
         </button>
       </div>
     </form>

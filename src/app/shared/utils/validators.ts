@@ -46,11 +46,52 @@ export const personName: ValidatorFn = (c: AbstractControl): ValidationErrors | 
   return NAME_RE.test(v) ? null : { name: true };
 };
 
-/** Philippine mobile number: `09XXXXXXXXX` or `+639XXXXXXXXX`; spaces and dashes are ignored. */
-export const phMobile: ValidatorFn = (c: AbstractControl): ValidationErrors | null =>
-  isEmpty(c.value) || /^(\+63|0)9\d{9}$/.test(String(c.value).replace(/[\s-]/g, ''))
-    ? null
-    : { mobile: true };
+/** The message for a missing or invalid full name (`personName`), or null when it is valid. For non-reactive forms. */
+export function personNameError(value: string): string | null {
+  if (value.trim() === '') return 'Full name is required.';
+  const errors = personName({ value } as AbstractControl);
+  if (!errors) return null;
+  if (errors['minlength']) return 'Full name must be at least 2 characters.';
+  if (errors['maxlength']) return 'Full name must be at most 60 characters.';
+  return 'Use letters, spaces, dots, apostrophes and hyphens only.';
+}
+
+/** Philippine mobile number: exactly 11 digits, `09XXXXXXXXX`. No spaces, symbols or `+63`. */
+export const phMobile: ValidatorFn = (c: AbstractControl): ValidationErrors | null => {
+  const problem = mobileError(c.value);
+  return problem ? { mobile: problem } : null;
+};
+
+/** Digits in a PH mobile number (`09XXXXXXXXX`). Mirrored in firestore.rules and functions/src/payments.ts. */
+export const MOBILE_DIGITS = 11;
+const PH_MOBILE_RE = /^09\d{9}$/;
+
+/**
+ * A mobile number as typed, pasted, autofilled or saved before the 11-digit rule, in the `09XXXXXXXXX` form: the
+ * country code (`+63`/`63` before a 9) becomes `0`, and everything but digits is dropped. It does not validate.
+ * Mirrored by `localMobile` in functions/src/payments.ts.
+ */
+export function normalizeMobile(value: string): string {
+  return value.replace(/[^\d+]/g, '').replace(/^\+?63(?=9)/, '0').replace(/\D/g, '');
+}
+
+/** The message for an invalid PH mobile number, or null when it is valid or empty. */
+export function mobileError(value: unknown): string | null {
+  if (isEmpty(value)) return null;
+  const v = String(value);
+  if (!/^\d+$/.test(v) || v.length !== MOBILE_DIGITS)
+    return 'Mobile number must be exactly 11 digits.';
+  return PH_MOBILE_RE.test(v) ? null : 'Mobile number must start with 09, e.g. 09171234567.';
+}
+
+/** At least `min` characters once leading/trailing whitespace is ignored (empty is left to `requiredTrimmed`). */
+export const minLengthTrimmed =
+  (min: number): ValidatorFn =>
+  (c: AbstractControl): ValidationErrors | null => {
+    if (isEmpty(c.value)) return null;
+    const length = String(c.value).trim().length;
+    return length > 0 && length < min ? { minlength: { requiredLength: min, actualLength: length } } : null;
+  };
 
 /** Philippine ZIP code: exactly 4 digits. */
 export const zipCode: ValidatorFn = (c: AbstractControl): ValidationErrors | null =>

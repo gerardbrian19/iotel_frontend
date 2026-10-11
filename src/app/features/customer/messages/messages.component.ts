@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -14,12 +14,13 @@ import { MessageService } from '../../../core/services/message.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Conversation } from '../../../core/models';
 import { ChatPanelComponent } from '../../../shared/components/chat-panel/chat-panel.component';
+import { requiredTrimmed } from '../../../shared/utils/validators';
 
 @Component({
   selector: 'app-messages',
   standalone: true,
   imports: [
-    DatePipe, FormsModule, ReactiveFormsModule,
+    DatePipe, FormsModule, ReactiveFormsModule, RouterLink,
     NzButtonModule, NzIconModule, NzInputModule, NzBadgeModule,
     NzEmptyModule, NzModalModule, NzFormModule, ChatPanelComponent,
   ],
@@ -44,8 +45,9 @@ export class MessagesComponent {
   readonly inThread = signal(false);
 
   readonly newConvForm = this.fb.group({
-    subject: ['', [Validators.required, Validators.maxLength(120)]],
-    firstMessage: ['', [Validators.required, Validators.maxLength(2000)]],
+    // Whitespace-only is empty: firestore.rules (`shortText`) would refuse it.
+    subject: ['', [requiredTrimmed, Validators.maxLength(120)]],
+    firstMessage: ['', [requiredTrimmed, Validators.maxLength(2000)]],
   });
 
   constructor() {

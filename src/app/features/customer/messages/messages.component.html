@@ -2,6 +2,9 @@
   <div class="messages-layout" [class.in-thread]="inThread()">
     <!-- Left: Conversation List -->
     <div class="conv-list">
+      <a nz-button nzType="text" class="catalog-back" routerLink="/customer/catalog">
+        <span nz-icon nzType="arrow-left"></span> Back
+      </a>
       <div class="conv-list-header">
         <h2 class="conv-title">Messages</h2>
         <button nz-button nzType="primary" nzSize="small" class="new-btn" (click)="newConvVisible.set(true)">
@@ -60,11 +63,11 @@
     <form nz-form [formGroup]="newConvForm" nzLayout="vertical" (ngSubmit)="createConversation()">
       <nz-form-item>
         <nz-form-label nzRequired>Subject</nz-form-label>
-        <nz-form-control><input nz-input formControlName="subject" placeholder="What is your concern?" /></nz-form-control>
+        <nz-form-control nzErrorTip="Enter a subject (up to 120 characters)."><input nz-input formControlName="subject" maxlength="120" placeholder="What is your concern?" /></nz-form-control>
       </nz-form-item>
       <nz-form-item>
         <nz-form-label nzRequired>Message</nz-form-label>
-        <nz-form-control><textarea nz-input formControlName="firstMessage" rows="4" placeholder="Describe your concern..."></textarea></nz-form-control>
+        <nz-form-control nzErrorTip="Describe your concern (up to 2,000 characters)."><textarea nz-input formControlName="firstMessage" rows="4" maxlength="2000" placeholder="Describe your concern..."></textarea></nz-form-control>
       </nz-form-item>
       <div class="modal-footer">
         <button nz-button type="button" (click)="newConvVisible.set(false)">Cancel</button>

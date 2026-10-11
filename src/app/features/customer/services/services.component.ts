@@ -15,6 +15,7 @@ import { finalize } from 'rxjs';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
@@ -23,19 +24,27 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
-import { BookingService, bookingErrorMessage } from '../../../core/services/booking.service';
+import { BOOKING_NOTES_MIN, BookingService, bookingErrorMessage } from '../../../core/services/booking.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Service } from '../../../core/models';
 import { BookingPanelComponent } from '../../../shared/components/booking-panel/booking-panel.component';
 import { SlotPickerComponent } from '../../../shared/components/slot-picker/slot-picker.component';
-import { emailFormat, personName, phMobile, requiredTrimmed } from '../../../shared/utils/validators';
+import { MobileInputDirective } from '../../../shared/directives/mobile-input.directive';
+import {
+  emailFormat,
+  minLengthTrimmed,
+  normalizeMobile,
+  personName,
+  phMobile,
+  requiredTrimmed,
+} from '../../../shared/utils/validators';
 
 @Component({
   selector: 'app-services',
   standalone: true,
   imports: [
-    CurrencyPipe, ReactiveFormsModule,
-    NzCardModule, NzButtonModule, NzModalModule, NzTabsModule,
+    CurrencyPipe, ReactiveFormsModule, MobileInputDirective,
+    NzCardModule, NzButtonModule, NzIconModule, NzModalModule, NzTabsModule,
     NzFormModule, NzInputModule, NzSelectModule, NzEmptyModule, NzSpinModule, NzAlertModule,
     BookingPanelComponent, SlotPickerComponent,
   ],
@@ -61,7 +70,7 @@ export class ServicesComponent {
     const booking = id ? this.bookingService.byId().get(id) : undefined;
     if (!booking) return null;
     const paid = booking.payment?.status === 'Paid';
-    if (paid) return { type: 'success' as const, text: `Payment received for ${booking.serviceName}. Thank you!` };
+    if (paid) return { type: 'success' as const, text: `Payment received. Your ${booking.serviceName} booking is confirmed. Thank you!` };
     return this.payment() === 'success'
       ? { type: 'info' as const, text: 'PayMongo is confirming your payment. This updates by itself in a moment.' }
       : { type: 'warning' as const, text: 'The payment was not completed. You can pay again from the booking below.' };
@@ -74,6 +83,9 @@ export class ServicesComponent {
   readonly submitting = signal(false);
   readonly preferredDate = signal<string | null>(null);
   readonly preferredTime = signal<string | null>(null);
+  /** Set by the first Submit press, so the missing slot is flagged only after that. */
+  readonly submitAttempted = signal(false);
+  readonly slotMissing = computed(() => this.submitAttempted() && (!this.preferredDate() || !this.preferredTime()));
 
   /** Bookings still in progress first (soonest date first), then finished and cancelled ones, newest first. */
   readonly bookings = computed(() => {
@@ -88,9 +100,10 @@ export class ServicesComponent {
   readonly form = this.fb.group({
     serviceId: ['', Validators.required],
     customerName: ['', [requiredTrimmed, personName]],
-    customerEmail: ['', [requiredTrimmed, emailFormat]],
+    customerEmail: ['', [requiredTrimmed, emailFormat, Validators.maxLength(100)]],
     customerMobile: ['', [requiredTrimmed, phMobile]],
-    notes: ['', Validators.maxLength(1000)],
+    // Staff need to know the job before they can quote it.
+    notes: ['', [requiredTrimmed, minLengthTrimmed(BOOKING_NOTES_MIN), Validators.maxLength(1000)]],
   });
 
   private readonly serviceId = signal('');
@@ -104,6 +117,9 @@ export class ServicesComponent {
       if (user && !this.form.controls.customerName.dirty) {
         this.form.patchValue({ customerName: user.name, customerEmail: user.email }, { emitEvent: false });
       }
+      if (user?.phone && !this.form.controls.customerMobile.dirty) {
+        this.form.patchValue({ customerMobile: normalizeMobile(user.phone) }, { emitEvent: false });
+      }
     });
   }
 
@@ -113,10 +129,20 @@ export class ServicesComponent {
   }
 
   book(): void {
+    if (this.submitting()) return;
+    this.submitAttempted.set(true);
     const service = this.selectedService();
     const date = this.preferredDate();
     const time = this.preferredTime();
-    if (this.form.invalid || !service || !date || !time || this.submitting()) return;
+    if (this.form.invalid || !service || !date || !time) {
+      // Shows every field's message, not only the ones already typed in.
+      Object.values(this.form.controls).forEach(c => {
+        c.markAsDirty();
+        c.updateValueAndValidity({ onlySelf: true });
+      });
+      this.msg.warning('Please complete all the required fields to submit your booking.');
+      return;
+    }
 
     const v = this.form.getRawValue();
     this.submitting.set(true);
@@ -133,7 +159,7 @@ export class ServicesComponent {
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
         next: ({ conversationId }) => {
-          this.msg.success('Booking submitted. Chat with our team to agree on the quotation.');
+          this.msg.success('Booking request sent. Chat with our team to agree on the quotation.');
           this.modalVisible.set(false);
           this.resetForm();
           this.router.navigate(['/customer/messages'], { queryParams: { conversation: conversationId } });
@@ -145,9 +171,13 @@ export class ServicesComponent {
   errorTip(name: 'customerName' | 'customerEmail' | 'customerMobile' | 'notes'): string {
     const errors = this.form.controls[name].errors;
     if (!errors) return '';
+    if (name === 'notes') {
+      if (errors['required']) return 'Please describe what you need done.';
+      if (errors['minlength']) return `Please add a bit more detail (at least ${BOOKING_NOTES_MIN} characters).`;
+    }
     if (errors['required']) return 'This field is required.';
     if (errors['email']) return 'Enter a valid email address.';
-    if (errors['mobile']) return 'Enter a valid PH mobile number, e.g. 09171234567.';
+    if (errors['mobile']) return errors['mobile'];
     if (errors['name']) return 'Use letters, spaces, dots, apostrophes and hyphens only.';
     if (errors['minlength']) return 'Too short.';
     if (errors['maxlength']) return 'Too long.';
@@ -156,8 +186,14 @@ export class ServicesComponent {
 
   private resetForm(): void {
     const user = this.auth.currentUser();
-    this.form.reset({ serviceId: '', customerName: user?.name ?? '', customerEmail: user?.email ?? '', customerMobile: '', notes: '' });
+    this.form.reset({ serviceId: '', customerName: user?.name ?? '', customerEmail: user?.email ?? '', customerMobile: normalizeMobile(user?.phone ?? ''), notes: '' });
     this.preferredDate.set(null);
+    this.submitAttempted.set(false);
     this.preferredTime.set(null);
+  }
+
+  /** Back / Cancel / Esc / click outside. Kept open while the booking is being submitted. */
+  closeBooking(): void {
+    if (!this.submitting()) this.modalVisible.set(false);
   }
 }

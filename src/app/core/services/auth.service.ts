@@ -36,7 +36,7 @@ import { TWO_STEP_SIGN_IN } from '../auth/auth-flags';
 import { AppAuthError, authErrorMessage } from '../firebase/auth-errors';
 import { FIREBASE_AUTH, FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../legal/legal-documents';
-import { USER_ROLES, User, UserRole } from '../models';
+import { GENDERS, Gender, USER_ROLES, User, UserRole } from '../models';
 
 export function toUser(id: string, data: DocumentData): User {
   const role = data['role'];
@@ -45,12 +45,23 @@ export function toUser(id: string, data: DocumentData): User {
   }
   const createdAt = data['createdAt'];
   const photoURL = data['photoURL'];
+  const gender = data['gender'];
+  const dateOfBirth = data['dateOfBirth'];
+  const phone = data['phone'];
+  const bio = data['bio'];
   return {
     id,
     name: String(data['name'] ?? data['email'] ?? ''),
     email: String(data['email'] ?? ''),
     role,
     photoURL: typeof photoURL === 'string' && photoURL ? photoURL : undefined,
+    gender: GENDERS.some((g) => g.value === gender) ? (gender as Gender) : undefined,
+    dateOfBirth:
+      typeof dateOfBirth === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)
+        ? dateOfBirth
+        : undefined,
+    phone: typeof phone === 'string' && phone ? phone : undefined,
+    bio: typeof bio === 'string' && bio ? bio : undefined,
     createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : undefined,
   };
 }
@@ -409,10 +420,45 @@ export class AuthService {
     await updateDoc(doc(this.db, 'users', user.id), {
       photoURL: photoURL ?? deleteField(),
     });
-    // Ignore the result if the account changed while the write was in flight.
-    if (this._currentUser()?.id === user.id) {
-      this._currentUser.set({ ...user, photoURL: photoURL ?? undefined });
-    }
+    // Ignore the result if the account changed while the write was in flight; otherwise merge into the user as it is
+    // now, so details saved meanwhile are kept.
+    this._currentUser.update((current) =>
+      current?.id === user.id ? { ...current, photoURL: photoURL ?? undefined } : current,
+    );
+  }
+
+  /** Saves the editable profile details; an empty gender, date of birth, phone or bio removes it. */
+  async updateDetails(details: {
+    name: string;
+    gender: Gender | null;
+    dateOfBirth: string | null;
+    phone: string | null;
+    bio: string | null;
+  }): Promise<void> {
+    const uid = this._currentUser()?.id;
+    if (!uid) throw new Error('You need to be signed in to update your profile.');
+    const name = details.name.trim().replace(/\s+/g, ' ');
+    const bio = details.bio?.trim() || null;
+    await updateDoc(doc(this.db, 'users', uid), {
+      name,
+      gender: details.gender ?? deleteField(),
+      dateOfBirth: details.dateOfBirth ?? deleteField(),
+      phone: details.phone || deleteField(),
+      bio: bio ?? deleteField(),
+    });
+    // Merged into the user as it is now, so a photo changed while this was saving is kept.
+    this._currentUser.update((current) =>
+      current?.id === uid
+        ? {
+            ...current,
+            name,
+            gender: details.gender ?? undefined,
+            dateOfBirth: details.dateOfBirth ?? undefined,
+            phone: details.phone || undefined,
+            bio: bio ?? undefined,
+          }
+        : current,
+    );
   }
 
   /** A restored session counts only if its token shows the second step (mirrors `secondStep()` in firestore.rules). */

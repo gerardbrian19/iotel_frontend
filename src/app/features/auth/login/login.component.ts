@@ -11,11 +11,13 @@ import { SecondStepComponent } from '../second-step/second-step.component';
 import { authErrorMessage } from '../../../core/firebase/auth-errors';
 import { safeReturnUrl } from '../../../shared/utils/return-url';
 import { emailFormat, requiredTrimmed } from '../../../shared/utils/validators';
+import { AuthBrandComponent } from '../../../shared/components/auth-brand/auth-brand.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [
+    AuthBrandComponent,
     ReactiveFormsModule,
     NzFormModule,
     NzInputModule,

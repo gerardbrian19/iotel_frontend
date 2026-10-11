@@ -49,6 +49,16 @@
   flex: 1;
 }
 
+// Unread messages count next to "Messages" (ng-zorro's badge is red #ff4d4f; use the brand red).
+.nav-badge {
+  margin-left: 2px;
+
+  ::ng-deep .ant-badge-count {
+    background: #CC2020;
+    box-shadow: none;
+  }
+}
+
 .nav-link {
   display: flex;
   align-items: center;

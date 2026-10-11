@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { Product } from '../../../core/models';
@@ -12,7 +13,7 @@ import { ProductDetailComponent } from '../../../shared/components/product-detai
 @Component({
   selector: 'app-favorites',
   standalone: true,
-  imports: [RouterLink, NzButtonModule, NzEmptyModule, NzSpinModule, ProductCardComponent, ProductDetailComponent],
+  imports: [RouterLink, NzButtonModule, NzIconModule, NzEmptyModule, NzSpinModule, ProductCardComponent, ProductDetailComponent],
   templateUrl: './favorites.component.html',
   styleUrl: './favorites.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

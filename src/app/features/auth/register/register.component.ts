@@ -29,11 +29,17 @@ import {
   strongPassword,
 } from '../../../shared/utils/validators';
 import { safeReturnUrl } from '../../../shared/utils/return-url';
+import { AuthBrandComponent } from '../../../shared/components/auth-brand/auth-brand.component';
+
+/** How long each document must stay open before it can be agreed to. */
+const READ_SECONDS = 10;
+const LEGAL_DOC_IDS: readonly LegalDocumentId[] = ['terms', 'privacy'];
 
 @Component({
   selector: 'app-register',
   standalone: true,
   imports: [
+    AuthBrandComponent,
     ReactiveFormsModule,
     RouterLink,
     NzFormModule,
@@ -64,8 +70,8 @@ export class RegisterComponent {
     email: ['', [requiredTrimmed, emailFormat, emailDomainTypo]],
     password: ['', [Validators.required, strongPassword]],
     confirmPassword: ['', [Validators.required, matchesControl('password')]],
-    // Never pre-checked: the user has to tick it themselves.
-    acceptLegal: [false, Validators.requiredTrue],
+    // Never pre-checked, and locked until both documents have been opened and agreed to (see `agree`).
+    acceptLegal: [{ value: false, disabled: true }, Validators.requiredTrue],
   });
 
   /** Create Account stays disabled until the Terms / Privacy checkbox is ticked. */
@@ -80,11 +86,25 @@ export class RegisterComponent {
     return id ? LEGAL_DOCUMENTS[id] : null;
   });
 
+  /** Documents the user has opened, stayed on for `READ_SECONDS` and agreed to. */
+  readonly agreedDocs = signal<ReadonlySet<LegalDocumentId>>(new Set());
+  readonly bothAgreed = computed(() => this.agreedDocs().size === LEGAL_DOC_IDS.length);
+  /** Seconds left before the open document's agree button unlocks; 0 once it can be pressed. */
+  readonly secondsLeft = signal(0);
+  readonly openDocAgreed = computed(() => {
+    const id = this.openDocId();
+    return id !== null && this.agreedDocs().has(id);
+  });
+
+  private countdown: ReturnType<typeof setInterval> | null = null;
+
   constructor() {
+    const destroyRef = inject(DestroyRef);
     // The confirm field's validity depends on the password field, so re-check it when the password changes.
     this.form.controls.password.valueChanges
-      .pipe(takeUntilDestroyed(inject(DestroyRef)))
+      .pipe(takeUntilDestroyed(destroyRef))
       .subscribe(() => this.form.controls.confirmPassword.updateValueAndValidity());
+    destroyRef.onDestroy(() => this.stopCountdown());
   }
 
   /** Opens a document from the link inside the checkbox label without toggling the checkbox. */
@@ -92,15 +112,44 @@ export class RegisterComponent {
     event.preventDefault();
     event.stopPropagation();
     this.openDocId.set(id);
+    // Every opening of a document not agreed to yet starts the full wait again.
+    this.stopCountdown();
+    if (this.agreedDocs().has(id)) return;
+    this.secondsLeft.set(READ_SECONDS);
+    this.countdown = setInterval(() => {
+      this.secondsLeft.update((s) => Math.max(0, s - 1));
+      if (this.secondsLeft() === 0) this.stopCountdown();
+    }, 1000);
+  }
+
+  /** The open document's agree button: records it and, once both are agreed, unlocks and ticks the checkbox. */
+  agree(): void {
+    const id = this.openDocId();
+    if (!id || this.secondsLeft() > 0) return;
+    this.agreedDocs.update((docs) => new Set([...docs, id]));
+    this.closeDoc();
+    if (this.bothAgreed()) {
+      const consent = this.form.controls.acceptLegal;
+      consent.enable();
+      consent.setValue(true);
+    }
   }
 
   closeDoc(): void {
+    this.stopCountdown();
+    this.secondsLeft.set(0);
     this.openDocId.set(null);
+  }
+
+  private stopCountdown(): void {
+    if (this.countdown !== null) clearInterval(this.countdown);
+    this.countdown = null;
   }
 
   async submit(): Promise<void> {
     if (this.loading()) return;
-    if (this.form.invalid) {
+    // The consent control is disabled (so skipped by validation) until both documents are agreed to.
+    if (this.form.invalid || !this.bothAgreed() || !this.form.controls.acceptLegal.value) {
       this.form.markAllAsDirty();
       this.form.updateValueAndValidity();
       return;

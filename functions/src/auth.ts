@@ -1,6 +1,6 @@
 /**
  * Sign-in functions: the emailed sign-in code (customers, and staff/admins before they set up an authenticator)
- * and the admin "reset authenticator" action. See docs/auth-upgrade-plan.md.
+ * and the admin account actions ("reset authenticator", "remove customer account"). See docs/auth-upgrade-plan.md.
  *
  * Enforcement lives in firestore.rules: a customer session counts only when the ID token carries the custom claim
  * `otpAuthTime` equal to its own `auth_time`, which `verifyLoginCode` sets. A new sign-in has a new `auth_time`, so the
@@ -8,6 +8,7 @@
  */
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { getAuth } from 'firebase-admin/auth';
+import { FieldValue } from 'firebase-admin/firestore';
 import { CallableRequest, HttpsError, onCall } from 'firebase-functions/v2/https';
 import { defineInt, defineSecret, defineString } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
@@ -210,5 +211,126 @@ export const resetAuthenticator = onCall(async (req) => {
   }
   await auth.revokeRefreshTokens(uid);
   logger.info('Authenticator reset', { uid, by: req.auth.uid });
+  return { ok: true };
+});
+
+const OPEN_ORDER_STATUSES = ['Pending', 'Processing', 'Shipped'];
+const OPEN_BOOKING_STATUSES = ['Pending', 'Confirmed', 'Paid'];
+
+/**
+ * Why the customer can't be removed yet: an order or booking still in progress, or a cancelled one whose payment
+ * still has to be refunded. Null when there is nothing left. Each check reads at most one document.
+ */
+async function openWork(uid: string): Promise<string | null> {
+  const first = (collection: string, field: string, values: string[], extra?: [string, string]) => {
+    let query = db.collection(collection).where('customerId', '==', uid).where(field, 'in', values);
+    if (extra) query = query.where(extra[0], '==', extra[1]);
+    return query.limit(1).get();
+  };
+  const [orders, bookings, unrefundedOrders, unrefundedBookings] = await Promise.all([
+    first('orders', 'status', OPEN_ORDER_STATUSES),
+    first('bookings', 'status', OPEN_BOOKING_STATUSES),
+    first('orders', 'status', ['Cancelled'], ['payment.status', 'Paid']),
+    first('bookings', 'status', ['Cancelled'], ['payment.status', 'Paid']),
+  ]);
+  if (!orders.empty) return 'This customer has an order in progress. Complete or cancel it before removing the account.';
+  if (!bookings.empty) {
+    return 'This customer has a service booking in progress. Complete or cancel it before removing the account.';
+  }
+  if (!unrefundedOrders.empty || !unrefundedBookings.empty) {
+    return 'This customer has a cancelled order or booking that still has to be refunded. Refund it before removing the account.';
+  }
+  return null;
+}
+
+/**
+ * Admin action: permanently removes a CUSTOMER account (Auth login, profile, favorites, addresses, sign-in codes).
+ * Staff and admin accounts are protected: the target's role is checked here, on the server, so the button being
+ * hidden in the app is not the only guard. Orders, bookings and chats are kept as business records. Refused while
+ * the customer has an order or booking still in progress, so nothing paid or shipping is left without an owner.
+ *
+ * The customer may be signed in meanwhile, and an ID token stays valid for up to an hour after the login is removed
+ * (rules and callables don't check revocation). So the order matters:
+ * 1. the login is disabled and its refresh tokens revoked (no new sessions or tokens);
+ * 2. the profile is deleted together with a `deletedAccounts/{uid}` marker. From then on firestore.rules (bookings,
+ *    favorites, addresses need the customer's profile; a profile can't be re-created under the marker) and the
+ *    payment functions (they read the profile's role) refuse anything the old token tries;
+ * 3. open work is checked again, which catches an order or booking created just before step 2. If there is any, the
+ *    profile is put back and the login re-enabled;
+ * 4. the rest is removed: favorites, addresses, sign-in codes and the login itself.
+ */
+export const deleteCustomerAccount = onCall(async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in again.');
+  if (TWO_STEP_SIGN_IN && req.auth.token.firebase?.sign_in_second_factor !== 'totp') {
+    throw new HttpsError('permission-denied', 'Sign in with your authenticator app first.');
+  }
+  const caller = await db.doc(`users/${req.auth.uid}`).get();
+  if (caller.get('role') !== 'admin') throw new HttpsError('permission-denied', 'Only admins can do this.');
+
+  const uid = typeof req.data?.uid === 'string' ? req.data.uid : '';
+  if (!uid) throw new HttpsError('invalid-argument', 'Missing account.');
+
+  const profileRef = db.doc(`users/${uid}`);
+  const markerRef = db.doc(`deletedAccounts/${uid}`);
+  const profile = await profileRef.get();
+  if (!profile.exists) throw new HttpsError('not-found', 'That account could not be found.');
+  if (profile.get('role') !== 'customer') {
+    throw new HttpsError('permission-denied', 'Staff and admin accounts are protected and cannot be removed.');
+  }
+  const blocked = await openWork(uid);
+  if (blocked) throw new HttpsError('failed-precondition', blocked);
+
+  const auth = getAuth();
+  const setLoginDisabled = async (disabled: boolean) => {
+    try {
+      await auth.updateUser(uid, { disabled });
+      if (disabled) await auth.revokeRefreshTokens(uid);
+    } catch (err) {
+      if ((err as { code?: string }).code !== 'auth/user-not-found') throw err;
+    }
+  };
+
+  try {
+    await setLoginDisabled(true);
+  } catch (err) {
+    logger.error('Customer account removal failed', { uid, err });
+    throw new HttpsError('unavailable', "The account couldn't be removed. Please try again.");
+  }
+
+  const data = profile.data()!;
+  await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(profileRef);
+    if (fresh.exists && fresh.get('role') !== 'customer') {
+      throw new HttpsError('permission-denied', 'Staff and admin accounts are protected and cannot be removed.');
+    }
+    tx.set(markerRef, { removedAt: FieldValue.serverTimestamp(), removedBy: req.auth!.uid });
+    tx.delete(profileRef);
+  }).catch(async (err) => {
+    await setLoginDisabled(false);
+    throw err;
+  });
+
+  const lateWork = await openWork(uid);
+  if (lateWork) {
+    const batch = db.batch();
+    batch.set(profileRef, data);
+    batch.delete(markerRef);
+    await batch.commit();
+    await setLoginDisabled(false);
+    throw new HttpsError('failed-precondition', lateWork);
+  }
+
+  // Favorites and addresses (the profile document itself is already gone).
+  await db.recursiveDelete(profileRef);
+  await db.doc(`loginCodes/${uid}`).delete();
+  try {
+    await auth.deleteUser(uid);
+  } catch (err) {
+    // The login is disabled and has no profile, so it can't be used; log it so it can be removed by hand.
+    if ((err as { code?: string }).code !== 'auth/user-not-found') {
+      logger.error('Customer login could not be deleted after its data was removed', { uid, err });
+    }
+  }
+  logger.info('Customer account removed', { uid, by: req.auth.uid });
   return { ok: true };
 });

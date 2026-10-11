@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 
@@ -23,14 +23,15 @@ const SLIDES: readonly Slide[] = [
   },
 ];
 
-const INTERVAL_MS = 5000;
+/** Mirrored by the 3s zoom and dot-fill animations in hero-slideshow.component.scss. */
+const INTERVAL_MS = 3000;
 /** Horizontal finger movement (px) that counts as a swipe. */
 const SWIPE_PX = 40;
 
 /**
- * The landing page's hero: IOTEL's welcome text next to an automatic image slideshow (every 5 s, crossfade), with
- * arrows, dots, keyboard arrows and swipe. Auto-advance pauses while the pointer is over it or focus is inside it,
- * and restarts its 5 s after every manual change.
+ * The landing page's hero: IOTEL's welcome text next to an automatic image slideshow (every 3 s, crossfade), with
+ * arrows, dots, keyboard arrows and swipe. It keeps sliding under the mouse and after clicks; it only pauses while
+ * keyboard focus is inside it (so keyboard users can stop it), and restarts its 3 s after every manual change.
  */
 @Component({
   selector: 'app-hero-slideshow',
@@ -43,14 +44,13 @@ const SWIPE_PX = 40;
 export class HeroSlideshowComponent {
   protected readonly slides = SLIDES;
   protected readonly current = signal(0);
-  protected readonly hovered = signal(false);
   protected readonly focused = signal(false);
-  protected readonly paused = computed(() => this.hovered() || this.focused());
+  protected readonly paused = this.focused.asReadonly();
 
   private touchStartX: number | null = null;
 
   constructor() {
-    // Re-armed whenever the slide changes or the pause state flips, so a manual change gets a full 5 s too.
+    // Re-armed whenever the slide changes or the pause state flips, so a manual change gets a full 3 s too.
     effect((onCleanup) => {
       this.current();
       if (this.paused()) return;
@@ -70,6 +70,11 @@ export class HeroSlideshowComponent {
 
   protected prev(): void {
     this.goTo(this.current() - 1);
+  }
+
+  /** Only keyboard focus pauses; a mouse click on an arrow or dot also focuses it but shouldn't stop the slideshow. */
+  protected onFocusIn(event: FocusEvent): void {
+    if ((event.target as HTMLElement).matches(':focus-visible')) this.focused.set(true);
   }
 
   protected onFocusOut(event: FocusEvent): void {

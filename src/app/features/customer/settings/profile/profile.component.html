@@ -37,30 +37,65 @@
   <!-- Form -->
   <form nz-form [nzLayout]="'vertical'" class="profile-form">
     <nz-form-item>
-      <nz-form-label>Full Name</nz-form-label>
-      <nz-form-control>
-        <input nz-input [ngModel]="name()" (ngModelChange)="name.set($event)" name="name" placeholder="Your full name" />
+      <nz-form-label nzRequired>Full Name</nz-form-label>
+      <nz-form-control
+        [nzValidateStatus]="submitted() && nameError() ? 'error' : ''"
+        [nzErrorTip]="submitted() ? (nameError() ?? '') : ''"
+      >
+        <input nz-input [ngModel]="name()" (ngModelChange)="name.set($event)" name="name" placeholder="Your full name" maxlength="60" autocomplete="name" />
       </nz-form-control>
     </nz-form-item>
 
     <nz-form-item>
       <nz-form-label>Email Address</nz-form-label>
-      <nz-form-control>
-        <input nz-input [ngModel]="email()" (ngModelChange)="email.set($event)" name="email" placeholder="your@email.com" type="email" />
+      <nz-form-control nzExtra="This is your sign-in email and can't be changed here.">
+        <input nz-input [ngModel]="email()" name="email" type="email" readonly />
       </nz-form-control>
     </nz-form-item>
 
     <nz-form-item>
       <nz-form-label>Phone Number</nz-form-label>
-      <nz-form-control>
-        <input nz-input [ngModel]="phone()" (ngModelChange)="phone.set($event)" name="phone" placeholder="+63 9XX XXX XXXX" />
+      <!-- A number still being typed is only flagged once it has all 11 digits or the user tries to save. -->
+      <nz-form-control
+        [nzValidateStatus]="phoneError() && (submitted() || phone().length >= 11) ? 'error' : ''"
+        [nzErrorTip]="phoneError() ?? ''"
+      >
+        <input nz-input appMobileInput [ngModel]="phone()" (ngModelChange)="phone.set($event)" name="phone" placeholder="09171234567" autocomplete="tel" />
       </nz-form-control>
     </nz-form-item>
 
+    <div class="form-row">
+      <nz-form-item class="form-col">
+        <nz-form-label>Gender</nz-form-label>
+        <nz-form-control>
+          <nz-select [ngModel]="gender()" (ngModelChange)="gender.set($event)" name="gender" nzPlaceHolder="Select gender" nzAllowClear>
+            @for (g of genders; track g.value) {
+              <nz-option [nzValue]="g.value" [nzLabel]="g.label"></nz-option>
+            }
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
+
+      <nz-form-item class="form-col">
+        <nz-form-label>Date of Birth</nz-form-label>
+        <nz-form-control>
+          <nz-date-picker
+            class="full-width"
+            [ngModel]="dateOfBirth()"
+            (ngModelChange)="dateOfBirth.set($event)"
+            name="dateOfBirth"
+            nzPlaceHolder="Select date"
+            nzFormat="MMM d, yyyy"
+            [nzDisabledDate]="disabledBirthDate"
+          />
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+
     <nz-form-item>
       <nz-form-label>Bio</nz-form-label>
-      <nz-form-control>
-        <textarea nz-input [ngModel]="bio()" (ngModelChange)="bio.set($event)" name="bio" placeholder="Tell us a little about yourself…" [nzAutosize]="{ minRows: 3, maxRows: 5 }"></textarea>
+      <nz-form-control [nzValidateStatus]="bioError() ? 'error' : ''" [nzErrorTip]="bioError() ?? ''">
+        <textarea nz-input [ngModel]="bio()" (ngModelChange)="bio.set($event)" name="bio" placeholder="Tell us a little about yourself…" [maxlength]="bioMaxLength" [nzAutosize]="{ minRows: 3, maxRows: 5 }"></textarea>
       </nz-form-control>
     </nz-form-item>
 

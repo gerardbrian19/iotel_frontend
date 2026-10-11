@@ -66,6 +66,17 @@ export class UserService {
     )({ uid });
   }
 
+  /**
+   * Permanently removes a customer account (login, profile, favorites, addresses). Runs in the `deleteCustomerAccount`
+   * Cloud Function, which refuses staff/admin accounts and customers with an order or booking in progress.
+   */
+  async deleteCustomerAccount(uid: string): Promise<void> {
+    await httpsCallable<{ uid: string }, { ok: boolean }>(
+      this.functions,
+      'deleteCustomerAccount',
+    )({ uid });
+  }
+
   updateRole(uid: string, role: UserRole): Promise<void> {
     return updateDoc(doc(this.db, 'users', uid), { role });
   }
