@@ -1,0 +1,11 @@
+<div class="category-tabs" role="group" aria-label="Filter by category">
+  @for (tab of tabs(); track tab.name) {
+    <button
+      type="button"
+      class="cat-tab"
+      [class.active]="selected() === tab.name"
+      [attr.aria-pressed]="selected() === tab.name"
+      (click)="selected.set(tab.name)"
+    >{{ tab.name }}<span class="cat-count">{{ tab.count }}</span></button>
+  }
+</div>

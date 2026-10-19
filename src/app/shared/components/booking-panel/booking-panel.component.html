@@ -11,8 +11,11 @@
       <nz-tag [nzColor]="status().color">{{ status().label }}</nz-tag>
       @if (booking().quote; as quote) {
         <span class="bp-amount">{{ quote.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</span>
-      } @else {
+      } @else if (booking().servicePrice > 0) {
         <span class="bp-amount bp-from">From {{ booking().servicePrice | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
+      } @else {
+        <!-- A "Request a Quotation" service has no published price. -->
+        <span class="bp-amount bp-from">Price on quotation</span>
       }
     </div>
   </div>

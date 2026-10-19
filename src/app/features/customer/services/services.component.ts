@@ -8,7 +8,6 @@ import {
   linkedSignal,
   signal,
 } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -27,6 +26,7 @@ import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { BOOKING_NOTES_MIN, BookingService, bookingErrorMessage } from '../../../core/services/booking.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Service } from '../../../core/models';
+import { servicePriceLabel, serviceShortPrice } from '../../../core/booking/service-view';
 import { BookingPanelComponent } from '../../../shared/components/booking-panel/booking-panel.component';
 import { SlotPickerComponent } from '../../../shared/components/slot-picker/slot-picker.component';
 import { MobileInputDirective } from '../../../shared/directives/mobile-input.directive';
@@ -43,7 +43,7 @@ import {
   selector: 'app-services',
   standalone: true,
   imports: [
-    CurrencyPipe, ReactiveFormsModule, MobileInputDirective,
+    ReactiveFormsModule, MobileInputDirective,
     NzCardModule, NzButtonModule, NzIconModule, NzModalModule, NzTabsModule,
     NzFormModule, NzInputModule, NzSelectModule, NzEmptyModule, NzSpinModule, NzAlertModule,
     BookingPanelComponent, SlotPickerComponent,
@@ -76,7 +76,10 @@ export class ServicesComponent {
       : { type: 'warning' as const, text: 'The payment was not completed. You can pay again from the booking below.' };
   });
 
-  readonly services = this.bookingService.services;
+  /** Only active services can be booked. */
+  readonly services = this.bookingService.activeServices;
+  readonly priceLabel = servicePriceLabel;
+  readonly shortPrice = serviceShortPrice;
   readonly loading = this.bookingService.loading;
   readonly loadFailed = this.bookingService.error;
   readonly modalVisible = signal(false);

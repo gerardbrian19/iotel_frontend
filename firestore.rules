@@ -282,14 +282,32 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
-    // Bookable services (seeded with `npm run seed:services`). Any signed-in user can read them; admins manage them.
+    // A service as written by ServiceInput (booking.service.ts `toServiceDocument`). The fields after `description`
+    // were added later, so older documents may lack them; when present they must be valid.
+    function validService(svc) {
+      return svc.keys().hasOnly(['title', 'price', 'description', 'category', 'pricing', 'duration', 'isActive',
+          'imageUrl'])
+        && shortText(svc.title, 100)
+        // Mirrors SERVICE_MAX_PRICE (service.model.ts). Infinity and NaN fail these comparisons.
+        && svc.price is number && svc.price >= 0 && svc.price <= 10000000
+        // A quotation-only service publishes no price (a missing `pricing` means 'starting').
+        && (svc.get('pricing', 'starting') != 'quote' || svc.price == 0)
+        && shortText(svc.description, 500)
+        && (!('category' in svc) || (svc.category is string && svc.category.size() <= 60))
+        && (!('pricing' in svc) || svc.pricing in ['fixed', 'starting', 'quote'])
+        && (!('duration' in svc) || (svc.duration is string && svc.duration.size() <= 60))
+        && (!('isActive' in svc) || svc.isActive is bool)
+        && (!('imageUrl' in svc) || (svc.imageUrl is string && svc.imageUrl.size() <= 500));
+    }
+
+    // Bookable services (seeded with `npm run seed:services`). Any signed-in user can read them (the app shows
+    // customers only active ones); staff and admins create and edit them. Services are never deleted from the client:
+    // rules can't check whether bookings refer to one, so a service is retired by setting `isActive: false`
+    // (validNewBooking then refuses new bookings for it). Bookings keep their own copy of the service's name and price.
     match /services/{serviceId} {
       allow read: if signedIn();
-      allow create, update: if isAdmin()
-        && shortText(request.resource.data.title, 100)
-        && request.resource.data.price is number && request.resource.data.price >= 0
-        && request.resource.data.description is string && request.resource.data.description.size() <= 500;
-      allow delete: if isAdmin();
+      allow create, update: if isStaffOrAdmin() && validService(request.resource.data);
+      allow delete: if false;
     }
 
     // One document per taken slot, id = `{date}T{HH:mm}`. It is created and deleted in the same batch as the booking
@@ -347,6 +365,9 @@ service cloud.firestore {
         && shortText(booking.serviceId, 100)
         && shortText(booking.serviceName, 100)
         && booking.servicePrice is number && booking.servicePrice >= 0
+        // Only an existing, active service can be booked (a missing `isActive` means active).
+        && exists(/databases/$(database)/documents/services/$(booking.serviceId))
+        && get(/databases/$(database)/documents/services/$(booking.serviceId)).data.get('isActive', true) == true
         && shortText(booking.customerName, 60)
         && shortText(booking.customerEmail, 100)
         && validMobile(booking.customerMobile)

@@ -6,7 +6,8 @@
     </nz-input-group>
     <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
   </div>
-  <nz-table [nzData]="filtered()" nzSize="middle" [nzPageSize]="20">
+  <app-category-filter class="mb-4" [products]="searched()" [(selected)]="categoryFilter" />
+  <nz-table [nzData]="filtered()" nzSize="middle" [nzFrontPagination]="false" [nzShowPagination]="false">
     <thead><tr>
       <th>Product</th><th>Category</th><th>Stock</th><th>Status</th>
     </tr></thead>

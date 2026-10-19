@@ -12,13 +12,16 @@ import { NzStatisticModule } from 'ng-zorro-antd/statistic';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { ProductService } from '../../../core/services/product.service';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
+import {
+  CategoryFilter, CategoryFilterComponent, filterByCategory,
+} from '../../../shared/components/category-filter/category-filter.component';
 
 type StockFilter = 'All' | 'Low Stock' | 'Out of Stock';
 
 @Component({
   selector: 'app-admin-inventory',
   standalone: true,
-  imports: [FormsModule, NzTableModule, NzTagModule, NzButtonModule, NzInputModule, NzIconModule, NzSelectModule, NzInputNumberModule, NzStatisticModule, NzCardModule],
+  imports: [FormsModule, NzTableModule, NzTagModule, NzButtonModule, NzInputModule, NzIconModule, NzSelectModule, NzInputNumberModule, NzStatisticModule, NzCardModule, CategoryFilterComponent],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,11 +34,13 @@ export class AdminInventoryComponent {
   readonly onImageError = onImageError;
   readonly search = signal('');
   readonly stockFilter = signal<StockFilter>('All');
+  readonly categoryFilter = signal<CategoryFilter>('All');
   readonly editingStock = signal<Record<string, number | null | undefined>>({});
 
   readonly products = this.productService.products;
 
-  readonly filtered = computed(() => {
+  /** Products matching the search and stock filter; the category tabs count these. */
+  readonly matching = computed(() => {
     let list = this.products();
     const sf = this.stockFilter();
     const q = this.search().toLowerCase();
@@ -44,6 +49,8 @@ export class AdminInventoryComponent {
     if (q) list = list.filter(p => `${p.name} ${p.brand} ${p.model}`.toLowerCase().includes(q));
     return list;
   });
+
+  readonly filtered = computed(() => filterByCategory(this.matching(), this.categoryFilter()));
 
   readonly totalSKUs = computed(() => this.products().length);
   readonly lowStockCount = computed(() => this.products().filter(p => p.stock > 0 && p.stock <= 5).length);

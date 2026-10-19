@@ -1,13 +1,47 @@
 import { Payment } from './payment.model';
 
-/** A bookable service. `id` is the `services/{id}` document id (a slug). */
+/**
+ * How a service's price is shown. Staff always quote the final amount after the customer describes the job.
+ * fixed    – `price` is the price.
+ * starting – `price` is the lowest it costs ("Starting at"). Documents without `pricing` are read as this.
+ * quote    – no price is published; `price` is stored as 0.
+ */
+export const SERVICE_PRICING = ['fixed', 'starting', 'quote'] as const;
+export type ServicePricing = (typeof SERVICE_PRICING)[number];
+
+/** Highest service price in PHP. Mirrored in firestore.rules (`validService`). */
+export const SERVICE_MAX_PRICE = 10_000_000;
+
+export const SERVICE_PRICING_LABELS: Record<ServicePricing, string> = {
+  fixed: 'Fixed Price',
+  starting: 'Starting Price',
+  quote: 'Request a Quotation',
+};
+
+/**
+ * A bookable service. `id` is the `services/{id}` document id (a slug for seeded ones, an auto id otherwise).
+ * Fields added after the first seed (`category`, `pricing`, `duration`, `isActive`, `imageUrl`) may be missing
+ * from older documents; `toService` fills in the defaults.
+ */
 export interface Service {
   id: string;
   title: string;
-  /** Starting price in PHP; the final amount is quoted by staff after the customer describes the job. */
+  /** Price in PHP, read according to `pricing` (0 when `pricing` is 'quote'). */
   price: number;
   description: string;
+  /** Free-text service type, e.g. "Repair"; empty when not set. */
+  category: string;
+  pricing: ServicePricing;
+  /** Estimated duration or completion time as text, e.g. "1–2 hours"; empty when not set. */
+  duration: string;
+  /** Inactive services stay in Firestore (and in old bookings) but can't be booked. */
+  isActive: boolean;
+  /** A site image (`/images/…`) or web address; empty when not set. */
+  imageUrl: string;
 }
+
+/** What admins and staff write to a `services/{id}` document. */
+export type ServiceInput = Omit<Service, 'id'>;
 
 /**
  * Pending    – submitted by the customer, waiting for staff to discuss and quote.

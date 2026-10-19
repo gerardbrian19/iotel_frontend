@@ -3,22 +3,26 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
   WriteBatch,
+  addDoc,
   collection,
   doc,
   onSnapshot,
   query,
   serverTimestamp,
+  updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { Observable, defer, from } from 'rxjs';
+import { Observable, defer, from, map } from 'rxjs';
 import { formatSlot, slotId, toDateKey } from '../booking/schedule';
 import { functionErrorMessage } from '../firebase/auth-errors';
 import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { dataOf, isoOf } from '../firebase/timestamps';
 import { MIN_CHECKOUT_AMOUNT, toPayment } from '../payments/payment-methods';
-import { Booking, BookingStatus, Service } from '../models';
+import {
+  Booking, BookingStatus, SERVICE_PRICING, Service, ServiceInput, ServicePricing,
+} from '../models';
 import { normalizeMobile } from '../../shared/utils/validators';
 import { AuthService } from './auth.service';
 import { MessageService } from './message.service';
@@ -62,11 +66,32 @@ export interface NewBooking {
 }
 
 export function toService(id: string, data: DocumentData): Service {
+  const pricing = data['pricing'];
   return {
     id,
     title: String(data['title'] ?? id),
     price: Number(data['price']) || 0,
     description: String(data['description'] ?? ''),
+    category: String(data['category'] ?? ''),
+    // Older documents have no `pricing`; their `price` was always a starting price.
+    pricing: (SERVICE_PRICING as readonly string[]).includes(pricing) ? (pricing as ServicePricing) : 'starting',
+    duration: String(data['duration'] ?? ''),
+    isActive: data['isActive'] !== false,
+    imageUrl: String(data['imageUrl'] ?? ''),
+  };
+}
+
+/** The document written for a service (firestore.rules `validService`). A quotation-only service stores price 0. */
+function toServiceDocument(input: ServiceInput): DocumentData {
+  return {
+    title: input.title.trim(),
+    description: input.description.trim(),
+    category: input.category.trim(),
+    pricing: input.pricing,
+    price: input.pricing === 'quote' ? 0 : Math.max(0, input.price),
+    duration: input.duration.trim(),
+    isActive: input.isActive,
+    imageUrl: input.imageUrl.trim(),
   };
 }
 
@@ -145,7 +170,16 @@ export class BookingService {
   private readonly _loading = signal(false);
   private readonly _error = signal(false);
 
+  /** Every service, active or not (admins and staff manage these). */
   readonly services = this._services.asReadonly();
+  /** What customers can see and book. */
+  readonly activeServices = computed(() => this._services().filter((s) => s.isActive));
+  /** Number of loaded bookings (any status) per service id. Staff and admins load every booking. */
+  readonly bookingCountByService = computed(() => {
+    const counts = new Map<string, number>();
+    for (const b of this._bookings()) counts.set(b.serviceId, (counts.get(b.serviceId) ?? 0) + 1);
+    return counts;
+  });
   /** Newest first. Customers get their own bookings, staff and admins all of them. */
   readonly bookings = this._bookings.asReadonly();
   readonly byId = computed(() => new Map(this._bookings().map((b) => [b.id, b])));
@@ -216,6 +250,9 @@ export class BookingService {
   create(input: NewBooking): Observable<{ bookingId: string; conversationId: string }> {
     return this.commit((batch) => {
       const user = this.requireUser();
+      if (!input.service.isActive) {
+        throw new Error('This service is no longer available. Please pick another one.');
+      }
       if (this._takenSlots().has(slotId(input.preferredDate, input.preferredTime))) {
         throw new Error('That time slot has just been booked. Please pick another one.');
       }
@@ -404,6 +441,24 @@ export class BookingService {
     const current = this.current(booking).status;
     if (!allowed.includes(current))
       throw new Error(`This booking is already ${current.toLowerCase()}.`);
+  }
+
+  // ─── service catalog (admins and staff; firestore.rules `match /services`) ───
+
+  addService(input: ServiceInput): Observable<string> {
+    return defer(() => addDoc(collection(this.db, SERVICES), toServiceDocument(input))).pipe(
+      map((ref) => ref.id),
+    );
+  }
+
+  /** Updates the service in place, so its id (and every booking's `serviceId`) stays the same. */
+  updateService(id: string, input: ServiceInput): Observable<void> {
+    return defer(() => updateDoc(doc(this.db, SERVICES, id), toServiceDocument(input)));
+  }
+
+  /** Services are retired this way, never deleted (firestore.rules denies deletes). */
+  setServiceActive(id: string, isActive: boolean): Observable<void> {
+    return defer(() => updateDoc(doc(this.db, SERVICES, id), { isActive }));
   }
 
   private requireUser() {

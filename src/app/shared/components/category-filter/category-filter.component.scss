@@ -1,0 +1,49 @@
+:host { display: block; }
+
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cat-tab {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid #D9D9D9;
+  background: #FFFFFF;
+  color: #1A1A1A;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #CC2020;
+    color: #CC2020;
+  }
+
+  &.active {
+    background: #CC2020;
+    border-color: #CC2020;
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+}
+
+.cat-count {
+  margin-left: 6px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+@media (max-width: 640px) {
+  .category-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+}

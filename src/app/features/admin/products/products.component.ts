@@ -17,6 +17,9 @@ import { Observable } from 'rxjs';
 import { ProductService } from '../../../core/services/product.service';
 import { PRODUCT_CATEGORIES, Product, ProductCategory } from '../../../core/models';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
+import {
+  CategoryFilter, CategoryFilterComponent, filterByCategory,
+} from '../../../shared/components/category-filter/category-filter.component';
 import { requiredTrimmed } from '../../../shared/utils/validators';
 
 /** A site image (`/images/…`) or a web address. */
@@ -29,6 +32,7 @@ const IMAGE_URL_RE = /^(\/\S+|https?:\/\/\S+)$/i;
     CurrencyPipe, FormsModule, ReactiveFormsModule,
     NzTableModule, NzTagModule, NzButtonModule, NzInputModule, NzIconModule,
     NzSelectModule, NzModalModule, NzFormModule, NzSwitchModule, NzInputNumberModule, NzAlertModule,
+    CategoryFilterComponent,
   ],
   templateUrl: './products.component.html',
   styleUrl: './products.component.scss',
@@ -44,7 +48,7 @@ export class AdminProductsComponent {
   readonly placeholder = PLACEHOLDER_IMAGE;
   readonly onImageError = onImageError;
   readonly search = signal('');
-  readonly categoryFilter = signal<ProductCategory | 'All'>('All');
+  readonly categoryFilter = signal<CategoryFilter>('All');
   readonly modalVisible = signal(false);
   readonly editingId = signal<string | null>(null);
   readonly saving = signal(false);
@@ -66,14 +70,14 @@ export class AdminProductsComponent {
   readonly loading = this.productService.loading;
   readonly error = this.productService.error;
 
-  readonly filtered = computed(() => {
-    let list = this.products();
-    const cat = this.categoryFilter();
+  /** Products matching the search; the category tabs count these. */
+  readonly searched = computed(() => {
     const q = this.search().toLowerCase();
-    if (cat !== 'All') list = list.filter(p => p.category === cat);
-    if (q) list = list.filter(p => `${p.name} ${p.brand} ${p.model}`.toLowerCase().includes(q));
-    return list;
+    const list = this.products();
+    return q ? list.filter(p => `${p.name} ${p.brand} ${p.model}`.toLowerCase().includes(q)) : list;
   });
+
+  readonly filtered = computed(() => filterByCategory(this.searched(), this.categoryFilter()));
 
   openAdd() {
     this.editingId.set(null);

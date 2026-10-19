@@ -7,11 +7,16 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { ProductService } from '../../../core/services/product.service';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
+import {
+  CategoryFilter, CategoryFilterComponent, filterByCategory,
+} from '../../../shared/components/category-filter/category-filter.component';
 
 @Component({
   selector: 'app-staff-inventory',
   standalone: true,
-  imports: [FormsModule, NzTableModule, NzTagModule, NzInputModule, NzIconModule, NzSelectModule],
+  imports: [
+    FormsModule, NzTableModule, NzTagModule, NzInputModule, NzIconModule, NzSelectModule, CategoryFilterComponent,
+  ],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,12 +27,16 @@ export class StaffInventoryComponent {
   readonly placeholder = PLACEHOLDER_IMAGE;
   readonly onImageError = onImageError;
   readonly search = signal('');
+  readonly categoryFilter = signal<CategoryFilter>('All');
   readonly products = this.productService.products;
 
-  readonly filtered = computed(() => {
+  /** Products matching the search; the category tabs count these. */
+  readonly searched = computed(() => {
     const q = this.search().toLowerCase();
     return q ? this.products().filter(p => `${p.name} ${p.brand} ${p.model}`.toLowerCase().includes(q)) : this.products();
   });
+
+  readonly filtered = computed(() => filterByCategory(this.searched(), this.categoryFilter()));
 
   stockLevel(stock: number): { label: string; color: string } {
     if (stock === 0) return { label: 'Out of Stock', color: 'error' };

@@ -44,7 +44,7 @@ export class AssistantService {
     return answer(text, {
       firstName: this.firstName(),
       products: this.products.activeProducts(),
-      services: this.bookings.services(),
+      services: this.bookings.activeServices(),
       bookings: this.bookings.bookings(),
       takenSlots: this.bookings.takenSlots(),
       orders: this.orders.orders().filter((o) => o.customerId === uid),

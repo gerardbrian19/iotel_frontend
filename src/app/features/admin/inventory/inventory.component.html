@@ -20,7 +20,9 @@
     </nz-select>
   </div>
 
-  <nz-table [nzData]="filtered()" nzSize="middle" [nzPageSize]="15">
+  <app-category-filter class="mb-4" [products]="matching()" [(selected)]="categoryFilter" />
+
+  <nz-table [nzData]="filtered()" nzSize="middle" [nzFrontPagination]="false" [nzShowPagination]="false">
     <thead><tr>
       <th>Product</th><th>Category</th><th>Current Stock</th><th>Status</th><th>Adjust Stock</th>
     </tr></thead>

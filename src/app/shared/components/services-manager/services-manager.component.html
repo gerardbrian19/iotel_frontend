@@ -1,0 +1,122 @@
+<div class="page-wrap">
+  <div class="page-header">
+    <h1 class="page-title">Services</h1>
+    <button nz-button nzType="primary" class="add-btn" (click)="openAdd()">
+      <span nz-icon nzType="plus"></span> Add Service
+    </button>
+  </div>
+
+  <div class="filters-bar">
+    <nz-input-group [nzPrefix]="searchIcon" class="search-input">
+      <input nz-input placeholder="Search services..." [ngModel]="search()" (ngModelChange)="search.set($event)" />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+    <nz-select [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)" class="filter-select">
+      <nz-option nzValue="All" nzLabel="All Categories"></nz-option>
+      @for (cat of categories(); track cat) {
+        <nz-option [nzValue]="cat" [nzLabel]="cat"></nz-option>
+      }
+    </nz-select>
+    <nz-select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)" class="filter-select">
+      <nz-option nzValue="All" nzLabel="All Statuses"></nz-option>
+      <nz-option nzValue="Active" nzLabel="Active"></nz-option>
+      <nz-option nzValue="Inactive" nzLabel="Inactive"></nz-option>
+    </nz-select>
+  </div>
+
+  @if (bookingsFailed()) {
+    <nz-alert nzType="warning" nzShowIcon class="mb-4"
+      nzMessage="Bookings could not be loaded"
+      nzDescription="Services can still be edited; the Bookings column may show 0 until bookings load." />
+  }
+
+  <nz-table [nzData]="filtered()" nzSize="middle" [nzFrontPagination]="false" [nzShowPagination]="false" [nzScroll]="{ x: '960px' }">
+    <thead><tr>
+      <th>Image</th><th>Service</th><th>Category</th><th>Price</th><th>Duration</th><th>Bookings</th>
+      <th>Active</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+      @for (s of filtered(); track s.id) {
+        <tr>
+          <td><img [src]="s.imageUrl || placeholder" [alt]="s.title" class="svc-thumb" (error)="onImageError($event)" /></td>
+          <td>
+            <strong>{{ s.title }}</strong>
+            <div class="svc-desc">{{ s.description }}</div>
+          </td>
+          <td>@if (s.category) { <nz-tag>{{ s.category }}</nz-tag> } @else { — }</td>
+          <td class="nowrap">{{ priceLabel(s) }}</td>
+          <td>{{ s.duration || '—' }}</td>
+          <td>{{ bookingCounts().get(s.id) ?? 0 }}</td>
+          <td>
+            <nz-switch [ngModel]="s.isActive" (ngModelChange)="setActive(s, $event)" nzCheckedChildren="Yes" nzUnCheckedChildren="No"
+              [attr.aria-label]="(s.isActive ? 'Deactivate ' : 'Activate ') + s.title" />
+          </td>
+          <td>
+            <div class="action-row">
+              <button nz-button nzSize="small" (click)="openEdit(s)">
+                <span nz-icon nzType="edit"></span> Edit
+              </button>
+            </div>
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="8" class="empty-cell">{{ services().length ? 'No services match your filters.' : 'No services yet.' }}</td></tr>
+      }
+    </tbody>
+  </nz-table>
+</div>
+
+<nz-modal [(nzVisible)]="modalVisible" [nzTitle]="editingId() ? 'Edit Service' : 'Add Service'" [nzFooter]="null" nzWidth="600px">
+  <ng-container *nzModalContent>
+    <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="save()">
+      <nz-form-item>
+        <nz-form-label nzRequired>Service name</nz-form-label>
+        <nz-form-control nzErrorTip="Enter the service name (up to 100 characters)."><input nz-input formControlName="title" maxlength="100" /></nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzRequired>Description</nz-form-label>
+        <nz-form-control nzErrorTip="Enter a description (up to 500 characters)."><textarea nz-input formControlName="description" rows="3" maxlength="500"></textarea></nz-form-control>
+      </nz-form-item>
+      <div class="form-row">
+        <nz-form-item class="flex-1">
+          <nz-form-label>Category</nz-form-label>
+          <nz-form-control nzExtra="e.g. Repair, Installation, Consultation"><input nz-input formControlName="category" maxlength="60" /></nz-form-control>
+        </nz-form-item>
+        <nz-form-item class="flex-1">
+          <nz-form-label>Estimated duration</nz-form-label>
+          <nz-form-control nzExtra="e.g. 1–2 hours, 3 days"><input nz-input formControlName="duration" maxlength="60" /></nz-form-control>
+        </nz-form-item>
+      </div>
+      <div class="form-row">
+        <nz-form-item class="flex-1">
+          <nz-form-label nzRequired>Pricing</nz-form-label>
+          <nz-form-control>
+            <nz-select formControlName="pricing">
+              @for (opt of pricingOptions; track opt.value) {
+                <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+              }
+            </nz-select>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item class="flex-1">
+          <nz-form-label [nzRequired]="form.controls.price.enabled">Price (₱)</nz-form-label>
+          <nz-form-control nzErrorTip="Enter a price from ₱0 to ₱10,000,000." [nzExtra]="form.controls.price.enabled ? '' : 'No price is shown; staff quote each job.'">
+            <nz-input-number formControlName="price" [nzMin]="0" [nzMax]="maxPrice" [nzPrecision]="2" style="width:100%" />
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item class="active-item">
+          <nz-form-label>Active</nz-form-label>
+          <nz-form-control><nz-switch formControlName="isActive" /></nz-form-control>
+        </nz-form-item>
+      </div>
+      <nz-form-item>
+        <nz-form-label>Image URL</nz-form-label>
+        <nz-form-control nzErrorTip="Use a site image like /images/repair.png or a web address (https://…)."><input nz-input formControlName="imageUrl" placeholder="/images/…" /></nz-form-control>
+      </nz-form-item>
+      <div class="modal-footer">
+        <button nz-button type="button" (click)="modalVisible.set(false)">Cancel</button>
+        <button nz-button nzType="primary" type="submit" class="save-btn" [nzLoading]="saving()">{{ editingId() ? 'Update' : 'Add Service' }}</button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>

@@ -14,6 +14,7 @@ import {
   slotId,
   toDateKey,
 } from '../booking/schedule';
+import { servicePriceLabel, serviceShortPrice } from '../booking/service-view';
 import {
   ACTIVE_BOOKING_STATUSES,
   Booking,
@@ -562,7 +563,7 @@ function findService(q: string, services: readonly Service[]): Service | undefin
 
 function serviceDetailReply(service: Service): AssistantReply {
   return {
-    text: `${service.title}: ${service.description}\n\nStarting at ${peso(service.price)}. Staff quote the final amount after you describe the job, and you only pay once you agree to it.`,
+    text: `${service.title}: ${service.description}\n\n${servicePriceLabel(service)}. Staff quote the final amount after you describe the job, and you only pay once you agree to it.`,
     links: [{ label: 'Book this service', url: '/customer/services' }],
     followUps: [
       'When is the next available slot?',
@@ -581,7 +582,7 @@ function servicesReply(ctx: AssistantContext): AssistantReply {
   }
   return {
     text: `We offer ${plural(ctx.services.length, 'service')}:\n${bullets(
-      ctx.services.map((s) => `${s.title}: from ${peso(s.price)}`),
+      ctx.services.map((s) => `${s.title}: ${serviceShortPrice(s)}`),
     )}\n\nPrices are starting prices. Staff quote the final amount after you describe the job.`,
     links: [{ label: 'Book a service', url: '/customer/services' }],
     followUps: [

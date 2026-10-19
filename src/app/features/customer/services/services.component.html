@@ -20,11 +20,18 @@
           <div class="services-grid">
             @for (svc of services(); track svc.id) {
               <nz-card class="svc-card">
-                <div class="svc-icon">🔧</div>
+                @if (svc.imageUrl) {
+                  <img class="svc-image" [src]="svc.imageUrl" [alt]="svc.title" loading="lazy" />
+                } @else {
+                  <div class="svc-icon">🔧</div>
+                }
                 <h3 class="svc-title">{{ svc.title }}</h3>
+                @if (svc.category || svc.duration) {
+                  <p class="svc-meta">{{ svc.category }}{{ svc.category && svc.duration ? ' · ' : '' }}{{ svc.duration ? 'About ' + svc.duration : '' }}</p>
+                }
                 <p class="svc-desc">{{ svc.description }}</p>
                 <div class="svc-footer">
-                  <span class="svc-price">Starting at {{ svc.price | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
+                  <span class="svc-price">{{ priceLabel(svc) }}</span>
                   <button nz-button nzType="primary" class="book-btn" (click)="openBooking(svc)">Book Now</button>
                 </div>
               </nz-card>
@@ -96,7 +103,7 @@
         <nz-form-control nzErrorTip="Choose a service.">
           <nz-select formControlName="serviceId" nzPlaceHolder="Select a service" nzSize="large">
             @for (svc of services(); track svc.id) {
-              <nz-option [nzValue]="svc.id" [nzLabel]="svc.title + ' (from ₱' + svc.price.toLocaleString() + ')'"></nz-option>
+              <nz-option [nzValue]="svc.id" [nzLabel]="svc.title + ' (' + shortPrice(svc) + ')'"></nz-option>
             }
           </nz-select>
         </nz-form-control>

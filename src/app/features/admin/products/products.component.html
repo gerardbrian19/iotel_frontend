@@ -11,19 +11,15 @@
       <input nz-input placeholder="Search products..." [ngModel]="search()" (ngModelChange)="search.set($event)" />
     </nz-input-group>
     <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
-    <nz-select [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)" style="width: 180px">
-      <nz-option nzValue="All" nzLabel="All Categories"></nz-option>
-      @for (cat of categories; track cat) {
-        <nz-option [nzValue]="cat" [nzLabel]="cat"></nz-option>
-      }
-    </nz-select>
   </div>
+
+  <app-category-filter class="mb-4" [products]="searched()" [(selected)]="categoryFilter" />
 
   @if (error(); as message) {
     <nz-alert nzType="error" nzShowIcon nzMessage="Could not load products" [nzDescription]="message" class="mb-4" />
   }
 
-  <nz-table [nzData]="filtered()" nzSize="middle" [nzPageSize]="10" [nzLoading]="loading()">
+  <nz-table [nzData]="filtered()" nzSize="middle" [nzFrontPagination]="false" [nzShowPagination]="false" [nzLoading]="loading()">
     <thead><tr>
       <th>Image</th><th>Name</th><th>Category</th><th>Price</th>
       <th>Stock</th><th>Active</th><th>Actions</th>
