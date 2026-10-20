@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Firebase Storage: transfer proofs and the QR codes of the accounts customers pay into (docs/manual-payments.md).
+// The session checks mirror firestore.rules (two-step sign-in, staff/admins with an authenticator app).
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Mirrors twoStepSignIn() in firestore.rules (and TWO_STEP_SIGN_IN in the app and functions).
+    function twoStepSignIn() {
+      return true;
+    }
+
+    function hasTotp() {
+      return request.auth.token.firebase.get('sign_in_second_factor', null) == 'totp';
+    }
+
+    function signedIn() {
+      return request.auth != null
+        && (!twoStepSignIn()
+          || request.auth.token.get('otpAuthTime', -1) == request.auth.token.auth_time
+          || hasTotp());
+    }
+
+    function role() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isStaffOrAdmin() {
+      return signedIn() && (!twoStepSignIn() || hasTotp()) && role() in ['staff', 'admin'];
+    }
+
+    function isAdmin() {
+      return signedIn() && (!twoStepSignIn() || hasTotp()) && role() == 'admin';
+    }
+
+    function image(maxBytes) {
+      return request.resource.contentType.matches('image/(jpeg|png|webp)') && request.resource.size < maxBytes;
+    }
+
+    // `paymentProofs/{uid}/{order|booking}-{id}/{file}`: the screenshot of a transfer, uploaded by the customer before
+    // submitManualPayment checks it. Only they and staff/admins can see it, and nobody replaces or deletes it from the
+    // app. Mirrors MAX_PROOF_BYTES (5 MB) in the app and functions.
+    match /paymentProofs/{uid}/{folder}/{file} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaffOrAdmin());
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && folder.matches('^(order|booking)-[^/]+$')
+        && image(5 * 1024 * 1024);
+      allow update, delete: if false;
+    }
+
+    // `paymentReceivers/{receiverId}/{file}`: a GCash or bank QR code that customers scan. Admins only.
+    match /paymentReceivers/{receiverId}/{file} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin() && image(2 * 1024 * 1024);
+      allow delete: if isAdmin();
+    }
+  }
+}

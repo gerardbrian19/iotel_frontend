@@ -403,7 +403,16 @@ function nextStep(b: Booking): string {
     case 'Pending':
       return 'Requested. Staff are reviewing it and will chat with you and send a quote.';
     case 'Confirmed':
-      return `Quote ready${b.quote ? `: ${peso(b.quote.amount)}` : ''}. Pay it through PayMongo in My Bookings to confirm your booking.`;
+      if (b.payment?.provider === 'onsite' && b.payment.status === 'Unpaid') {
+        return `Booked${b.quote ? `: ${peso(b.quote.amount)}` : ''}, to be paid on site at your appointment.`;
+      }
+      if (b.payment?.manual?.state === 'submitted') {
+        return 'We received your bank / GCash transfer and are checking it. Your booking is confirmed once it is verified.';
+      }
+      if (b.payment?.manual?.state === 'rejected') {
+        return `We couldn't verify your transfer: ${b.payment.manual.rejectReason ?? ''} Please send it again in My Bookings.`;
+      }
+      return `Quote ready${b.quote ? `: ${peso(b.quote.amount)}` : ''}. Pay it in My Bookings (online or by bank / GCash transfer${b.quote?.allowOnsite ? ', or choose to pay on site' : ''}) to confirm your booking.`;
     case 'Paid':
       return 'Payment received. Your booking is confirmed.';
     case 'Completed':
@@ -526,8 +535,12 @@ function bookingPaymentReply(ctx: AssistantContext): AssistantReply {
     : '';
   return {
     text:
-      "Once staff send your quotation, press Pay in My Bookings. You pay on PayMongo's secure page with GCash, Maya, a credit or debit card, GrabPay or QR Ph, " +
-      'and your booking is confirmed as soon as the payment goes through.' +
+      'Once staff send your quotation, open My Bookings and choose how to pay:\n' +
+      bullets([
+        "Pay online on PayMongo's secure page (GCash, Maya, credit or debit card, GrabPay or QR Ph); confirmed as soon as it goes through",
+        'Bank / GCash transfer to our account, then upload the screenshot and reference number; confirmed once our team checks it',
+        'Pay on site at your appointment, when staff allow it on the quotation',
+      ]) +
       personal,
     links: [MY_BOOKINGS],
     followUps: ["What's the status of my bookings?", 'How do I cancel a booking?'],
@@ -602,7 +615,7 @@ function howToBookReply(): AssistantReply {
         'Choose a date and an open time slot',
         'Describe the problem so staff can prepare',
         'Staff chat with you and send a quote',
-        'Pay the quote through PayMongo (GCash, Maya, card and more)',
+        'Pay the quote online, by bank / GCash transfer, or on site if allowed',
       ]) +
       `\n\n${hoursText()}`,
     links: [{ label: 'Book a service', url: '/customer/services' }],
@@ -1037,9 +1050,9 @@ function shippingReply(ctx: AssistantContext): AssistantReply {
 function orderPaymentReply(): AssistantReply {
   return {
     text:
-      "All payments go through PayMongo's secure checkout: GCash, Maya, credit or debit card, GrabPay or QR Ph. " +
-      'Your order is confirmed as soon as the payment goes through; unpaid orders are cancelled after an hour. We do not offer Cash on Delivery.\n\n' +
-      'Service bookings work the same way, after staff confirm and quote the job.',
+      "Pay online through PayMongo's secure checkout (GCash, Maya, credit or debit card, GrabPay or QR Ph): your order is confirmed as soon as the payment goes through, and unpaid online orders are cancelled after an hour.\n\n" +
+      'Or, when it is offered at checkout, pay by bank or GCash transfer: send the amount to our account, then upload the screenshot and reference number on your order. We confirm it once our team has checked the transfer. We do not offer Cash on Delivery.\n\n' +
+      'Service bookings can be paid the same ways after staff quote the job, and some can be paid on site.',
     links: [{ label: 'Go to cart', url: '/customer/cart' }],
     followUps: ['How much is shipping?', 'How do I pay for my booking?'],
   };
@@ -1071,7 +1084,7 @@ function cartReply(ctx: AssistantContext): AssistantReply {
 function checkoutReply(ctx: AssistantContext): AssistantReply {
   return {
     text:
-      "To check out: add items to your cart, open the cart, then Checkout. Pick a saved shipping address (or add one) and press Pay. You finish on PayMongo's secure page (GCash, Maya, card, GrabPay or QR Ph)." +
+      "To check out: add items to your cart, open the cart, then Checkout. Pick a saved shipping address (or add one), choose how to pay and press Pay. Online, you finish on PayMongo's secure page (GCash, Maya, card, GrabPay or QR Ph); by bank / GCash transfer, you send the money and upload the proof on your order." +
       (ctx.cart.items.length
         ? `\n\nYour cart is ready with ${plural(ctx.cart.items.length, 'product')}.`
         : ''),

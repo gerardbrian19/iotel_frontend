@@ -22,6 +22,16 @@
 
   <p class="bp-hint">{{ hint() }}</p>
 
+  @if (showProof()) {
+    <app-payment-proof
+      class="bp-block"
+      kind="booking"
+      [targetId]="booking().id"
+      [payment]="booking().payment!"
+      [label]="booking().serviceName"
+    />
+  }
+
   <div class="bp-actions">
     @if (showChatLink()) {
       <a nz-button nzSize="small" [routerLink]="chatLink()" [queryParams]="{ conversation: booking().conversationId }">
@@ -40,13 +50,26 @@
           Mark completed
         </button>
       }
+      @if (canRecord()) {
+        <button nz-button nzSize="small" [disabled]="busy()" (click)="openRecord()">
+          <span nz-icon nzType="dollar"></span> Record payment
+        </button>
+      }
       @if (canReschedule()) {
         <button nz-button nzSize="small" [disabled]="busy()" (click)="openReschedule()">Reschedule</button>
       }
-    } @else if (awaitingPayment()) {
+    } @else if (customerCanPay()) {
       <button nz-button nzType="primary" nzSize="small" class="brand-btn" [disabled]="busy()" [nzLoading]="busy()" (click)="pay()">
-        <span nz-icon nzType="credit-card"></span> Pay {{ booking().quote?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}
+        <span nz-icon nzType="credit-card"></span> Pay online {{ booking().quote?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}
       </button>
+      <button nz-button nzSize="small" [disabled]="busy()" (click)="toggleTransfer()" [attr.aria-expanded]="showTransfer()">
+        <span nz-icon nzType="bank"></span> Bank / GCash transfer
+      </button>
+      @if (canChooseOnsite()) {
+        <button nz-button nzSize="small" [disabled]="busy()" (click)="chooseOnsite()">
+          <span nz-icon nzType="shop"></span> Pay on site
+        </button>
+      }
     }
 
     @if (canRefund()) {
@@ -65,6 +88,17 @@
     </button>
   </div>
 
+  @if (showTransfer()) {
+    <app-manual-payment-panel
+      class="bp-block"
+      kind="booking"
+      [targetId]="booking().id"
+      [amount]="booking().quote?.amount ?? 0"
+      [reference]="booking().serviceName"
+      [payment]="booking().payment"
+    />
+  }
+
   @if (expanded()) {
     <dl class="bp-details">
       @if (booking().notes) {
@@ -79,15 +113,21 @@
         @if (payment.status !== 'Unpaid') {
           <dt>Payment</dt>
           <dd>
-            {{ payment.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} through PayMongo{{ paidWith() ? ' (' + paidWith() + ')' : '' }}
+            {{ payment.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} · {{ providerLabel() }}{{ paidWith() ? ' (' + paidWith() + ')' : '' }}
             @if (payment.paidAt) {
               <br />Paid {{ payment.paidAt | date: 'medium' }}
             }
             @if (payment.status === 'Refunded') {
               <br />Refunded {{ payment.refundedAt | date: 'medium' }}
             }
+            @if (payment.refundReference) {
+              <br />Refund reference {{ payment.refundReference }}
+            }
             @if (isStaff() && payment.paymentId) {
-              <br />PayMongo payment {{ payment.paymentId }}
+              <br />{{ payment.provider === 'paymongo' ? 'PayMongo payment' : payment.provider === 'manual' ? 'Reference no.' : 'Receipt no.' }} {{ payment.paymentId }}
+            }
+            @if (isStaff() && payment.onsite?.recordedByName) {
+              <br />Recorded by {{ payment.onsite?.recordedByName }}
             }
           </dd>
         }
@@ -124,6 +164,7 @@
           <textarea nz-input formControlName="note" rows="3" maxlength="500" placeholder="What the amount covers"></textarea>
         </nz-form-control>
       </nz-form-item>
+      <label nz-checkbox formControlName="allowOnsite">Let the customer pay on site (at or after the service)</label>
       <div class="modal-footer">
         <button nz-button type="button" (click)="quoteVisible.set(false)">Close</button>
         <button nz-button nzType="primary" class="brand-btn" type="submit" [disabled]="quoteForm.invalid || busy()" [nzLoading]="busy()">
@@ -165,8 +206,13 @@
 >
   <ng-container *nzModalContent>
     <p class="modal-copy">
-      {{ booking().payment?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} goes back to
-      {{ booking().customerName }} through PayMongo.
+      @if (manualRefund()) {
+        Give {{ booking().payment?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} back to
+        {{ booking().customerName }} yourself (to the account they paid from, or in cash), then enter its reference.
+      } @else {
+        {{ booking().payment?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} goes back to
+        {{ booking().customerName }} through PayMongo.
+      }
       @if (booking().status !== 'Cancelled') {
         The booking is cancelled and its time slot freed.
       }
@@ -180,11 +226,67 @@
       [ngModel]="refundReason()"
       (ngModelChange)="refundReason.set($event)"
     ></textarea>
+    @if (manualRefund()) {
+      <input
+        nz-input
+        class="bp-refund-ref"
+        maxlength="60"
+        placeholder="Refund reference or receipt number (required)"
+        [ngModel]="refundReference()"
+        (ngModelChange)="refundReference.set($event)"
+      />
+    }
     <div class="modal-footer">
       <button nz-button type="button" (click)="refundVisible.set(false)">Close</button>
-      <button nz-button nzType="primary" nzDanger type="button" [disabled]="busy()" [nzLoading]="busy()" (click)="refund()">
+      <button
+        nz-button
+        nzType="primary"
+        nzDanger
+        type="button"
+        [disabled]="busy() || (manualRefund() && !refundReference().trim())"
+        [nzLoading]="busy()"
+        (click)="refund()"
+      >
         Refund
       </button>
     </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Staff: record a payment received on site -->
+<nz-modal [(nzVisible)]="recordVisible" nzTitle="Record payment" [nzFooter]="null" nzWidth="440px">
+  <ng-container *nzModalContent>
+    <form nz-form [formGroup]="recordForm" nzLayout="vertical" (ngSubmit)="saveRecord()">
+      <p class="modal-copy">For money {{ booking().customerName }} paid at the shop. They are told in chat.</p>
+      <nz-form-item>
+        <nz-form-label nzRequired>Paid with</nz-form-label>
+        <nz-form-control>
+          <nz-select formControlName="method">
+            @for (m of onsiteMethods; track m.value) {
+              <nz-option [nzValue]="m.value" [nzLabel]="m.label" />
+            }
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzRequired>Amount received (₱)</nz-form-label>
+        <nz-form-control nzErrorTip="Enter the amount received.">
+          <nz-input-number formControlName="amount" [nzMin]="1" [nzStep]="50" [nzPrecision]="2" style="width: 100%" />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label>Receipt / reference no.</nz-form-label>
+        <nz-form-control>
+          <input nz-input formControlName="receiptNumber" maxlength="40" autocomplete="off" />
+        </nz-form-control>
+      </nz-form-item>
+      <label nz-checkbox formControlName="complete">The service is done: also mark the booking completed</label>
+      <div class="modal-footer">
+        <button nz-button type="button" (click)="recordVisible.set(false)">Close</button>
+        <button nz-button nzType="primary" class="brand-btn" type="submit" [disabled]="recordForm.invalid || busy()" [nzLoading]="busy()">
+          Record payment
+        </button>
+      </div>
+    </form>
   </ng-container>
 </nz-modal>

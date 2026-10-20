@@ -70,7 +70,7 @@
     <section>
       <h4 class="od-heading">Payment</h4>
       <p class="od-line">
-        PayMongo{{ method() ? ' · ' + method() : '' }}
+        {{ provider() }}{{ method() ? ' · ' + method() : '' }}
         <nz-tag [nzColor]="payment().color">{{ payment().label }}</nz-tag>
       </p>
       @if (order().payment.paidAt) {
@@ -79,9 +79,14 @@
       @if (order().payment.refundedAt) {
         <p class="od-line">Refunded on {{ order().payment.refundedAt | date: 'medium' }}</p>
       }
+      @if (order().payment.refundReference) {
+        <p class="od-line">
+          Refund reference: <strong>{{ order().payment.refundReference }}</strong>
+        </p>
+      }
       @if (showCustomer() && order().payment.paymentId) {
         <p class="od-line">
-          PayMongo payment: <strong>{{ order().payment.paymentId }}</strong>
+          {{ paymentIdLabel() }}: <strong>{{ order().payment.paymentId }}</strong>
         </p>
       }
     </section>

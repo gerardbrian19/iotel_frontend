@@ -10,19 +10,23 @@ import { Order } from '../../../core/models';
 import {
   canPay,
   canRefund,
+  canSubmitProof,
   customerCanCancel,
   orderHint,
   staffAction,
 } from '../../../core/orders/order-view';
+import { proofUnderReview } from '../../../core/payments/manual-payments';
 import { AuthService } from '../../../core/services/auth.service';
 import { OrderService, orderErrorMessage } from '../../../core/services/order.service';
 import { requiredTrimmed } from '../../utils/validators';
+import { ManualPaymentPanelComponent } from '../manual-payment-panel/manual-payment-panel.component';
+import { PaymentProofComponent } from '../payment-proof/payment-proof.component';
 
 /**
  * What happens next with an order, and the actions that fit the viewer and the order's status:
  *
- * - Customer: pay through PayMongo, cancel until the order is paid.
- * - Staff / admin: start processing a paid order (takes the items out of stock), mark shipped with the courier, mark
+ * - Customer: pay through PayMongo (or send the proof of a bank / GCash transfer), cancel until the order is paid.
+ * - Staff / admin: approve or reject a transfer, start processing a paid order (takes the items out of stock), mark shipped with the courier, mark
  *   delivered, cancel an unpaid order, refund a paid one (which cancels it).
  *
  * Used on the customer's order pages and the staff and admin order screens.
@@ -37,6 +41,8 @@ import { requiredTrimmed } from '../../utils/validators';
     NzFormModule,
     NzInputModule,
     NzModalModule,
+    ManualPaymentPanelComponent,
+    PaymentProofComponent,
   ],
   templateUrl: './order-actions.component.html',
   styleUrl: './order-actions.component.scss',
@@ -58,6 +64,7 @@ export class OrderActionsComponent {
 
   readonly cancelReason = signal('');
   readonly refundReason = signal('');
+  readonly refundReference = signal('');
 
   readonly shipForm = this.fb.nonNullable.group({
     courier: ['', [requiredTrimmed, Validators.maxLength(60)]],
@@ -72,6 +79,15 @@ export class OrderActionsComponent {
   /** Unpaid orders only; paid ones are cancelled by refunding them. */
   readonly canCancel = computed(() => customerCanCancel(this.order()));
   readonly canRefund = computed(() => this.isStaff() && canRefund(this.order()));
+  /** The customer still has to send the transfer proof, or is waiting for it to be checked. */
+  readonly showTransferPanel = computed(
+    () =>
+      !this.isStaff() && (canSubmitProof(this.order()) || proofUnderReview(this.order().payment)),
+  );
+  /** Staff see what the customer sent for a transfer. */
+  readonly showProof = computed(() => this.isStaff() && !!this.order().payment.manual?.proofPath);
+  /** Transfers are refunded by staff sending the money back themselves, not through PayMongo. */
+  readonly manualRefund = computed(() => this.order().payment.provider !== 'paymongo');
   /** Refunding cancels the order too, unless it already is. */
   readonly refundCancels = computed(() => this.order().status !== 'Cancelled');
   /** Refunding a processing order returns its items to stock. */
@@ -128,12 +144,14 @@ export class OrderActionsComponent {
 
   openRefund(): void {
     this.refundReason.set('');
+    this.refundReference.set('');
     this.refundVisible.set(true);
   }
 
   refund(): void {
+    if (this.manualRefund() && !this.refundReference().trim()) return;
     this.run(
-      this.orders.refund(this.order(), this.refundReason()),
+      this.orders.refund(this.order(), this.refundReason(), this.refundReference()),
       this.refundCancels() ? 'Order cancelled and payment refunded.' : 'Payment refunded.',
       () => this.refundVisible.set(false),
     );

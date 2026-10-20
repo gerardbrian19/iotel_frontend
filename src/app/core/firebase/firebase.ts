@@ -3,6 +3,7 @@ import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
 import { Firestore, connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import { Functions, connectFunctionsEmulator, getFunctions } from 'firebase/functions';
+import { FirebaseStorage, connectStorageEmulator, getStorage } from 'firebase/storage';
 import { environment } from '../../../environments/environment';
 
 export const FIREBASE_APP = new InjectionToken<FirebaseApp>('FIREBASE_APP', {
@@ -43,5 +44,17 @@ export const FUNCTIONS = new InjectionToken<Functions>('FUNCTIONS', {
       connectFunctionsEmulator(functions, 'localhost', 5001);
     }
     return functions;
+  },
+});
+
+/** Firebase Storage: transfer screenshots and receiver QR codes (storage.rules). */
+export const FIREBASE_STORAGE = new InjectionToken<FirebaseStorage>('FIREBASE_STORAGE', {
+  providedIn: 'root',
+  factory: () => {
+    const storage = getStorage(inject(FIREBASE_APP));
+    if (environment.useEmulators) {
+      connectStorageEmulator(storage, 'localhost', 9199);
+    }
+    return storage;
   },
 });

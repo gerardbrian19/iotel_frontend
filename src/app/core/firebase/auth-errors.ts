@@ -41,6 +41,7 @@ const USER_FACING_FUNCTION_CODES = new Set([
   'functions/permission-denied',
   'functions/unavailable',
   'functions/not-found',
+  'functions/already-exists',
   'functions/unauthenticated',
 ]);
 

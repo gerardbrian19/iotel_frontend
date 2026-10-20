@@ -1,5 +1,25 @@
 <p class="oa-hint">{{ hint() }}</p>
 
+@if (showProof()) {
+  <app-payment-proof
+    class="oa-block"
+    kind="order"
+    [targetId]="order().id"
+    [payment]="order().payment"
+    [label]="order().code"
+  />
+}
+@if (showTransferPanel()) {
+  <app-manual-payment-panel
+    class="oa-block"
+    kind="order"
+    [targetId]="order().id"
+    [amount]="order().payment.amount || order().total"
+    [reference]="order().code"
+    [payment]="order().payment"
+  />
+}
+
 <div class="oa-actions">
   @if (isStaff()) {
     @switch (step()) {
@@ -148,7 +168,12 @@
   <ng-container *nzModalContent>
     <p class="pay-amount">₱{{ order().payment.amount.toLocaleString('en-PH') }}</p>
     <p class="modal-copy">
-      The full amount goes back to the customer through PayMongo.
+      @if (manualRefund()) {
+        Send the full amount back to the customer yourself (to the account they paid from), then
+        enter that transfer's reference number here.
+      } @else {
+        The full amount goes back to the customer through PayMongo.
+      }
       @if (refundCancels()) {
         The order is cancelled.
       }
@@ -165,6 +190,16 @@
       [ngModel]="refundReason()"
       (ngModelChange)="refundReason.set($event)"
     ></textarea>
+    @if (manualRefund()) {
+      <input
+        nz-input
+        class="refund-ref"
+        maxlength="60"
+        placeholder="Reference number of the refund you sent (required)"
+        [ngModel]="refundReference()"
+        (ngModelChange)="refundReference.set($event)"
+      />
+    }
     <div class="modal-footer">
       <button nz-button type="button" (click)="refundVisible.set(false)">Close</button>
       <button
@@ -172,7 +207,7 @@
         nzType="primary"
         nzDanger
         type="button"
-        [disabled]="busy()"
+        [disabled]="busy() || (manualRefund() && !refundReference().trim())"
         [nzLoading]="busy()"
         (click)="refund()"
       >

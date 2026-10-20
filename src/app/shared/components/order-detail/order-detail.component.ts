@@ -3,7 +3,10 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { orderTimeline, paymentBadge } from '../../../core/orders/order-view';
 import { Order } from '../../../core/models';
-import { paymentMethodLabel } from '../../../core/payments/payment-methods';
+import {
+  PAYMENT_PROVIDER_LABELS,
+  paymentMethodLabel,
+} from '../../../core/payments/payment-methods';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../utils/product-image';
 
 /**
@@ -20,7 +23,7 @@ import { PLACEHOLDER_IMAGE, onImageError } from '../../utils/product-image';
 })
 export class OrderDetailComponent {
   readonly order = input.required<Order>();
-  /** Shows who ordered, with their contact details, and the PayMongo payment id (for staff and admins). */
+  /** Shows who ordered, with their contact details, and the payment id or reference (for staff and admins). */
   readonly showCustomer = input(false);
 
   readonly placeholder = PLACEHOLDER_IMAGE;
@@ -28,4 +31,9 @@ export class OrderDetailComponent {
   readonly timeline = computed(() => orderTimeline(this.order()));
   readonly payment = computed(() => paymentBadge(this.order()));
   readonly method = computed(() => paymentMethodLabel(this.order().payment.method));
+  readonly provider = computed(() => PAYMENT_PROVIDER_LABELS[this.order().payment.provider]);
+  /** What staff look the payment up by: PayMongo's payment id, or the transfer's reference number. */
+  readonly paymentIdLabel = computed(() =>
+    this.order().payment.provider === 'paymongo' ? 'PayMongo payment' : 'Reference no.',
+  );
 }

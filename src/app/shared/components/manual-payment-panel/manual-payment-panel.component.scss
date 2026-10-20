@@ -1,0 +1,163 @@
+:host {
+  display: block;
+}
+
+.mp,
+.mp-review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mp-step {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.mp-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mp-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #D9D9D9;
+  border-radius: 999px;
+  background: #FFFFFF;
+  font-size: 13px;
+  color: #1A1A1A;
+  cursor: pointer;
+
+  &.selected {
+    border-color: #CC2020;
+    background: #FFF1F0;
+    color: #CC2020;
+    font-weight: 600;
+  }
+  &:focus-visible {
+    outline: 2px solid #CC2020;
+    outline-offset: 2px;
+  }
+}
+
+.mp-account {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: 1px solid #E8E8E8;
+  border-radius: 10px;
+  background: #F5F5F5;
+}
+
+.mp-account-info {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.mp-bank {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: #1A1A1A;
+}
+.mp-line {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: #1A1A1A;
+  overflow-wrap: anywhere;
+}
+.mp-label {
+  display: block;
+  font-size: 12px;
+  color: #8C8C8C;
+}
+.mp-number {
+  font-size: 16px;
+  letter-spacing: 0.5px;
+}
+.mp-instructions {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #595959;
+  white-space: pre-line;
+}
+
+.mp-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #8C8C8C;
+}
+
+.mp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  column-gap: 12px;
+}
+
+.mp-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.mp-preview {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #E8E8E8;
+}
+.mp-hint {
+  font-size: 12px;
+  color: #8C8C8C;
+}
+.mp-error,
+.mp-warn {
+  font-size: 12px;
+  color: #CC2020;
+}
+.mp-warn {
+  margin: -8px 0 12px;
+}
+
+.mp-submit {
+  background: #CC2020 !important;
+  border-color: #CC2020 !important;
+  color: #FFFFFF !important;
+  &[disabled] {
+    opacity: 0.5;
+  }
+}
+
+.mp-sent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 12px;
+    margin: 0;
+    font-size: 13px;
+  }
+  dt {
+    color: #8C8C8C;
+  }
+  dd {
+    margin: 0;
+    color: #1A1A1A;
+    overflow-wrap: anywhere;
+  }
+}

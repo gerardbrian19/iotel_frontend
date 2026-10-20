@@ -1,8 +1,8 @@
 /**
  * The activity log (`activityLog/{id}`): who did what and when, for the admin Activity page and dashboard.
  *
- * Entries are written here, on the server, by triggers that watch orders, bookings, products, services and user
- * profiles, so nothing done in the app can skip them. Firestore tells a trigger which signed-in user made the change
+ * Entries are written here, on the server, by triggers that watch orders, bookings, products, services, payment
+ * receivers and user profiles, so nothing done in the app can skip them. Firestore tells a trigger which signed-in user made the change
  * (`authId`); changes made by these functions themselves (checkout, PayMongo's webhook, refunds, unpaid-order expiry)
  * are attributed from the document instead (the customer who placed the order, `payment.refundedBy`, or "System").
  * The admin account functions in auth.ts log their own entries with `logActivity`, and each app session records its
@@ -19,6 +19,7 @@ import {
   DocumentSnapshot,
 } from 'firebase-functions/v2/firestore';
 import { db } from './app.js';
+import { methodLabel } from './payment-common.js';
 
 export type ActivityCategory =
   | 'order'
@@ -43,7 +44,7 @@ export interface ActivityInput {
   /** One readable sentence, e.g. "Shipped ORD-0007 via LBC". */
   summary: string;
   actor: Actor;
-  targetType: 'order' | 'booking' | 'product' | 'service' | 'user';
+  targetType: 'order' | 'booking' | 'product' | 'service' | 'user' | 'receiver';
   targetId: string;
   /** What people call the target, e.g. `ORD-0007` or a product name. */
   targetLabel: string;
@@ -53,17 +54,6 @@ export interface ActivityInput {
 
 const SYSTEM: Actor = { id: null, name: 'System', role: 'system' };
 const PAYMONGO: Actor = { id: null, name: 'PayMongo', role: 'system' };
-
-const METHOD_LABELS: Record<string, string> = {
-  card: 'card',
-  gcash: 'GCash',
-  paymaya: 'Maya',
-  grab_pay: 'GrabPay',
-  qrph: 'QR Ph',
-  dob: 'online banking',
-  dob_ubp: 'online banking',
-  billease: 'BillEase',
-};
 
 function entryData(input: ActivityInput, at: Timestamp): DocumentData {
   const { actor, ...rest } = input;
@@ -139,8 +129,99 @@ function orderCode(number: unknown): string {
 }
 
 function viaMethod(method: unknown): string {
-  const label = typeof method === 'string' ? (METHOD_LABELS[method] ?? method) : '';
+  const label = methodLabel(method);
   return label ? ` via ${label}` : '';
+}
+
+type ActorOf = (fallback?: Actor | string | null) => Promise<Actor>;
+
+/**
+ * The entries for a change of an order's or booking's `payment` other than its refund: a payment coming in (PayMongo,
+ * a transfer staff verified, or money staff received on site), a transfer proof sent or rejected, and a booking
+ * switched to on-site payment.
+ */
+async function paymentEntries(
+  before: DocumentData,
+  after: DocumentData,
+  base: { targetType: 'order' | 'booking'; targetId: string; targetLabel: string },
+  actor: ActorOf,
+): Promise<ActivityInput[]> {
+  const entries: ActivityInput[] = [];
+  const was = before['payment'] ?? {};
+  const now = after['payment'] ?? {};
+  const manual = now['manual'] ?? {};
+  const label = base.targetLabel;
+  const amount = Number(now['amount']) || 0;
+
+  if (
+    manual['state'] === 'submitted' &&
+    (was['manual']?.['state'] !== 'submitted' ||
+      was['manual']?.['referenceNumber'] !== manual['referenceNumber'])
+  ) {
+    entries.push({
+      ...base,
+      category: 'payment',
+      action: 'payment.proofSubmitted',
+      summary: `Sent a transfer proof of ${peso(manual['amountSent'])} for ${label}${viaMethod(
+        manual['receiver']?.['type'] === 'bank'
+          ? `bank:${manual['receiver']['bankName']}`
+          : 'gcash',
+      )} (ref ${manual['referenceNumber']})`,
+      actor: await actor(String(after['customerId'] ?? '')),
+      amount: Number(manual['amountSent']) || 0,
+    });
+  }
+  if (was['manual']?.['state'] === 'submitted' && manual['state'] === 'rejected') {
+    entries.push({
+      ...base,
+      category: 'payment',
+      action: 'payment.rejected',
+      summary: `Rejected the transfer proof for ${label} (ref ${manual['referenceNumber']}): ${manual['rejectReason'] ?? ''}`,
+      actor: await actor(manual['reviewedBy'] ?? null),
+      amount,
+    });
+  }
+  if (was['provider'] !== 'onsite' && now['provider'] === 'onsite' && now['status'] === 'Unpaid') {
+    entries.push({
+      ...base,
+      category: 'payment',
+      action: 'payment.onsiteChosen',
+      summary: `Chose to pay ${peso(amount)} on site for ${label}`,
+      actor: await actor(String(after['customerId'] ?? '')),
+      amount,
+    });
+  }
+  if (was['status'] !== 'Paid' && now['status'] === 'Paid') {
+    const provider = now['provider'] ?? 'paymongo';
+    entries.push({
+      ...base,
+      category: 'payment',
+      action: 'payment.received',
+      summary:
+        provider === 'manual'
+          ? `Verified a transfer of ${peso(amount)} for ${label}${viaMethod(now['method'])} (ref ${manual['referenceNumber']})`
+          : provider === 'onsite'
+            ? `Received ${peso(amount)} on site for ${label}${viaMethod(now['method'])}${
+                now['onsite']?.['receiptNumber']
+                  ? ` (receipt ${now['onsite']['receiptNumber']})`
+                  : ''
+              }`
+            : `Payment of ${peso(amount)} received for ${label}${viaMethod(now['method'])}`,
+      actor:
+        provider === 'manual'
+          ? await actor(manual['reviewedBy'] ?? null)
+          : provider === 'onsite'
+            ? await actor(now['onsite']?.['recordedBy'] ?? null)
+            : PAYMONGO,
+      amount,
+    });
+  }
+  return entries;
+}
+
+/** " (sent back, ref X)" for a refund staff made themselves; nothing for a PayMongo refund. */
+function refundRef(payment: DocumentData): string {
+  return payment['refundReference'] ? ` (sent back, ref ${payment['refundReference']})` : '';
 }
 
 type WriteEvent = FirestoreAuthEvent<Change<DocumentSnapshot> | undefined, Record<string, string>>;
@@ -200,23 +281,14 @@ export const logOrderActivity = watch('orders/{orderId}', async (before, after, 
   const paymentAfter = after['payment']?.['status'];
   const refunded = paymentBefore !== 'Refunded' && paymentAfter === 'Refunded';
 
-  if (paymentBefore !== 'Paid' && paymentAfter === 'Paid') {
-    entries.push({
-      ...base,
-      category: 'payment',
-      action: 'payment.received',
-      summary: `Payment of ${peso(after['payment']['amount'])} received for ${code}${viaMethod(after['payment']['method'])}`,
-      actor: PAYMONGO,
-      amount: Number(after['payment']['amount']) || 0,
-    });
-  }
+  entries.push(...(await paymentEntries(before, after, base, actor)));
   if (refunded) {
     const cancelled = before['status'] !== 'Cancelled' && after['status'] === 'Cancelled';
     entries.push({
       ...base,
       category: 'payment',
       action: 'payment.refunded',
-      summary: `Refunded ${peso(after['payment']['amount'])} for ${code}${cancelled ? ' and cancelled it' : ''}${
+      summary: `Refunded ${peso(after['payment']['amount'])} for ${code}${refundRef(after['payment'])}${cancelled ? ' and cancelled it' : ''}${
         after['cancelReason'] && cancelled ? `: ${after['cancelReason']}` : ''
       }`,
       actor: await actor(after['payment']['refundedBy'] ?? null),
@@ -304,23 +376,14 @@ export const logBookingActivity = watch(
     const paid = paymentBefore !== 'Paid' && paymentAfter === 'Paid';
     const refunded = paymentBefore !== 'Refunded' && paymentAfter === 'Refunded';
 
-    if (paid) {
-      entries.push({
-        ...base,
-        category: 'payment',
-        action: 'payment.received',
-        summary: `Payment of ${peso(after['payment']['amount'])} received for ${label}${viaMethod(after['payment']['method'])}`,
-        actor: PAYMONGO,
-        amount: Number(after['payment']['amount']) || 0,
-      });
-    }
+    entries.push(...(await paymentEntries(before, after, base, actor)));
     if (refunded) {
       const cancelled = before['status'] !== 'Cancelled' && after['status'] === 'Cancelled';
       entries.push({
         ...base,
         category: 'payment',
         action: 'payment.refunded',
-        summary: `Refunded ${peso(after['payment']['amount'])} for ${label}${cancelled ? ' and cancelled the booking' : ''}`,
+        summary: `Refunded ${peso(after['payment']['amount'])} for ${label}${refundRef(after['payment'])}${cancelled ? ' and cancelled the booking' : ''}`,
         actor: await actor(after['payment']['refundedBy'] ?? null),
         amount: Number(after['payment']['amount']) || 0,
       });
@@ -536,6 +599,73 @@ export const logServiceActivity = watch(
         category: 'service',
         action: 'service.edited',
         summary: `Edited service ${title} (${edited.join(', ')})`,
+        actor: await actor(),
+      });
+    }
+    return entries;
+  },
+);
+
+// ── Payment receivers ────────────────────────────────────────────────────────
+
+function receiverText(receiver: DocumentData): string {
+  const where = receiver['type'] === 'bank' ? String(receiver['bankName'] || 'Bank') : 'GCash';
+  return `${where} ${receiver['accountNumber'] ?? ''} (${receiver['accountName'] ?? ''})`;
+}
+
+/** The accounts customers send transfers to. Every change is logged, account numbers included, for audit. */
+export const logReceiverActivity = watch(
+  'paymentReceivers/{receiverId}',
+  async (before, after, id, actor) => {
+    const current = after ?? before;
+    if (!current) return [];
+    const name = String(current['label'] || receiverText(current));
+    const base = { targetType: 'receiver' as const, targetId: id, targetLabel: name };
+    if (!before && after) {
+      return [
+        {
+          ...base,
+          category: 'payment',
+          action: 'receiver.added',
+          summary: `Added payment account ${receiverText(after)}`,
+          actor: await actor(),
+        },
+      ];
+    }
+    if (before && !after) {
+      return [
+        {
+          ...base,
+          category: 'payment',
+          action: 'receiver.deleted',
+          summary: `Deleted payment account ${receiverText(before)}`,
+          actor: await actor(),
+        },
+      ];
+    }
+    if (!before || !after) return [];
+    const entries: ActivityInput[] = [];
+    if ((before['isActive'] ?? true) !== (after['isActive'] ?? true)) {
+      entries.push({
+        ...base,
+        category: 'payment',
+        action: after['isActive'] === false ? 'receiver.deactivated' : 'receiver.activated',
+        summary: `${after['isActive'] === false ? 'Stopped' : 'Started'} taking payments to ${receiverText(after)}`,
+        actor: await actor(),
+      });
+    }
+    const edited = changedFields(before, after, new Set(['isActive', 'updatedAt', 'createdAt']));
+    if (edited.length) {
+      const account = edited.some((key) =>
+        ['accountNumber', 'accountName', 'bankName', 'type'].includes(key),
+      );
+      entries.push({
+        ...base,
+        category: 'payment',
+        action: 'receiver.edited',
+        summary: account
+          ? `Changed payment account ${receiverText(before)} → ${receiverText(after)}`
+          : `Edited payment account ${receiverText(after)} (${edited.join(', ')})`,
         actor: await actor(),
       });
     }

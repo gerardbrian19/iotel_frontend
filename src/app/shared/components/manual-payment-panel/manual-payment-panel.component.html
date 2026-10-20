@@ -1,0 +1,189 @@
+@if (sent(); as sent) {
+  <div class="mp-review">
+    <nz-alert
+      nzType="info"
+      nzShowIcon
+      nzMessage="We're checking your payment"
+      nzDescription="Our team confirms transfers during business hours. This page updates by itself once it's verified."
+    />
+    <div class="mp-sent">
+      @if (sent.proofPath) {
+        <app-storage-image [path]="sent.proofPath" alt="Your transfer screenshot" [size]="96" />
+      }
+      <dl>
+        <dt>Sent to</dt>
+        <dd>
+          {{
+            sent.receiver ? receiverTitle(sent.receiver) + ' · ' + sent.receiver.accountNumber : ''
+          }}
+        </dd>
+        <dt>Reference no.</dt>
+        <dd>{{ sent.referenceNumber }}</dd>
+        <dt>Amount</dt>
+        <dd>{{ sent.amountSent | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</dd>
+        <dt>Sent on</dt>
+        <dd>{{ sent.sentAt | date: 'MMM d, y, h:mm a' }}</dd>
+      </dl>
+    </div>
+  </div>
+} @else if (canSend()) {
+  <div class="mp">
+    @if (rejected(); as rejected) {
+      <nz-alert
+        nzType="error"
+        nzShowIcon
+        nzMessage="We couldn't verify your last payment"
+        [nzDescription]="
+          (rejected.rejectReason || '') + ' Please check the details and send it again.'
+        "
+      />
+    }
+
+    @if (receiversLoading()) {
+      <nz-spin nzSimple />
+    } @else if (!receivers().length) {
+      <nz-alert
+        nzType="warning"
+        nzShowIcon
+        nzMessage="Bank and GCash transfers aren't available right now"
+        nzDescription="Please message us, or pay another way."
+      />
+    } @else {
+      <h4 class="mp-step">
+        1. Send exactly
+        <strong>{{ amount() | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</strong> to one of
+        these accounts
+      </h4>
+      <div class="mp-options" role="radiogroup" aria-label="Account to pay into">
+        @for (r of receivers(); track r.id) {
+          <button
+            type="button"
+            role="radio"
+            class="mp-option"
+            [class.selected]="r.id === selectedId()"
+            [attr.aria-checked]="r.id === selectedId()"
+            (click)="selectedId.set(r.id)"
+          >
+            <span nz-icon [nzType]="r.type === 'bank' ? 'bank' : 'mobile'"></span>
+            {{ receiverLabel(r) }}
+          </button>
+        }
+      </div>
+
+      @if (selected(); as r) {
+        <div class="mp-account">
+          <div class="mp-account-info">
+            <p class="mp-bank">{{ receiverTitle(r) }}{{ r.branch ? ' · ' + r.branch : '' }}</p>
+            <p class="mp-line">
+              <span class="mp-label">Account name</span> <strong>{{ r.accountName }}</strong>
+            </p>
+            <p class="mp-line">
+              <span class="mp-label">{{
+                r.type === 'gcash' ? 'GCash number' : 'Account number'
+              }}</span>
+              <strong class="mp-number">{{ r.accountNumber }}</strong>
+              <button
+                nz-button
+                nzType="link"
+                nzSize="small"
+                type="button"
+                (click)="copy(r.accountNumber, 'Number')"
+                aria-label="Copy number"
+              >
+                <span nz-icon nzType="copy"></span>
+              </button>
+            </p>
+            @if (reference()) {
+              <p class="mp-line">
+                <span class="mp-label">Notes / message</span> <strong>{{ reference() }}</strong>
+              </p>
+            }
+            @if (r.instructions) {
+              <p class="mp-instructions">{{ r.instructions }}</p>
+            }
+          </div>
+          @if (r.qrPath) {
+            <div class="mp-qr">
+              <app-storage-image
+                [path]="r.qrPath"
+                [alt]="receiverTitle(r) + ' QR code'"
+                [size]="160"
+              />
+              <span>Scan to pay</span>
+            </div>
+          }
+        </div>
+      }
+
+      <h4 class="mp-step">2. Tell us about your transfer</h4>
+      <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="submit()">
+        <div class="mp-grid">
+          <nz-form-item>
+            <nz-form-label nzRequired>Reference number</nz-form-label>
+            <nz-form-control
+              nzErrorTip="Enter it exactly as shown on your receipt (letters, numbers and dashes)."
+            >
+              <input nz-input formControlName="referenceNumber" maxlength="40" autocomplete="off" />
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label nzRequired>Amount sent (₱)</nz-form-label>
+            <nz-form-control nzErrorTip="Enter the amount you sent.">
+              <nz-input-number
+                formControlName="amountSent"
+                [nzMin]="1"
+                [nzPrecision]="2"
+                class="w-full"
+              />
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label nzRequired>Date and time sent</nz-form-label>
+            <nz-form-control nzErrorTip="Enter when you sent it.">
+              <input nz-input type="datetime-local" formControlName="sentAt" [max]="maxSentAt" />
+            </nz-form-control>
+          </nz-form-item>
+        </div>
+        @if (amountDiffers()) {
+          <p class="mp-warn">
+            This is different from the amount due. Our team may ask you to send the difference.
+          </p>
+        }
+
+        <div class="mp-upload">
+          <input
+            #picker
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            hidden
+            (change)="onFile($event)"
+          />
+          @if (preview(); as src) {
+            <img [src]="src" alt="Selected screenshot" class="mp-preview" />
+            <button nz-button nzSize="small" type="button" (click)="clearFile()">Remove</button>
+          }
+          <button nz-button type="button" (click)="picker.click()">
+            <span nz-icon nzType="upload"></span>
+            {{ file() ? 'Choose another' : 'Attach screenshot' }}
+          </button>
+          @if (fileError(); as error) {
+            <span class="mp-error">{{ error }}</span>
+          } @else if (!file()) {
+            <span class="mp-hint">JPG, PNG or WebP, up to 5 MB</span>
+          }
+        </div>
+
+        <button
+          nz-button
+          nzType="primary"
+          class="mp-submit"
+          type="submit"
+          [disabled]="busy()"
+          [nzLoading]="busy()"
+        >
+          Submit payment
+        </button>
+      </form>
+    }
+  </div>
+}

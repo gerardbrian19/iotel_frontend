@@ -46,7 +46,7 @@ export type ServiceInput = Omit<Service, 'id'>;
 /**
  * Pending    – submitted by the customer, waiting for staff to discuss and quote.
  * Confirmed  – staff agreed the quote and date with the customer; the customer can now pay.
- * Paid       – PayMongo confirmed the customer's payment.
+ * Paid       – paid (PayMongo, a verified transfer, or money staff received on site).
  * Completed  – the service was carried out.
  */
 export type BookingStatus = 'Pending' | 'Confirmed' | 'Paid' | 'Completed' | 'Cancelled';
@@ -59,9 +59,11 @@ export interface BookingQuote {
   amount: number;
   note: string;
   quotedAt?: string;
+  /** The customer may pay on site (at or after the service) instead of in advance. */
+  allowOnsite: boolean;
 }
 
-/** Created when the customer opens the PayMongo checkout for the quote; marked Paid by the backend webhook. */
+/** Set when the customer chooses how to pay the quote (PayMongo, a transfer or on site); only the backend writes it. */
 export type BookingPayment = Payment;
 
 export interface Booking {

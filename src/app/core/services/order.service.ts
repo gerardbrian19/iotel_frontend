@@ -20,7 +20,14 @@ import { functionErrorMessage } from '../firebase/auth-errors';
 import { dataOf, isoOf } from '../firebase/timestamps';
 import { customerCanCancel, isPaymentSettled } from '../orders/order-view';
 import { toPayment } from '../payments/payment-methods';
-import { CartItem, ORDER_STATUSES, Order, OrderItem, ShippingAddress } from '../models';
+import {
+  CartItem,
+  ORDER_STATUSES,
+  Order,
+  OrderItem,
+  PaymentProvider,
+  ShippingAddress,
+} from '../models';
 import { AuthService } from './auth.service';
 import { cartProblems } from './cart.service';
 import { ProductService } from './product.service';
@@ -36,12 +43,14 @@ export function orderCode(number: number): string {
 export interface PlaceOrder {
   items: readonly CartItem[];
   address: ShippingAddress;
+  /** PayMongo checkout, or a GCash / bank transfer the customer sends proof of afterwards. */
+  provider: Extract<PaymentProvider, 'paymongo' | 'manual'>;
 }
 
-/** The new order and the PayMongo checkout page to send the customer to. */
+/** The new order and, for PayMongo, the checkout page to send the customer to (null for a transfer). */
 export interface OrderCheckout {
   orderId: string;
-  checkoutUrl: string;
+  checkoutUrl: string | null;
 }
 
 function optionalIso(value: unknown): string | undefined {
@@ -130,7 +139,9 @@ export function orderErrorMessage(err: unknown): string {
  *
  * Flow: checkout calls the `createOrderCheckout` function, which prices the cart from the live catalog, writes the
  * order (Pending, payment Unpaid) and opens a PayMongo checkout → the customer pays there and PayMongo's webhook marks
- * the payment Paid (unpaid orders are cancelled after an hour) → staff start processing, which takes the items out
+ * the payment Paid (unpaid orders are cancelled after an hour). Or, paying by transfer, the customer sends the money
+ * and uploads the proof from the order (ManualPaymentService), and staff verify it; those orders are not cancelled
+ * automatically → staff start processing, which takes the items out
  * of stock in one transaction → staff mark it shipped with the courier → delivered.
  *
  * Stock is taken when staff start processing, not at checkout: an abandoned checkout never holds stock, and starting
@@ -194,8 +205,8 @@ export class OrderService {
   }
 
   /**
-   * Customer: turns the cart into an order and a PayMongo checkout. Emits the order id and the checkout page to send
-   * the customer to.
+   * Customer: turns the cart into an order (and, for PayMongo, a checkout). Emits the order id and the checkout page
+   * to send the customer to, which is null for a transfer.
    */
   checkout(input: PlaceOrder): Observable<OrderCheckout> {
     return defer(async () => {
@@ -213,6 +224,7 @@ export class OrderService {
       )({
         items: input.items.map((item) => ({ productId: item.productId, qty: item.qty })),
         address: { fullName, addressLine, city, province, zip, mobile },
+        provider: input.provider,
         origin: window.location.origin,
       });
       return res.data;
@@ -237,7 +249,11 @@ export class OrderService {
               ? staff
                 ? 'This order is paid. Use "Cancel & refund" instead.'
                 : 'Your payment already went through, so this order can no longer be cancelled here. Please message us.'
-              : `This order is already ${fresh.status.toLowerCase()}, so it can no longer be cancelled.`,
+              : fresh.status === 'Pending' && fresh.payment.manual?.state === 'submitted'
+                ? staff
+                  ? 'The customer sent a transfer for this order. Approve or reject it first.'
+                  : 'Your payment is being checked, so the order can no longer be cancelled here. Please message us.'
+                : `This order is already ${fresh.status.toLowerCase()}, so it can no longer be cancelled.`,
           );
         }
         tx.update(ref, {
@@ -252,16 +268,25 @@ export class OrderService {
   }
 
   /**
-   * Staff: refunds the order's PayMongo payment in full and cancels it if it isn't already (a processing order's
-   * items go back in stock). Runs in the `refundPayment` function.
+   * Staff: refunds the order's payment in full and cancels it if it isn't already (a processing order's items go back
+   * in stock). Runs in the `refundPayment` function. A PayMongo payment is refunded through PayMongo; for a transfer,
+   * staff send the money back themselves and give that transfer's `refundReference`.
    */
-  refund(order: Order, reason = ''): Observable<void> {
+  refund(order: Order, reason = '', refundReference = ''): Observable<void> {
     return defer(async () => {
       this.requireStaff();
-      await httpsCallable<{ kind: 'order'; id: string; reason: string }, { ok: boolean }>(
+      await httpsCallable<
+        { kind: 'order'; id: string; reason: string; refundReference: string },
+        { ok: boolean }
+      >(
         this.functions,
         'refundPayment',
-      )({ kind: 'order', id: order.id, reason: reason.trim() });
+      )({
+        kind: 'order',
+        id: order.id,
+        reason: reason.trim(),
+        refundReference: refundReference.trim(),
+      });
     });
   }
 

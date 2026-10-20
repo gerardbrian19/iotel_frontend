@@ -1,5 +1,11 @@
 import { Order, OrderStatus } from '../models';
 import { UNPAID_ORDER_MINUTES, paymentMethodLabel } from '../payments/payment-methods';
+import {
+  canSendProof,
+  manualPaymentBadge,
+  proofUnderReview,
+  receiverTitle,
+} from '../payments/manual-payments';
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   Pending: 'warning',
@@ -21,25 +27,38 @@ export function paymentBadge(order: Order): Badge {
     case 'Refunded':
       return { label: 'Refunded', color: 'default' };
     default:
-      return order.status === 'Cancelled'
-        ? { label: 'Not paid', color: 'default' }
-        : { label: 'Awaiting payment', color: 'warning' };
+      if (order.status === 'Cancelled') return { label: 'Not paid', color: 'default' };
+      return manualPaymentBadge(order.payment) ?? { label: 'Awaiting payment', color: 'warning' };
   }
 }
 
-/** PayMongo confirmed the payment, so staff can start on the order. */
+/** The payment is confirmed (by PayMongo, or by staff for a transfer), so staff can start on the order. */
 export function isPaymentSettled(order: Order): boolean {
   return order.payment.status === 'Paid';
 }
 
-/** Customers (and staff, without a refund) can cancel an order until it has been paid. */
+/**
+ * Customers (and staff, without a refund) can cancel an order until it has been paid, except while a transfer proof
+ * is being checked: staff approve or reject it first.
+ */
 export function customerCanCancel(order: Order): boolean {
-  return order.status === 'Pending' && order.payment.status === 'Unpaid';
+  return (
+    order.status === 'Pending' &&
+    order.payment.status === 'Unpaid' &&
+    !proofUnderReview(order.payment)
+  );
 }
 
-/** The customer can (still) pay: pending, unpaid and the PayMongo checkout is open. */
+/** The customer can (still) pay through PayMongo: pending, unpaid and the checkout is open. */
 export function canPay(order: Order): boolean {
-  return customerCanCancel(order) && !!order.payment.checkoutUrl;
+  return (
+    customerCanCancel(order) && order.payment.provider === 'paymongo' && !!order.payment.checkoutUrl
+  );
+}
+
+/** The customer still has to send (or resend) the proof of their transfer. */
+export function canSubmitProof(order: Order): boolean {
+  return order.status === 'Pending' && canSendProof(order.payment);
 }
 
 /** Staff can refund a paid order that hasn't left the shop, or one that was paid after it was cancelled. */
@@ -51,11 +70,12 @@ export function canRefund(order: Order): boolean {
 }
 
 /** What staff have to do to move the order along, or null when it is waiting on someone else or finished. */
-export type StaffAction = 'start-processing' | 'ship' | 'deliver' | 'refund';
+export type StaffAction = 'verify-payment' | 'start-processing' | 'ship' | 'deliver' | 'refund';
 
 export function staffAction(order: Order): StaffAction | null {
   switch (order.status) {
     case 'Pending':
+      if (proofUnderReview(order.payment)) return 'verify-payment';
       return isPaymentSettled(order) ? 'start-processing' : null;
     case 'Processing':
       return 'ship';
@@ -101,8 +121,24 @@ export function orderHint(order: Order, staff: boolean): string {
     default:
       if (payment.status === 'Paid') {
         return staff
-          ? 'Paid through PayMongo. Start processing to take the items out of stock.'
+          ? `Paid${payment.provider === 'manual' ? ' by transfer (verified)' : ' through PayMongo'}. Start processing to take the items out of stock.`
           : 'Payment received. We will start preparing your order soon.';
+      }
+      if (payment.provider === 'manual') {
+        switch (payment.manual?.state) {
+          case 'submitted':
+            return staff
+              ? 'The customer sent a transfer. Check that it arrived, then approve or reject it.'
+              : 'We received your proof of payment and are checking it. This usually takes a few hours during business hours.';
+          case 'rejected':
+            return staff
+              ? 'The transfer could not be verified. Waiting for the customer to send it again.'
+              : `We couldn't verify your payment: ${payment.manual.rejectReason ?? ''} Please check it and send it again.`;
+          default:
+            return staff
+              ? 'Waiting for the customer to send a bank / GCash transfer.'
+              : 'Send the amount to one of our accounts below, then upload the screenshot and reference number.';
+        }
       }
       return staff
         ? 'Waiting for the customer to pay through PayMongo.'
@@ -126,13 +162,40 @@ export function orderTimeline(order: Order): TimelineStep[] {
 
   if (payment.status === 'Paid' || payment.status === 'Refunded') {
     steps.push({
-      label: 'Payment received',
-      detail: paymentMethodLabel(payment.method) || undefined,
+      label: payment.provider === 'manual' ? 'Payment verified' : 'Payment received',
+      detail:
+        [paymentMethodLabel(payment.method), payment.provider === 'manual' ? payment.paymentId : '']
+          .filter(Boolean)
+          .join(' · ') || undefined,
       date: payment.paidAt,
       state: 'done',
     });
   } else if (!cancelled) {
-    steps.push({ label: 'Payment', detail: 'Waiting for your PayMongo payment', state: 'todo' });
+    if (payment.provider === 'manual') {
+      const manual = payment.manual;
+      if (manual?.state === 'submitted' || manual?.state === 'rejected') {
+        steps.push({
+          label: 'Payment sent',
+          detail: manual.receiver
+            ? `${receiverTitle(manual.receiver)} · ref ${manual.referenceNumber}`
+            : undefined,
+          date: manual.submittedAt,
+          state: 'done',
+        });
+      }
+      steps.push({
+        label: manual?.state === 'rejected' ? 'Payment not verified' : 'Payment check',
+        detail:
+          manual?.state === 'rejected'
+            ? manual.rejectReason
+            : manual?.state === 'submitted'
+              ? 'Our team is checking your transfer'
+              : 'Waiting for your transfer',
+        state: manual?.state === 'rejected' ? 'error' : 'todo',
+      });
+    } else {
+      steps.push({ label: 'Payment', detail: 'Waiting for your PayMongo payment', state: 'todo' });
+    }
   }
 
   const rank: Record<OrderStatus, number> = {

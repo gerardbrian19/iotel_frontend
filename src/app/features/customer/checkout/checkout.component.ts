@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -12,9 +12,11 @@ import {
   ACCEPTED_PAYMENT_METHODS,
   UNPAID_ORDER_MINUTES,
 } from '../../../core/payments/payment-methods';
+import { receiverLabel } from '../../../core/payments/manual-payments';
 import { AddressService } from '../../../core/services/address.service';
 import { CartService } from '../../../core/services/cart.service';
-import { OrderService, orderErrorMessage } from '../../../core/services/order.service';
+import { OrderService, PlaceOrder, orderErrorMessage } from '../../../core/services/order.service';
+import { PaymentReceiverService } from '../../../core/services/payment-receiver.service';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
 
 @Component({
@@ -39,6 +41,8 @@ export class CheckoutComponent {
   private readonly orders = inject(OrderService);
   private readonly addresses = inject(AddressService);
   private readonly msg = inject(NzMessageService);
+  private readonly router = inject(Router);
+  private readonly receivers = inject(PaymentReceiverService);
 
   readonly items = this.cart.items;
   readonly subtotal = computed(() => this.cart.subtotal);
@@ -53,8 +57,16 @@ export class CheckoutComponent {
 
   readonly acceptedMethods = ACCEPTED_PAYMENT_METHODS;
   readonly unpaidMinutes = UNPAID_ORDER_MINUTES;
-  /** True from the click until the browser has left for PayMongo (or the request failed). */
+  /** True from the click until the browser has left for PayMongo or the order page (or the request failed). */
   readonly placing = signal(false);
+
+  /** PayMongo's checkout, or a bank / GCash transfer the customer sends proof of from the order page. */
+  readonly provider = signal<PlaceOrder['provider']>('paymongo');
+  /** Transfers are offered once an admin has added an account to pay into. */
+  readonly transferReceivers = this.receivers.activeReceivers;
+  readonly transferNames = computed(() =>
+    [...new Set(this.transferReceivers().map((r) => receiverLabel(r)))].join(', '),
+  );
 
   /** Ships to the customer's default saved address; they change it on the addresses page. */
   readonly address = this.addresses.defaultAddress;
@@ -65,7 +77,8 @@ export class CheckoutComponent {
       !this.placing() &&
       this.items().length > 0 &&
       this.problems().length === 0 &&
-      !!this.address(),
+      !!this.address() &&
+      (this.provider() === 'paymongo' || this.transferReceivers().length > 0),
   );
 
   readonly placeholder = PLACEHOLDER_IMAGE;
@@ -75,7 +88,10 @@ export class CheckoutComponent {
     this.cart.fitToStock();
   }
 
-  /** Creates the order on the backend and hands the customer over to PayMongo's checkout page. */
+  /**
+   * Creates the order on the backend, then hands the customer over to PayMongo's checkout page, or, for a transfer,
+   * to the order page where they find the accounts and send the proof.
+   */
   placeOrder(): void {
     const saved = this.address();
     if (!this.canPlace() || !saved) return;
@@ -86,12 +102,14 @@ export class CheckoutComponent {
       .checkout({
         items: this.items(),
         address: { fullName, addressLine, city, province, zip, mobile },
+        provider: this.provider(),
       })
       .subscribe({
-        next: ({ checkoutUrl }) => {
+        next: ({ orderId, checkoutUrl }) => {
           // The order exists now; if the customer comes back without paying, it waits on their Orders page.
           this.cart.clear();
-          window.location.assign(checkoutUrl);
+          if (checkoutUrl) window.location.assign(checkoutUrl);
+          else this.router.navigate(['/customer/orders', orderId, 'confirmation']);
         },
         error: (err) => {
           this.placing.set(false);

@@ -1,0 +1,119 @@
+@if (proof(); as proof) {
+  @if (proof.proofPath) {
+    <div class="pp" [class.pending]="pending()">
+      <app-storage-image [path]="proof.proofPath" alt="Transfer screenshot" [size]="104" />
+      <dl class="pp-facts">
+        <dt>Sent to</dt>
+        <dd>
+          @if (proof.receiver; as r) {
+            {{ receiverTitle(r) }} · {{ r.accountNumber }} ({{ r.accountName }})
+          }
+        </dd>
+        <dt>Reference no.</dt>
+        <dd>
+          <strong>{{ proof.referenceNumber }}</strong>
+        </dd>
+        <dt>Amount sent</dt>
+        <dd [class.pp-differs]="differs()">
+          {{ proof.amountSent | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}
+          @if (differs()) {
+            (due {{ payment().amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }})
+          }
+        </dd>
+        <dt>Sent on</dt>
+        <dd>{{ proof.sentAt | date: 'MMM d, y, h:mm a' }}</dd>
+        <dt>Submitted</dt>
+        <dd>{{ proof.submittedAt | date: 'MMM d, y, h:mm a' }}</dd>
+        @if (proof.reviewedByName && !pending()) {
+          <dt>{{ proof.state === 'rejected' ? 'Rejected by' : 'Verified by' }}</dt>
+          <dd>
+            {{ proof.reviewedByName
+            }}{{ proof.reviewedAt ? ', ' + (proof.reviewedAt | date: 'MMM d, h:mm a') : '' }}
+          </dd>
+        }
+        @if (proof.state === 'rejected' && proof.rejectReason) {
+          <dt>Reason</dt>
+          <dd>{{ proof.rejectReason }}</dd>
+        }
+      </dl>
+    </div>
+  }
+
+  @if (pending()) {
+    <div class="pp-actions">
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="small"
+        class="pp-approve"
+        [disabled]="busy()"
+        (click)="approve()"
+      >
+        <span nz-icon nzType="check-circle"></span> Approve
+      </button>
+      <button nz-button nzDanger nzSize="small" [disabled]="busy()" (click)="openReject()">
+        <span nz-icon nzType="close-circle"></span> Reject
+      </button>
+    </div>
+  }
+
+  @if (proof.history.length) {
+    <details class="pp-history">
+      <summary>
+        {{ proof.history.length }} earlier attempt{{ proof.history.length === 1 ? '' : 's' }}
+      </summary>
+      <ul>
+        @for (attempt of proof.history; track $index) {
+          <li>
+            Ref {{ attempt.referenceNumber }} ·
+            {{ attempt.amountSent | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} ·
+            {{ attempt.submittedAt | date: 'MMM d, h:mm a' }}
+            @if (attempt.rejectReason) {
+              — {{ attempt.rejectReason }}
+            }
+          </li>
+        }
+      </ul>
+    </details>
+  }
+}
+
+<nz-modal
+  [(nzVisible)]="rejectVisible"
+  nzTitle="Reject this payment?"
+  [nzFooter]="null"
+  nzWidth="460px"
+>
+  <ng-container *nzModalContent>
+    <p class="pp-copy">The customer sees this reason and can send the payment again.</p>
+    <div class="pp-reasons">
+      @for (reason of reasons; track reason) {
+        <button nz-button nzSize="small" type="button" (click)="rejectReason.set(reason)">
+          {{ reason }}
+        </button>
+      }
+    </div>
+    <textarea
+      nz-input
+      rows="3"
+      maxlength="200"
+      placeholder="Reason, shown to the customer"
+      [ngModel]="rejectReason()"
+      (ngModelChange)="rejectReason.set($event)"
+    ></textarea>
+    <div class="pp-footer">
+      <button nz-button type="button" (click)="rejectVisible.set(false)">Close</button>
+      <button
+        nz-button
+        nzType="primary"
+        nzDanger
+        type="button"
+        [disabled]="!rejectReason().trim() || busy()"
+        [nzLoading]="busy()"
+        (click)="reject()"
+      >
+        Reject
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>

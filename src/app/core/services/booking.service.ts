@@ -19,9 +19,15 @@ import { formatSlot, slotId, toDateKey } from '../booking/schedule';
 import { functionErrorMessage } from '../firebase/auth-errors';
 import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { dataOf, isoOf } from '../firebase/timestamps';
+import { proofUnderReview } from '../payments/manual-payments';
 import { MIN_CHECKOUT_AMOUNT, toPayment } from '../payments/payment-methods';
 import {
-  Booking, BookingStatus, SERVICE_PRICING, Service, ServiceInput, ServicePricing,
+  Booking,
+  BookingStatus,
+  SERVICE_PRICING,
+  Service,
+  ServiceInput,
+  ServicePricing,
 } from '../models';
 import { normalizeMobile } from '../../shared/utils/validators';
 import { AuthService } from './auth.service';
@@ -41,17 +47,26 @@ const STATUSES: readonly BookingStatus[] = [
   'Cancelled',
 ];
 
-/** A booking staff still have to act on: a new request to quote, or a payment to refund (paid after cancelling). */
+/**
+ * A booking staff still have to act on: a new request to quote, a transfer to check, or a payment to refund (paid
+ * after cancelling).
+ */
 export function needsStaffAction(booking: Booking): boolean {
   return (
     booking.status === 'Pending' ||
+    proofUnderReview(booking.payment) ||
     (booking.status === 'Cancelled' && booking.payment?.status === 'Paid')
   );
 }
 
-/** Confirmed with a quote and not paid yet: the customer can open the PayMongo checkout. */
+/** Confirmed with a quote and not paid yet (in advance or, if the customer chose it, on site). */
 export function awaitingPayment(booking: Booking): boolean {
   return booking.status === 'Confirmed' && booking.payment?.status !== 'Paid';
+}
+
+/** The customer chose to pay on site and hasn't paid yet. The booking counts as booked. */
+export function paysOnsite(booking: Booking): boolean {
+  return awaitingPayment(booking) && booking.payment?.provider === 'onsite';
 }
 
 /** What the customer fills in. The rest of the booking (status, ids, timestamps) is set here. */
@@ -74,7 +89,9 @@ export function toService(id: string, data: DocumentData): Service {
     description: String(data['description'] ?? ''),
     category: String(data['category'] ?? ''),
     // Older documents have no `pricing`; their `price` was always a starting price.
-    pricing: (SERVICE_PRICING as readonly string[]).includes(pricing) ? (pricing as ServicePricing) : 'starting',
+    pricing: (SERVICE_PRICING as readonly string[]).includes(pricing)
+      ? (pricing as ServicePricing)
+      : 'starting',
     duration: String(data['duration'] ?? ''),
     isActive: data['isActive'] !== false,
     imageUrl: String(data['imageUrl'] ?? ''),
@@ -118,6 +135,7 @@ function toBooking(snap: QueryDocumentSnapshot<DocumentData>): Booking {
           amount: Number(quote['amount']) || 0,
           note: String(quote['note'] ?? ''),
           quotedAt: isoOf(quote['quotedAt']),
+          allowOnsite: quote['allowOnsite'] === true,
         }
       : undefined,
     payment: payment ? toPayment(payment) : undefined,
@@ -154,7 +172,8 @@ export function bookingErrorMessage(err: unknown): string {
  *
  * Flow: the customer books (Pending) → staff and customer discuss in chat → staff confirms with a quote
  * (Confirmed) → the customer pays the quote through PayMongo (`createBookingCheckout`), and PayMongo's webhook marks
- * the booking Paid and says so in the chat → staff mark it Completed. A paid booking is cancelled only by refunding it
+ * the booking Paid and says so in the chat; or sends a bank / GCash transfer that staff verify; or, when the quote
+ * allows it, pays on site and staff record it (ManualPaymentService) → staff mark it Completed. A paid booking is cancelled only by refunding it
  * (`refund`, the `refundPayment` function), which also frees its slot.
  */
 @Injectable({ providedIn: 'root' })
@@ -305,6 +324,13 @@ export class BookingService {
             : 'This booking is paid. Use "Cancel & refund" instead.',
         );
       }
+      if (proofUnderReview(this.current(booking).payment)) {
+        throw new Error(
+          user.role === 'customer'
+            ? 'Your payment is being checked, so the booking can no longer be cancelled here. Please message us.'
+            : 'The customer sent a transfer for this booking. Approve or reject it first.',
+        );
+      }
       batch.update(this.bookingRef(booking), { status: 'Cancelled', updatedAt: serverTimestamp() });
       batch.delete(this.slotRef(booking.preferredDate, booking.preferredTime));
       this.messages.stageMessage(
@@ -318,14 +344,17 @@ export class BookingService {
 
   /**
    * Staff: sends the quotation and asks the customer to pay (status `Confirmed`, shown as "Awaiting payment"; the
-   * booking only counts as booked once it is paid). Can be repeated to change the amount until it is paid;
-   * a checkout opened for the old amount is replaced the next time the customer pays.
+   * booking only counts as booked once it is paid, or once the customer chose to pay on site when `allowOnsite`).
+   * Can be repeated to change the amount until it is paid; a checkout opened for the old amount is replaced the next
+   * time the customer pays.
    */
-  confirm(booking: Booking, amount: number, note: string): Observable<void> {
+  confirm(booking: Booking, amount: number, note: string, allowOnsite: boolean): Observable<void> {
     return this.commit((batch) => {
       this.requireStatus(booking, ['Pending', 'Confirmed']);
       if (this.current(booking).payment?.status === 'Paid')
         throw new Error('The customer has already paid for this booking.');
+      if (proofUnderReview(this.current(booking).payment))
+        throw new Error('The customer sent a transfer for this quote. Approve or reject it first.');
       if (!Number.isFinite(amount) || amount < MIN_CHECKOUT_AMOUNT) {
         throw new Error(`Enter an amount of at least ${peso(MIN_CHECKOUT_AMOUNT)}.`);
       }
@@ -333,6 +362,7 @@ export class BookingService {
         amount: Math.round(amount * 100) / 100,
         note: note.trim(),
         quotedAt: serverTimestamp(),
+        allowOnsite,
       };
       batch.update(this.bookingRef(booking), {
         status: 'Confirmed',
@@ -343,7 +373,10 @@ export class BookingService {
         batch,
         booking.conversationId,
         `Quotation for ${formatSlot(booking.preferredDate, booking.preferredTime)}: ${peso(quote.amount)}.` +
-          `${quote.note ? ` ${quote.note}` : ''} Your booking is confirmed once it is paid in My Bookings.`,
+          `${quote.note ? ` ${quote.note}` : ''} ` +
+          (allowOnsite
+            ? 'Pay it in My Bookings (online or by bank / GCash transfer), or choose to pay on site.'
+            : 'Your booking is confirmed once it is paid in My Bookings (online or by bank / GCash transfer).'),
         'event',
       );
     });
@@ -391,17 +424,26 @@ export class BookingService {
   }
 
   /**
-   * Staff: refunds the booking's PayMongo payment in full, cancels the booking (freeing its slot) and says so in the
-   * chat. Runs in the `refundPayment` function.
+   * Staff: refunds the booking's payment in full, cancels the booking (freeing its slot) and says so in the chat. Runs
+   * in the `refundPayment` function. PayMongo payments are refunded through PayMongo; for a transfer or an on-site
+   * payment, staff give the money back themselves and enter its `refundReference`.
    */
-  refund(booking: Booking, reason = ''): Observable<void> {
+  refund(booking: Booking, reason = '', refundReference = ''): Observable<void> {
     return defer(async () => {
       const user = this.requireUser();
       if (user.role === 'customer') throw new Error('Only staff can do that.');
-      await httpsCallable<{ kind: 'booking'; id: string; reason: string }, { ok: boolean }>(
+      await httpsCallable<
+        { kind: 'booking'; id: string; reason: string; refundReference: string },
+        { ok: boolean }
+      >(
         this.functions,
         'refundPayment',
-      )({ kind: 'booking', id: booking.id, reason: reason.trim() });
+      )({
+        kind: 'booking',
+        id: booking.id,
+        reason: reason.trim(),
+        refundReference: refundReference.trim(),
+      });
     });
   }
 

@@ -37,8 +37,8 @@ export interface LegalDocument {
   sections: readonly LegalSection[];
 }
 
-export const TERMS_VERSION = '1.2';
-export const PRIVACY_VERSION = '1.3';
+export const TERMS_VERSION = '1.3';
+export const PRIVACY_VERSION = '1.4';
 
 const CONTACT_CONFIRM =
   'Goldcomm Corporation to provide: registered business address, customer-support email address and telephone number, and business hours.';
@@ -167,12 +167,12 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         },
         {
           kind: 'p',
-          text: "At checkout you choose a delivery address and press Pay. The order is created with an order number (for example, ORD-0007) and you are taken to PayMongo's secure page to pay for it. The order then moves through these stages, which you can follow under My Orders:",
+          text: "At checkout you choose a delivery address and how to pay (see Payment), then place the order. The order is created with an order number (for example, ORD-0007); if you pay online you are taken to PayMongo's secure page to pay for it. The order then moves through these stages, which you can follow under My Orders:",
         },
         {
           kind: 'list',
           items: [
-            'Pending — the order has been placed. It waits for your payment, and once paid, for our staff to start it. An order that is not paid within 60 minutes is cancelled automatically.',
+            'Pending — the order has been placed. It waits for your payment (or, for a bank / GCash transfer, for our staff to verify it), and once paid, for our staff to start it. An order paid online that is not paid within 60 minutes is cancelled automatically.',
             'Processing — our staff are preparing the order. The items are taken out of stock at this point.',
             'Shipped — the order has been handed to a courier. The courier name, and a tracking number when there is one, are shown on the order.',
             'Delivered — the order has been received.',
@@ -195,7 +195,11 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       blocks: [
         {
           kind: 'p',
-          text: 'Payments for orders and service bookings are processed by PayMongo Philippines, Inc. ("PayMongo"). When you press Pay, you are taken to PayMongo\'s secure checkout page, where you can pay with:',
+          text: 'You can pay for orders and service bookings online through PayMongo Philippines, Inc. ("PayMongo") or, when it is offered, by bank or GCash transfer. Service bookings can also be paid on site when our staff allow it on the quotation.',
+        },
+        {
+          kind: 'p',
+          text: "Online: when you press Pay, you are taken to PayMongo's secure checkout page, where you can pay with:",
         },
         {
           kind: 'list',
@@ -204,6 +208,14 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         {
           kind: 'p',
           text: "You enter your card or e-wallet details on PayMongo's page, not in IOTEL, and your payment is also subject to PayMongo's terms and those of your card issuer or e-wallet. Your order or booking is marked Paid only when PayMongo confirms the payment to us. If you leave PayMongo's page without paying, you can pay from the order (Pay now) until it is cancelled. Cash on Delivery is not offered.",
+        },
+        {
+          kind: 'p',
+          text: 'Bank / GCash transfer: you send the exact amount yourself to one of the Goldcomm accounts shown on your order or booking, then enter the reference number, the amount and when you sent it, and upload a screenshot of the transfer. Our staff check that the money arrived, usually during business hours, and only then mark the order or booking Paid. If they cannot verify it, they tell you why and you can send the details again. Transfer fees charged by your bank or e-wallet are yours. Please send money only to the accounts shown in IOTEL; we never ask you to pay into a personal account in chat. While a transfer is being checked, the order or booking cannot be cancelled from IOTEL; please contact us through Messages.',
+        },
+        {
+          kind: 'p',
+          text: 'On site (service bookings only): when the quotation allows it, you can choose to pay at our shop at your appointment, in cash, by GCash, bank transfer or card. The booking is confirmed when you choose this, and is marked Paid when our staff record your payment.',
         },
         {
           kind: 'confirm',
@@ -218,9 +230,9 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         {
           kind: 'list',
           items: [
-            'You can cancel your order yourself from My Orders while it is still Pending and has not been paid. Orders that are not paid within 60 minutes are cancelled automatically.',
+            'You can cancel your order yourself from My Orders while it is still Pending and has not been paid (and no transfer is being checked). Orders paid online that are not paid within 60 minutes are cancelled automatically; orders paid by transfer are not, and our staff may cancel one that is never paid.',
             'Once your order is paid, please contact us through Messages if you need to cancel.',
-            'Goldcomm may cancel an order that is Pending or Processing, for example when the items are out of stock. If the order was paid, we refund the full amount through PayMongo to the payment method you used. We may give a reason on the order.',
+            'Goldcomm may cancel an order that is Pending or Processing, for example when the items are out of stock. If the order was paid, we refund the full amount: through PayMongo to the payment method you used, or, for a transfer, by sending it back to the account you paid from. We may give a reason on the order.',
             'If we receive a payment for an order that was already cancelled, we refund it in full.',
           ],
         },
@@ -232,7 +244,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       blocks: [
         {
           kind: 'p',
-          text: 'When Goldcomm cancels a paid order or booking, the full amount is refunded through PayMongo to the payment method you used; how long it takes to reach you depends on PayMongo and your card issuer or e-wallet. Other requests about returns, replacements, defective items or refunds are handled by our staff; please contact us through Messages and include your order number.',
+          text: "When Goldcomm cancels a paid order or booking, the full amount is refunded: through PayMongo to the payment method you used (how long it takes to reach you depends on PayMongo and your card issuer or e-wallet), or, for a transfer or an on-site payment, by our staff sending it back to you directly, with the refund's reference shown on the order or booking. Other requests about returns, replacements, defective items or refunds are handled by our staff; please contact us through Messages and include your order number.",
         },
         {
           kind: 'p',
@@ -276,8 +288,8 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           items: [
             'You choose a service, a preferred date and an available time slot (Monday to Saturday), and describe what you need. The booking starts as Pending, and a chat thread with our staff is opened for it.',
             'The price shown for a service is a starting price. Our staff confirm the booking and give you a quotation, and may agree a different date or time with you in the chat.',
-            'You pay the quoted amount through PayMongo (see Payment). The booking is marked Paid when PayMongo confirms the payment, and Completed when the work is done.',
-            "You can cancel a booking yourself while it is Pending or Confirmed and before you have paid. After that, please contact us through the booking's chat; if we cancel a paid booking, we refund it in full through PayMongo.",
+            'You pay the quoted amount online through PayMongo, by bank / GCash transfer, or, when the quotation allows it, on site (see Payment). The booking is marked Paid when the payment is confirmed (by PayMongo, or by our staff for a transfer or an on-site payment), and Completed when the work is done.',
+            "You can cancel a booking yourself while it is Pending or Confirmed, before you have paid and while no transfer is being checked. After that, please contact us through the booking's chat; if we cancel a paid booking, we refund it in full (see Returns and Refunds).",
           ],
         },
         {
@@ -526,11 +538,15 @@ export const PRIVACY_POLICY: LegalDocument = {
       blocks: [
         {
           kind: 'p',
-          text: "You pay on PayMongo's checkout page. To open it, IOTEL sends PayMongo your name, email address, the order or booking number, the items and the amount. For each order or booking we record the amount, the payment status (unpaid, paid or refunded), the method you used (for example GCash or card), when it was paid or refunded, and PayMongo's payment and refund IDs.",
+          text: "When you pay online, you pay on PayMongo's checkout page. To open it, IOTEL sends PayMongo your name, email address, the order or booking number, the items and the amount. For each order or booking we record the amount, the payment status (unpaid, paid or refunded), the method you used (for example GCash or card), when it was paid or refunded, and PayMongo's payment and refund IDs.",
         },
         {
           kind: 'p',
           text: "Your card number, e-wallet account and one-time passwords are entered on PayMongo's page and handled by PayMongo under its own privacy policy; IOTEL never receives or stores them. Please never send them to us, including in chat.",
+        },
+        {
+          kind: 'p',
+          text: 'When you pay by bank or GCash transfer, we keep what you enter: the account you paid into, the reference number, the amount, when you sent it and the screenshot you upload, plus earlier attempts that could not be verified and who on our staff checked them. Screenshots are stored in Google Cloud Storage (Firebase Storage) and can be seen only by you and by Goldcomm staff and administrators. A screenshot often shows your own name, account or mobile number and balance; you may crop it to the transfer details before uploading. When we refund a transfer or an on-site payment, we record the reference of the refund we sent. For on-site payments we record how you paid, the amount, the receipt number and which staff member recorded it.',
         },
       ],
     },
@@ -572,7 +588,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       blocks: [
         {
           kind: 'p',
-          text: 'IOTEL is built on Google Firebase. Sign-in is handled by Firebase Authentication, and everything else described in this policy (profiles, addresses, favorites, orders, bookings, payment records and messages) is stored in Cloud Firestore, a Google cloud database. Google processes this information on our behalf as a service provider.',
+          text: 'IOTEL is built on Google Firebase. Sign-in is handled by Firebase Authentication, and everything else described in this policy (profiles, addresses, favorites, orders, bookings, payment records and messages) is stored in Cloud Firestore, a Google cloud database, except transfer screenshots, which are stored in Firebase Storage. Google processes this information on our behalf as a service provider.',
         },
         {
           kind: 'p',

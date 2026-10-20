@@ -7,35 +7,56 @@
  * - `createBookingCheckout`: opens (or reuses) a checkout for a confirmed booking's quote.
  * - `paymongoWebhook`: PayMongo calls it when a checkout is paid; it is the only thing that marks a payment Paid.
  * - `refundPayment`: staff refund a paid order or booking, which also cancels it (and restocks a processing order).
- * - `expireUnpaidOrders`: cancels orders still unpaid after an hour; the update triggers then expire their checkouts
- *   (the same happens when a customer or staff cancel an unpaid order or booking).
+ * - `expireUnpaidOrders`: cancels PayMongo orders still unpaid after an hour; the update triggers then expire their
+ *   checkouts (the same happens when a customer or staff cancel an unpaid order or booking).
+ *
+ * `createOrderCheckout` can also place an order to be paid by GCash / bank transfer (`provider: 'manual'`), and
+ * `refundPayment` records refunds of transfers and on-site payments that staff send back themselves. The rest of the
+ * manual flow (proof, review, on-site payments) is in manual-payments.ts.
  *
  * Test and live mode differ only in the secrets: PAYMONGO_SECRET_KEY (sk_test_… / sk_live_…) and the webhook's
  * PAYMONGO_WEBHOOK_SECRET, printed by `npm run paymongo:webhook` when the webhook is registered.
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { DocumentData, DocumentReference, FieldValue, Timestamp, Transaction } from 'firebase-admin/firestore';
+import { DocumentData, DocumentReference, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { defineSecret, defineString } from 'firebase-functions/params';
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
-import { CallableRequest, HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
+import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { db } from './app.js';
-import { TWO_STEP_SIGN_IN } from './flags.js';
+import {
+  CheckoutSessionAttributes,
+  Kind,
+  PAYMONGO_SECRET_KEY,
+  PaymongoResource,
+  SYSTEM_SENDER,
+  centavos,
+  collectionOf,
+  docId,
+  expireSession,
+  kindOf,
+  methodLabel,
+  paymongo,
+  peso,
+  readStock,
+  requireCustomer,
+  requireStaff,
+  stageEvent,
+} from './payment-common.js';
 
-const PAYMONGO_SECRET_KEY = defineSecret('PAYMONGO_SECRET_KEY');
 const PAYMONGO_WEBHOOK_SECRET = defineSecret('PAYMONGO_WEBHOOK_SECRET');
 // Where PayMongo may send the customer back to, comma-separated (functions/.env).
 const APP_ORIGINS = defineString('APP_ORIGINS', {
   default: 'http://localhost:4200',
-  description: 'Origins of the IOTEL web app, comma-separated (e.g. http://localhost:4200,https://iotel-e9a72.web.app)',
+  description:
+    'Origins of the IOTEL web app, comma-separated (e.g. http://localhost:4200,https://iotel-e9a72.web.app)',
 });
 
-const API = 'https://api.paymongo.com/v1';
 /** Mirrors SHIPPING_FEE in src/app/core/services/cart.service.ts. */
 const SHIPPING_FEE = 250;
 const ESTIMATED_DELIVERY_DAYS = 5;
-/** Unpaid orders are cancelled after this long (mirrored in the app's order hints). */
+/** Unpaid PayMongo orders are cancelled after this long (mirrored in the app's order hints). */
 const UNPAID_ORDER_TTL_MS = 60 * 60 * 1000;
 const MAX_ORDER_LINES = 50;
 /** PayMongo's smallest checkout amount, in pesos. Mirrors MIN_CHECKOUT_AMOUNT in the app's payment-methods.ts. */
@@ -43,93 +64,13 @@ const MIN_CHECKOUT_AMOUNT = 20;
 /** What the PayMongo checkout page offers. Add 'dob', 'billease', … here once they are enabled on the account. */
 const PAYMENT_METHOD_TYPES = ['card', 'gcash', 'paymaya', 'grab_pay', 'qrph'];
 
-type Kind = 'order' | 'booking';
-
-interface PaymongoResource<A> {
-  id: string;
-  type: string;
-  attributes: A;
-}
-
-interface PaymentAttributes {
-  amount: number;
-  status: string;
-  source?: { type?: string } | null;
-}
-
-interface CheckoutSessionAttributes {
-  checkout_url: string;
-  status: string;
-  metadata?: Record<string, string> | null;
-  payment_method_used?: string | null;
-  payments?: PaymongoResource<PaymentAttributes>[];
-}
-
 interface WebhookEvent {
   id: string;
-  attributes: { type: string; livemode: boolean; data: PaymongoResource<CheckoutSessionAttributes> };
-}
-
-// ── PayMongo API ─────────────────────────────────────────────────────────────
-
-async function paymongo<A>(method: 'GET' | 'POST', path: string, attributes?: object): Promise<PaymongoResource<A>> {
-  const res = await fetch(`${API}${path}`, {
-    method,
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${PAYMONGO_SECRET_KEY.value()}:`).toString('base64')}`,
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: attributes ? JSON.stringify({ data: { attributes } }) : undefined,
-  });
-  const body = (await res.json().catch(() => null)) as { data?: PaymongoResource<A>; errors?: unknown } | null;
-  if (!res.ok || !body?.data) {
-    logger.error('PayMongo request failed', { method, path, status: res.status, errors: body?.errors });
-    throw new HttpsError('unavailable', "We couldn't reach the payment provider. Please try again in a minute.");
-  }
-  return body.data;
-}
-
-/** PayMongo amounts are in centavos. */
-function centavos(php: number): number {
-  return Math.round(php * 100);
-}
-
-/** Closes a checkout so it can't be paid any more. Best effort: an already expired or paid session just logs. */
-async function expireSession(sessionId: string): Promise<void> {
-  try {
-    await paymongo('POST', `/checkout_sessions/${sessionId}/expire`);
-  } catch {
-    logger.warn('Could not expire checkout session', { sessionId });
-  }
-}
-
-// ── Callers ──────────────────────────────────────────────────────────────────
-
-/**
- * A customer whose session passed the second step: the emailed code, or an authenticator app if they set one up (the
- * same check as `secondStep()` in firestore.rules).
- */
-async function requireCustomer(req: CallableRequest): Promise<{ uid: string; name: string; email: string }> {
-  if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in again.');
-  const { uid, token } = req.auth;
-  const secondStep = token['otpAuthTime'] === token.auth_time || token.firebase?.sign_in_second_factor === 'totp';
-  if (TWO_STEP_SIGN_IN && !secondStep) throw new HttpsError('unauthenticated', 'Please sign in again.');
-  const profile = await db.doc(`users/${uid}`).get();
-  if (profile.get('role') !== 'customer') throw new HttpsError('permission-denied', 'Only customers can pay here.');
-  return { uid, name: String(profile.get('name') ?? ''), email: String(profile.get('email') ?? token.email ?? '') };
-}
-
-/** Staff or an admin, signed in with their authenticator app (as `isStaffOrAdmin()` in firestore.rules). */
-async function requireStaff(req: CallableRequest): Promise<{ uid: string; name: string; role: string }> {
-  if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in again.');
-  if (TWO_STEP_SIGN_IN && req.auth.token.firebase?.sign_in_second_factor !== 'totp') {
-    throw new HttpsError('permission-denied', 'Sign in with your authenticator app first.');
-  }
-  const profile = await db.doc(`users/${req.auth.uid}`).get();
-  const role = profile.get('role');
-  if (role !== 'staff' && role !== 'admin') throw new HttpsError('permission-denied', 'Only staff can do this.');
-  return { uid: req.auth.uid, name: String(profile.get('name') ?? ''), role };
+  attributes: {
+    type: string;
+    livemode: boolean;
+    data: PaymongoResource<CheckoutSessionAttributes>;
+  };
 }
 
 /** The app origin PayMongo sends the customer back to; only the configured ones are accepted. */
@@ -146,21 +87,24 @@ function appOrigin(value: unknown): string {
   return origin;
 }
 
-function docId(value: unknown): string {
-  if (typeof value !== 'string' || !value || value.length > 200 || value.includes('/')) {
-    throw new HttpsError('invalid-argument', 'Missing or invalid id.');
-  }
-  return value;
-}
-
 // ── Orders ───────────────────────────────────────────────────────────────────
 
-const ADDRESS_LIMITS = { fullName: 60, addressLine: 200, city: 80, province: 80, zip: 10, mobile: 20 } as const;
+const ADDRESS_LIMITS = {
+  fullName: 60,
+  addressLine: 200,
+  city: 80,
+  province: 80,
+  zip: 10,
+  mobile: 20,
+} as const;
 type ShippingAddress = Record<keyof typeof ADDRESS_LIMITS, string>;
 
 /** `+63 917-123-4567` → `09171234567`; does not validate. Mirrors `normalizeMobile` in src/app/shared/utils/validators.ts. */
 function localMobile(value: string): string {
-  return value.replace(/[^\d+]/g, '').replace(/^\+?63(?=9)/, '0').replace(/\D/g, '');
+  return value
+    .replace(/[^\d+]/g, '')
+    .replace(/^\+?63(?=9)/, '0')
+    .replace(/\D/g, '');
 }
 
 function shippingAddress(value: unknown): ShippingAddress {
@@ -168,7 +112,8 @@ function shippingAddress(value: unknown): ShippingAddress {
   const address = {} as ShippingAddress;
   for (const [key, max] of Object.entries(ADDRESS_LIMITS) as [keyof ShippingAddress, number][]) {
     const field = typeof input[key] === 'string' ? (input[key] as string).trim() : '';
-    if (!field || field.length > max) throw new HttpsError('invalid-argument', 'Please check your shipping address.');
+    if (!field || field.length > max)
+      throw new HttpsError('invalid-argument', 'Please check your shipping address.');
     address[key] = field;
   }
   // Exactly 11 digits (09XXXXXXXXX), as the app and firestore.rules require. Addresses saved before that rule may
@@ -186,8 +131,10 @@ function shippingAddress(value: unknown): ShippingAddress {
 
 /** Quantity per product id, from the cart lines the client sent. */
 function cartLines(value: unknown): Map<string, number> {
-  if (!Array.isArray(value) || value.length === 0) throw new HttpsError('invalid-argument', 'Your cart is empty.');
-  if (value.length > MAX_ORDER_LINES) throw new HttpsError('invalid-argument', 'Too many items in one order.');
+  if (!Array.isArray(value) || value.length === 0)
+    throw new HttpsError('invalid-argument', 'Your cart is empty.');
+  if (value.length > MAX_ORDER_LINES)
+    throw new HttpsError('invalid-argument', 'Too many items in one order.');
   const lines = new Map<string, number>();
   for (const line of value as { productId?: unknown; qty?: unknown }[]) {
     const id = docId(line?.productId);
@@ -212,15 +159,38 @@ function orderCode(number: number): string {
 
 /** `YYYY-MM-DD` in the Philippines, `days` from now. */
 function manilaDateKey(days: number): string {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', {
+    timeZone: 'Asia/Manila',
+  });
 }
 
-/** Customer: turns the cart into an order and a PayMongo checkout. Returns where to send the customer. */
+/**
+ * Customer: turns the cart into an order. With `provider: 'paymongo'` (the default) it also opens a PayMongo checkout
+ * and returns where to send the customer; with `'manual'` the customer pays by GCash / bank transfer and sends the
+ * proof from the order (`submitManualPayment`), so `checkoutUrl` is null.
+ */
 export const createOrderCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (req) => {
   const customer = await requireCustomer(req);
+  const provider = req.data?.provider ?? 'paymongo';
+  if (provider !== 'paymongo' && provider !== 'manual') {
+    throw new HttpsError('invalid-argument', 'Unknown payment method.');
+  }
   const lines = cartLines(req.data?.items);
   const address = shippingAddress(req.data?.address);
-  const origin = appOrigin(req.data?.origin);
+  const origin = provider === 'paymongo' ? appOrigin(req.data?.origin) : '';
+  if (provider === 'manual') {
+    const receivers = await db
+      .collection('paymentReceivers')
+      .where('isActive', '==', true)
+      .limit(1)
+      .get();
+    if (receivers.empty) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Bank and GCash transfers are not available right now.',
+      );
+    }
+  }
 
   const orderRef = db.collection('orders').doc();
   const counterRef = db.doc('counters/orders');
@@ -246,7 +216,8 @@ export const createOrderCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
       }
       return { productId: snap.id, name, price, qty, imageUrl: String(snap.get('imageUrl') ?? '') };
     });
-    const subtotal = Math.round(items.reduce((sum, item) => sum + item.price * item.qty, 0) * 100) / 100;
+    const subtotal =
+      Math.round(items.reduce((sum, item) => sum + item.price * item.qty, 0) * 100) / 100;
     const total = subtotal + SHIPPING_FEE;
     const number = (counter.exists ? Number(counter.get('last')) || 0 : 0) + 1;
 
@@ -261,7 +232,10 @@ export const createOrderCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
       shippingFee: SHIPPING_FEE,
       total,
       address,
-      payment: { provider: 'paymongo', status: 'Unpaid', amount: total },
+      payment:
+        provider === 'manual'
+          ? { provider: 'manual', status: 'Unpaid', amount: total, manual: { state: 'awaiting' } }
+          : { provider: 'paymongo', status: 'Unpaid', amount: total },
       status: 'Pending',
       estimatedDelivery: manilaDateKey(ESTIMATED_DELIVERY_DAYS),
       createdAt: FieldValue.serverTimestamp(),
@@ -269,6 +243,11 @@ export const createOrderCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
     });
     return { code: orderCode(number), items, total };
   });
+
+  if (provider === 'manual') {
+    logger.info('Order placed for a transfer', { orderId: orderRef.id, code, total });
+    return { orderId: orderRef.id, checkoutUrl: null };
+  }
 
   const back = `${origin}/customer/orders/${orderRef.id}/confirmation`;
   let session: PaymongoResource<CheckoutSessionAttributes>;
@@ -310,11 +289,19 @@ export const createOrderCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
     'payment.checkoutUrl': session.attributes.checkout_url,
     updatedAt: FieldValue.serverTimestamp(),
   });
-  logger.info('Order checkout created', { orderId: orderRef.id, code, total, sessionId: session.id });
+  logger.info('Order checkout created', {
+    orderId: orderRef.id,
+    code,
+    total,
+    sessionId: session.id,
+  });
   return { orderId: orderRef.id, checkoutUrl: session.attributes.checkout_url };
 });
 
-/** Cancels orders that were never paid, so they don't sit in the staff queue. */
+/**
+ * Cancels PayMongo orders that were never paid, so they don't sit in the staff queue. Orders paid by transfer are
+ * left alone: the customer may still be sending the money, and staff cancel abandoned ones themselves.
+ */
 export const expireUnpaidOrders = onSchedule(
   { schedule: 'every 15 minutes', timeZone: 'Asia/Manila' },
   async () => {
@@ -323,7 +310,13 @@ export const expireUnpaidOrders = onSchedule(
     const pending = await db.collection('orders').where('status', '==', 'Pending').get();
     const stale = pending.docs.filter((snap) => {
       const createdAt = snap.get('createdAt') as Timestamp | undefined;
-      return snap.get('payment.status') === 'Unpaid' && !!createdAt && createdAt.toMillis() < cutoff;
+      const provider = snap.get('payment.provider') ?? 'paymongo';
+      return (
+        provider === 'paymongo' &&
+        snap.get('payment.status') === 'Unpaid' &&
+        !!createdAt &&
+        createdAt.toMillis() < cutoff
+      );
     });
     for (const snap of stale) {
       await db.runTransaction(async (tx) => {
@@ -343,7 +336,10 @@ export const expireUnpaidOrders = onSchedule(
 );
 
 /** Closes the checkout of an order or booking that was just cancelled before it was paid. */
-function expireCheckoutOnCancel(before: DocumentData | undefined, after: DocumentData | undefined): Promise<void> {
+function expireCheckoutOnCancel(
+  before: DocumentData | undefined,
+  after: DocumentData | undefined,
+): Promise<void> {
   const sessionId = after?.['payment']?.['checkoutSessionId'];
   if (
     before?.['status'] !== 'Cancelled' &&
@@ -378,9 +374,11 @@ export const createBookingCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, 
   if (!snap.exists || snap.get('customerId') !== customer.uid) {
     throw new HttpsError('not-found', 'This booking could not be found.');
   }
-  if (snap.get('status') !== 'Confirmed') throw new HttpsError('failed-precondition', 'This booking is not waiting for payment.');
+  if (snap.get('status') !== 'Confirmed')
+    throw new HttpsError('failed-precondition', 'This booking is not waiting for payment.');
   const amount = Number(snap.get('quote.amount'));
-  if (!(amount > 0)) throw new HttpsError('failed-precondition', 'This booking has no confirmed amount yet.');
+  if (!(amount > 0))
+    throw new HttpsError('failed-precondition', 'This booking has no confirmed amount yet.');
   if (amount < MIN_CHECKOUT_AMOUNT) {
     throw new HttpsError(
       'failed-precondition',
@@ -388,9 +386,19 @@ export const createBookingCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, 
     );
   }
   const payment = snap.get('payment') as DocumentData | undefined;
-  if (payment?.['status'] === 'Paid') throw new HttpsError('failed-precondition', 'This booking is already paid.');
+  if (payment?.['status'] === 'Paid')
+    throw new HttpsError('failed-precondition', 'This booking is already paid.');
+  if (payment?.['manual']?.['state'] === 'submitted') {
+    throw new HttpsError(
+      'failed-precondition',
+      'Your transfer is being checked. Please wait for our team.',
+    );
+  }
 
-  const previous = typeof payment?.['checkoutSessionId'] === 'string' ? (payment['checkoutSessionId'] as string) : null;
+  const previous =
+    typeof payment?.['checkoutSessionId'] === 'string'
+      ? (payment['checkoutSessionId'] as string)
+      : null;
   if (previous) {
     const open = await paymongo<CheckoutSessionAttributes>('GET', `/checkout_sessions/${previous}`);
     if (open.attributes.status === 'active') {
@@ -402,7 +410,9 @@ export const createBookingCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, 
   const serviceName = String(snap.get('serviceName') ?? 'Service');
   const back = `${origin}/customer/services?booking=${bookingId}`;
   const session = await paymongo<CheckoutSessionAttributes>('POST', '/checkout_sessions', {
-    line_items: [{ currency: 'PHP', amount: centavos(amount), name: serviceName.slice(0, 255), quantity: 1 }],
+    line_items: [
+      { currency: 'PHP', amount: centavos(amount), name: serviceName.slice(0, 255), quantity: 1 },
+    ],
     payment_method_types: PAYMENT_METHOD_TYPES,
     description: `IOTEL service booking: ${serviceName}`,
     reference_number: bookingId,
@@ -417,8 +427,15 @@ export const createBookingCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, 
 
   await db.runTransaction(async (tx) => {
     const fresh = await tx.get(ref);
-    if (fresh.get('status') !== 'Confirmed' || fresh.get('payment.status') === 'Paid') {
-      throw new HttpsError('failed-precondition', 'This booking changed. Please refresh and try again.');
+    if (
+      fresh.get('status') !== 'Confirmed' ||
+      fresh.get('payment.status') === 'Paid' ||
+      fresh.get('payment.manual.state') === 'submitted'
+    ) {
+      throw new HttpsError(
+        'failed-precondition',
+        'This booking changed. Please refresh and try again.',
+      );
     }
     tx.update(ref, {
       payment: {
@@ -433,45 +450,6 @@ export const createBookingCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, 
   });
   return { checkoutUrl: session.attributes.checkout_url };
 });
-
-/** Adds an `event` line to a booking's chat inside `tx`, the way the app's MessageService does. */
-function stageEvent(
-  tx: Transaction,
-  conversationId: unknown,
-  content: string,
-  sender: { id: string; name: string; role: string },
-): void {
-  if (typeof conversationId !== 'string' || !conversationId) return;
-  const conversation = db.doc(`conversations/${conversationId}`);
-  tx.set(conversation.collection('messages').doc(), {
-    senderId: sender.id,
-    senderName: sender.name,
-    senderRole: sender.role,
-    kind: 'event',
-    content,
-    sentAt: FieldValue.serverTimestamp(),
-  });
-  tx.update(conversation, {
-    lastMessage: content,
-    lastMessageAt: FieldValue.serverTimestamp(),
-    customerUnread: FieldValue.increment(1),
-    // Staff wrote it themselves; a system line is news to both sides.
-    ...(sender.id === SYSTEM_SENDER.id ? { staffUnread: FieldValue.increment(1) } : {}),
-  });
-}
-
-const SYSTEM_SENDER = { id: 'system', name: 'IOTEL', role: 'staff' };
-
-const METHOD_LABELS: Record<string, string> = {
-  card: 'card',
-  gcash: 'GCash',
-  paymaya: 'Maya',
-  grab_pay: 'GrabPay',
-  qrph: 'QR Ph',
-  dob: 'online banking',
-  dob_ubp: 'online banking',
-  billease: 'BillEase',
-};
 
 // ── Webhook ──────────────────────────────────────────────────────────────────
 
@@ -500,13 +478,16 @@ async function applyPaidCheckout(event: WebhookEvent): Promise<void> {
   const kind = session.attributes.metadata?.['kind'] as Kind | undefined;
   const id = session.attributes.metadata?.['id'];
   if ((kind !== 'order' && kind !== 'booking') || !id) {
-    logger.warn('Paid checkout without IOTEL metadata', { eventId: event.id, sessionId: session.id });
+    logger.warn('Paid checkout without IOTEL metadata', {
+      eventId: event.id,
+      sessionId: session.id,
+    });
     return;
   }
   const payment = session.attributes.payments?.[0];
   const method = session.attributes.payment_method_used || payment?.attributes.source?.type || '';
   const paidAmount = payment ? payment.attributes.amount / 100 : null;
-  const ref: DocumentReference = db.doc(`${kind === 'order' ? 'orders' : 'bookings'}/${id}`);
+  const ref: DocumentReference = db.doc(`${collectionOf(kind)}/${id}`);
   const eventRef = db.doc(`paymongoEvents/${event.id}`);
 
   await db.runTransaction(async (tx) => {
@@ -526,10 +507,17 @@ async function applyPaidCheckout(event: WebhookEvent): Promise<void> {
     }
     if (snap.get('payment.status') === 'Paid') return;
     if (paidAmount !== null && paidAmount !== Number(snap.get('payment.amount'))) {
-      logger.warn('Paid amount differs from the amount due', { kind, id, paidAmount, due: snap.get('payment.amount') });
+      logger.warn('Paid amount differs from the amount due', {
+        kind,
+        id,
+        paidAmount,
+        due: snap.get('payment.amount'),
+      });
     }
     // A cancelled order or booking (paid after it expired) still records the money, so staff see they must refund it.
     const updates: Record<string, unknown> = {
+      // A booking may have switched to a transfer or on-site payment after this checkout was opened.
+      'payment.provider': 'paymongo',
       'payment.status': 'Paid',
       'payment.paidAt': FieldValue.serverTimestamp(),
       'payment.paymentId': payment?.id ?? '',
@@ -544,7 +532,7 @@ async function applyPaidCheckout(event: WebhookEvent): Promise<void> {
         tx,
         snap.get('conversationId'),
         confirmed
-          ? `Payment received${METHOD_LABELS[method] ? ` via ${METHOD_LABELS[method]}` : ''}. Your booking is confirmed. Thank you!`
+          ? `Payment received${methodLabel(method) ? ` via ${methodLabel(method)}` : ''}. Your booking is confirmed. Thank you!`
           : 'A payment was received for this cancelled booking. Our team will refund it.',
         SYSTEM_SENDER,
       );
@@ -563,7 +551,10 @@ export const paymongoWebhook = onRequest(
       return;
     }
     const event = (req.body as { data?: WebhookEvent } | undefined)?.data;
-    if (!event?.attributes || !validSignature(req.get('paymongo-signature'), req.rawBody, !!event.attributes.livemode)) {
+    if (
+      !event?.attributes ||
+      !validSignature(req.get('paymongo-signature'), req.rawBody, !!event.attributes.livemode)
+    ) {
       logger.warn('Webhook with a missing or invalid signature');
       res.status(401).send('Invalid signature');
       return;
@@ -586,58 +577,93 @@ export const paymongoWebhook = onRequest(
  * Staff: refunds a paid order or booking in full and cancels it if it isn't already. A processing order's items go
  * back into stock; a booking's time slot is freed. Shipped or delivered orders and completed bookings are refunded
  * from the PayMongo dashboard instead.
+ *
+ * PayMongo payments are refunded through PayMongo. Transfers and on-site payments are sent back by staff themselves
+ * (to the customer's account, or in cash), so they must give `refundReference`: their transfer's reference number or
+ * the receipt.
  */
 export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (req) => {
   const staff = await requireStaff(req);
-  const kind = req.data?.kind as Kind;
-  if (kind !== 'order' && kind !== 'booking') throw new HttpsError('invalid-argument', 'Unknown payment.');
+  const kind = kindOf(req.data?.kind);
   const id = docId(req.data?.id);
   const reason = typeof req.data?.reason === 'string' ? req.data.reason.trim().slice(0, 200) : '';
-  const ref = db.doc(`${kind === 'order' ? 'orders' : 'bookings'}/${id}`);
+  const ref = db.doc(`${collectionOf(kind)}/${id}`);
 
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError('not-found', 'This could not be found.');
   const status = snap.get('status');
-  const refundable = kind === 'order' ? ['Pending', 'Processing', 'Cancelled'] : ['Confirmed', 'Paid', 'Cancelled'];
+  const provider = snap.get('payment.provider') ?? 'paymongo';
+  const refundable =
+    kind === 'order' ? ['Pending', 'Processing', 'Cancelled'] : ['Confirmed', 'Paid', 'Cancelled'];
   if (!refundable.includes(status)) {
     throw new HttpsError(
       'failed-precondition',
-      `This ${kind} is already ${String(status).toLowerCase()}. Refund it from the PayMongo dashboard if needed.`,
+      provider === 'paymongo'
+        ? `This ${kind} is already ${String(status).toLowerCase()}. Refund it from the PayMongo dashboard if needed.`
+        : `This ${kind} is already ${String(status).toLowerCase()}.`,
     );
   }
   const paymentId = snap.get('payment.paymentId');
   const amount = Number(snap.get('payment.amount'));
-  if (snap.get('payment.status') !== 'Paid' || typeof paymentId !== 'string' || !paymentId || !(amount > 0)) {
+  if (snap.get('payment.status') !== 'Paid' || !(amount > 0)) {
     throw new HttpsError('failed-precondition', 'There is no payment to refund.');
   }
 
-  // PayMongo refuses refunds beyond what was paid, so a double click can't refund twice.
-  const refund = await paymongo('POST', '/refunds', {
-    amount: centavos(amount),
-    payment_id: paymentId,
-    reason: 'requested_by_customer',
-    ...(reason ? { notes: reason } : {}),
-  });
+  let refundId: string;
+  if (provider === 'paymongo') {
+    if (typeof paymentId !== 'string' || !paymentId) {
+      throw new HttpsError('failed-precondition', 'There is no payment to refund.');
+    }
+    // PayMongo refuses refunds beyond what was paid, so a double click can't refund twice.
+    const refund = await paymongo('POST', '/refunds', {
+      amount: centavos(amount),
+      payment_id: paymentId,
+      reason: 'requested_by_customer',
+      ...(reason ? { notes: reason } : {}),
+    });
+    refundId = refund.id;
+  } else {
+    const reference =
+      typeof req.data?.refundReference === 'string' ? req.data.refundReference.trim() : '';
+    if (!reference || reference.length > 60) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Enter the reference number of the refund you sent (up to 60 characters).',
+      );
+    }
+    refundId = reference;
+  }
 
   await db.runTransaction(async (tx) => {
     const fresh = await tx.get(ref);
+    // A transfer refund has no PayMongo check against refunding twice, so check here.
+    if (fresh.get('payment.status') !== 'Paid') {
+      throw new HttpsError('failed-precondition', 'This payment was already refunded.');
+    }
     const current = fresh.get('status');
     // All reads come before any write.
     const restock =
       kind === 'order' && current === 'Processing'
-        ? await readStock(tx, (fresh.get('items') as { productId: string; qty: number }[] | undefined) ?? [])
+        ? await readStock(
+            tx,
+            (fresh.get('items') as { productId: string; qty: number }[] | undefined) ?? [],
+          )
         : [];
     for (const line of restock) {
       if (line.exists) tx.update(line.ref, { stock: line.stock + line.qty });
     }
     const updates: Record<string, unknown> = {
       'payment.status': 'Refunded',
-      'payment.refundId': refund.id,
+      'payment.refundId': refundId,
       'payment.refundedAt': FieldValue.serverTimestamp(),
       // Who refunded it, for the activity log (activity.ts).
       'payment.refundedBy': staff.uid,
       updatedAt: FieldValue.serverTimestamp(),
     };
+    if (provider !== 'paymongo') {
+      updates['payment.refundReference'] = refundId;
+      if (reason) updates['payment.refundNote'] = reason;
+    }
     if (current !== 'Cancelled') {
       updates['status'] = 'Cancelled';
       if (kind === 'order') {
@@ -645,33 +671,23 @@ export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (r
         updates['cancelledAt'] = FieldValue.serverTimestamp();
         if (reason) updates['cancelReason'] = reason;
       } else {
-        tx.delete(db.doc(`bookingSlots/${fresh.get('preferredDate')}T${fresh.get('preferredTime')}`));
+        tx.delete(
+          db.doc(`bookingSlots/${fresh.get('preferredDate')}T${fresh.get('preferredTime')}`),
+        );
       }
     }
     if (kind === 'booking') {
       stageEvent(
         tx,
         fresh.get('conversationId'),
-        `${current !== 'Cancelled' ? 'Booking cancelled and payment' : 'Payment'} of ₱${amount.toLocaleString('en-PH')} refunded${reason ? `: ${reason}` : '.'}`,
+        `${current !== 'Cancelled' ? 'Booking cancelled and payment' : 'Payment'} of ${peso(amount)} refunded${
+          provider !== 'paymongo' ? ` (ref ${refundId})` : ''
+        }${reason ? `: ${reason}` : '.'}`,
         { id: staff.uid, name: staff.name, role: staff.role },
       );
     }
     tx.update(ref, updates);
   });
-  logger.info('Payment refunded', { kind, id, refundId: refund.id, by: staff.uid });
+  logger.info('Payment refunded', { kind, id, provider, refundId, by: staff.uid });
   return { ok: true };
 });
-
-/** Current stock of each product in the order, once per product (as `readStock` in the app's OrderService). */
-async function readStock(tx: Transaction, items: readonly { productId: string; qty: number }[]) {
-  const wanted = new Map<string, number>();
-  for (const item of items) wanted.set(item.productId, (wanted.get(item.productId) ?? 0) + item.qty);
-  if (!wanted.size) return [];
-  const snaps = await tx.getAll(...[...wanted.keys()].map((id) => db.doc(`products/${id}`)));
-  return snaps.map((snap) => ({
-    ref: snap.ref,
-    exists: snap.exists,
-    qty: wanted.get(snap.id)!,
-    stock: Math.max(0, Math.floor(Number(snap.get('stock')) || 0)),
-  }));
-}

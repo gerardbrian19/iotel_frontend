@@ -38,7 +38,7 @@ export interface ActivityEntry {
   actorId: string | null;
   actorName: string;
   actorRole: ActivityActorRole;
-  targetType: 'order' | 'booking' | 'product' | 'service' | 'user';
+  targetType: 'order' | 'booking' | 'product' | 'service' | 'user' | 'receiver';
   targetId: string;
   targetLabel: string;
   /** Pesos, on order and payment entries. */

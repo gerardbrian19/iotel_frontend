@@ -345,12 +345,20 @@ service cloud.firestore {
       return booking.keys().hasAny(['payment']) && booking.payment.status == 'Paid';
     }
 
+    // The customer sent a GCash / bank transfer proof that staff haven't checked yet (submitManualPayment). Until
+    // reviewManualPayment approves or rejects it, nobody can cancel the order or booking or change the booking's quote.
+    function proofUnderReview(doc) {
+      return doc.keys().hasAny(['payment']) && doc.payment.get('manual', {}).get('state', '') == 'submitted';
+    }
+
+    // `allowOnsite`: the customer may choose to pay on site (chooseOnsitePayment) instead of paying in advance.
     function validQuote(quote) {
-      return quote.keys().hasOnly(['amount', 'note', 'quotedAt'])
+      return quote.keys().hasOnly(['amount', 'note', 'quotedAt', 'allowOnsite'])
         && quote.keys().hasAll(['amount', 'note', 'quotedAt'])
         && quote.amount is number && quote.amount > 0
         && quote.note is string && quote.note.size() <= 500
-        && quote.quotedAt is timestamp;
+        && quote.quotedAt is timestamp
+        && quote.get('allowOnsite', false) is bool;
     }
 
     function validNewBooking(booking, bookingId) {
@@ -398,6 +406,7 @@ service cloud.firestore {
         (resource.data.customerId == request.auth.uid
           && resource.data.status in ['Pending', 'Confirmed']
           && !bookingPaid(resource.data)
+          && !proofUnderReview(resource.data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
           && request.resource.data.status == 'Cancelled'
           && request.resource.data.updatedAt == request.time)
@@ -411,8 +420,10 @@ service cloud.firestore {
           && (request.resource.data.status != 'Paid' || resource.data.status == 'Paid')
           && (request.resource.data.status != 'Completed' || resource.data.status in ['Paid', 'Completed'])
           && (request.resource.data.status != 'Cancelled' || resource.data.status == 'Cancelled'
-            || !bookingPaid(resource.data))
+            || (!bookingPaid(resource.data) && !proofUnderReview(resource.data)))
           && (!request.resource.data.keys().hasAny(['quote']) || validQuote(request.resource.data.quote))
+          && (!proofUnderReview(resource.data)
+            || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['quote', 'status']))
           // Rescheduling: only to a real slot time, whose bookingSlots doc is created for this booking in the same batch.
           // (A slot doc that already belongs to another booking can't be overwritten: its update is denied.)
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preferredDate', 'preferredTime'])
@@ -488,6 +499,7 @@ service cloud.firestore {
           && after.processedAt == request.time)
         || (before.status == 'Pending'
           && before.payment.status == 'Unpaid'
+          && !proofUnderReview(before)
           && after.status == 'Cancelled'
           && after.cancelledBy == 'staff'
           && after.cancelledAt == request.time
@@ -526,6 +538,7 @@ service cloud.firestore {
         (resource.data.customerId == request.auth.uid
           && resource.data.status == 'Pending'
           && resource.data.payment.status == 'Unpaid'
+          && !proofUnderReview(resource.data)
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'updatedAt'])
           && request.resource.data.status == 'Cancelled'
@@ -545,6 +558,48 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read: if signedIn() && counterId == 'orders';
       allow write: if false;
+    }
+
+    // ── Manual payments ────────────────────────────────────────────────────────
+
+    // An account customers send GCash / bank transfers to. Mirrors PaymentReceiver in
+    // src/app/core/models/payment-receiver.model.ts. `qrPath` is the QR image in Storage (storage.rules).
+    function validReceiver(receiver, receiverId) {
+      return receiver.keys().hasOnly(['type', 'label', 'bankName', 'accountName', 'accountNumber', 'branch', 'qrPath',
+          'instructions', 'isActive', 'sortOrder', 'createdAt', 'updatedAt'])
+        && receiver.keys().hasAll(['type', 'label', 'accountName', 'accountNumber', 'isActive', 'sortOrder',
+          'createdAt', 'updatedAt'])
+        && receiver.type in ['gcash', 'bank']
+        && shortText(receiver.label, 60)
+        && (receiver.type == 'gcash' || shortText(receiver.get('bankName', ''), 40))
+        && shortText(receiver.accountName, 100)
+        && receiver.accountNumber is string && receiver.accountNumber.matches('^[0-9][0-9 -]{3,39}$')
+        && receiver.get('branch', '') is string && receiver.get('branch', '').size() <= 80
+        && receiver.get('instructions', '') is string && receiver.get('instructions', '').size() <= 500
+        && (receiver.get('qrPath', '') == ''
+          || (receiver.qrPath is string && receiver.qrPath.matches('^paymentReceivers/' + receiverId + '/[^/]+$')))
+        && receiver.isActive is bool
+        && receiver.sortOrder is int && receiver.sortOrder >= 0 && receiver.sortOrder <= 999
+        && receiver.updatedAt == request.time;
+    }
+
+    // Customers read the active accounts to pay into (their query filters `isActive == true`); staff and admins see
+    // all of them. Only admins add, change or delete them. Payments keep their own copy of the account they paid
+    // into, so deleting one doesn't change past payments.
+    match /paymentReceivers/{receiverId} {
+      allow read: if isStaffOrAdmin() || (signedIn() && resource.data.isActive == true);
+      allow create: if isAdmin()
+        && validReceiver(request.resource.data, receiverId)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && validReceiver(request.resource.data, receiverId)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
+    }
+
+    // Transfer reference numbers already used (one per receiver), so one transfer can't pay twice. Functions only.
+    match /manualReferences/{referenceId} {
+      allow read, write: if false;
     }
 
     // PayMongo webhook events already applied (idempotency), written only by the Cloud Functions.

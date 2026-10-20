@@ -35,6 +35,10 @@
         <li nz-menu-item routerLink="bookings" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="calendar"></span><span>Bookings</span>
         </li>
+        <li nz-menu-item routerLink="payments" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="audit"></span><span>Payments</span>
+          @if (toVerify()) { <nz-badge nzStandalone [nzCount]="toVerify()" class="menu-badge" /> }
+        </li>
         <li nz-menu-item routerLink="messages" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="message"></span><span>Messages</span>
         </li>
@@ -81,6 +85,10 @@
         </li>
         <li nz-menu-item routerLink="bookings" routerLinkActive="ant-menu-item-selected">
           <span nz-icon nzType="calendar"></span><span>Bookings</span>
+        </li>
+        <li nz-menu-item routerLink="payments" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="audit"></span><span>Payments</span>
+          @if (toVerify()) { <nz-badge nzStandalone [nzCount]="toVerify()" class="menu-badge" /> }
         </li>
         <li nz-menu-item routerLink="messages" routerLinkActive="ant-menu-item-selected">
           <span nz-icon nzType="message"></span><span>Messages</span>

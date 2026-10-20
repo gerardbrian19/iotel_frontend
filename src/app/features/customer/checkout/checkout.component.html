@@ -87,25 +87,54 @@
 
           <!-- Payment -->
           <nz-card class="section-card" nzTitle="Payment">
-            <div class="paymongo-block">
-              <span nz-icon nzType="safety-certificate" class="paymongo-icon"></span>
-              <div>
-                <strong>Pay securely with PayMongo</strong>
-                <p>
-                  After you continue, you are taken to PayMongo's secure page to pay
-                  {{ total() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}. Your order is
-                  confirmed as soon as the payment goes through. IOTEL never sees your card or
-                  wallet details.
-                </p>
-              </div>
-            </div>
-            <ul class="method-chips" aria-label="Accepted payment methods">
-              @for (method of acceptedMethods; track method.label) {
-                <li>
-                  <span aria-hidden="true">{{ method.icon }}</span> {{ method.label }}
-                </li>
+            <div class="pay-options" role="radiogroup" aria-label="How to pay">
+              <button
+                type="button"
+                role="radio"
+                class="pay-option"
+                [class.selected]="provider() === 'paymongo'"
+                [attr.aria-checked]="provider() === 'paymongo'"
+                (click)="provider.set('paymongo')"
+              >
+                <span nz-icon nzType="safety-certificate" class="paymongo-icon"></span>
+                <div>
+                  <strong>Pay online with PayMongo</strong>
+                  <p>
+                    You are taken to PayMongo's secure page to pay
+                    {{ total() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}. Your order is
+                    confirmed as soon as the payment goes through. IOTEL never sees your card or
+                    wallet details.
+                  </p>
+                  <ul class="method-chips" aria-label="Accepted payment methods">
+                    @for (method of acceptedMethods; track method.label) {
+                      <li>
+                        <span aria-hidden="true">{{ method.icon }}</span> {{ method.label }}
+                      </li>
+                    }
+                  </ul>
+                </div>
+              </button>
+              @if (transferReceivers().length) {
+                <button
+                  type="button"
+                  role="radio"
+                  class="pay-option"
+                  [class.selected]="provider() === 'manual'"
+                  [attr.aria-checked]="provider() === 'manual'"
+                  (click)="provider.set('manual')"
+                >
+                  <span nz-icon nzType="bank" class="paymongo-icon"></span>
+                  <div>
+                    <strong>Bank / GCash transfer</strong>
+                    <p>
+                      Send the amount yourself to our {{ transferNames() }} account, then upload the
+                      screenshot and reference number. We confirm your order once our team has
+                      checked the transfer.
+                    </p>
+                  </div>
+                </button>
               }
-            </ul>
+            </div>
           </nz-card>
         </div>
 
@@ -135,11 +164,14 @@
               [nzLoading]="placing()"
               (click)="placeOrder()"
             >
-              <span nz-icon nzType="lock"></span> Pay
+              <span nz-icon nzType="lock"></span>
+              {{ provider() === 'manual' ? 'Place order' : 'Pay' }}
               {{ total() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}
             </button>
             @if (placing()) {
-              <p class="confirm-hint">Taking you to PayMongo…</p>
+              <p class="confirm-hint">
+                {{ provider() === 'manual' ? 'Placing your order…' : 'Taking you to PayMongo…' }}
+              </p>
             }
             @if (!canPlace() && !placing()) {
               <p class="confirm-hint">
@@ -151,7 +183,11 @@
               </p>
             } @else if (!placing()) {
               <p class="confirm-hint">
-                Unpaid orders are cancelled after {{ unpaidMinutes }} minutes.
+                @if (provider() === 'manual') {
+                  Next, you'll see our account details and send your proof of payment.
+                } @else {
+                  Unpaid orders are cancelled after {{ unpaidMinutes }} minutes.
+                }
               </p>
             }
           </nz-card>

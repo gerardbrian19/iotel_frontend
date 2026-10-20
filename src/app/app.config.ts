@@ -76,6 +76,8 @@ import {
   KeyOutline,
   HistoryOutline,
   DownloadOutline,
+  AuditOutline,
+  CloseCircleOutline,
 } from '@ant-design/icons-angular/icons';
 
 registerLocaleData(en);
@@ -151,6 +153,8 @@ export const appConfig: ApplicationConfig = {
       KeyOutline,
       HistoryOutline,
       DownloadOutline,
+      AuditOutline,
+      CloseCircleOutline,
     ]),
   ],
 };

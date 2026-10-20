@@ -24,9 +24,7 @@
     <strong class="stat-value">{{
       s.awaiting.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
     }}</strong>
-    <span class="stat-note"
-      >{{ s.awaiting.count }} open {{ s.awaiting.count === 1 ? 'checkout' : 'checkouts' }}</span
-    >
+    <span class="stat-note">{{ s.awaiting.count }} unpaid</span>
   </div>
   <div class="stat">
     <span class="stat-label">Refunded</span>
@@ -38,6 +36,16 @@
     >
   </div>
 </div>
+
+@if (s.toVerify.count) {
+  <nz-alert nzType="info" nzShowIcon class="refund-alert" [nzMessage]="verifyMessage" />
+  <ng-template #verifyMessage>
+    {{ s.toVerify.count }} bank / GCash {{ s.toVerify.count === 1 ? 'transfer' : 'transfers' }} ({{
+      s.toVerify.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+    }}) waiting to be checked.
+    <a routerLink="/admin/payments">Review</a>
+  </ng-template>
+}
 
 @if (s.toRefund.count) {
   <nz-alert
@@ -67,6 +75,21 @@
     <span class="stat-note">{{ s.collectedBookings.count }} paid</span>
   </div>
 </div>
+
+@if (s.byProvider.length > 1) {
+  <h4 class="section-title">By way of paying</h4>
+  <ul class="methods">
+    @for (m of s.byProvider; track m.label) {
+      <li class="method">
+        <span class="method-name">{{ m.label }}</span>
+        <span class="method-track"><span class="method-bar" [style.width.%]="m.pct"></span></span>
+        <span class="method-amount">{{
+          m.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+        }}</span>
+      </li>
+    }
+  </ul>
+}
 
 <h4 class="section-title">By payment method</h4>
 @if (s.byMethod.length) {

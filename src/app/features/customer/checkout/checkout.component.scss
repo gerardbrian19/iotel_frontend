@@ -138,10 +138,26 @@
   font-weight: 700;
 }
 
-.paymongo-block {
+.pay-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pay-option {
   display: flex;
   gap: 14px;
   align-items: flex-start;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #E8E8E8;
+  border-radius: 10px;
+  background: #FFFFFF;
+  text-align: left;
+  cursor: pointer;
+
+  &.selected { border-color: #CC2020; box-shadow: 0 0 0 1px #CC2020; }
+  &:focus-visible { outline: 2px solid #CC2020; outline-offset: 2px; }
 
   strong { font-size: 15px; color: #1A1A1A; }
   p { font-size: 13px; color: #666666; margin: 4px 0 0; }
@@ -156,7 +172,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 16px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
 
