@@ -1,0 +1,44 @@
+@let s = summary();
+<div class="stats">
+  <div class="stat">
+    <span class="stat-label">Total bookings</span>
+    <strong class="stat-value">{{ s.total }}</strong>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Today</span>
+    <strong class="stat-value">{{ s.today }}</strong>
+  </div>
+  <div class="stat" [class.attention]="s.needsAction > 0">
+    <span class="stat-label">Needs action</span>
+    <strong class="stat-value">{{ s.needsAction }}</strong>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Booking revenue</span>
+    <strong class="stat-value">{{
+      s.revenue | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+    }}</strong>
+  </div>
+</div>
+
+<div class="statuses">
+  @for (status of s.byStatus; track status.label) {
+    <div class="status-row">
+      <nz-tag [nzColor]="status.color">{{ status.label }}</nz-tag>
+      <strong>{{ status.count }}</strong>
+    </div>
+  }
+</div>
+
+<h4 class="section-title">Upcoming</h4>
+@if (s.upcoming.length) {
+  <ul class="upcoming">
+    @for (b of s.upcoming; track b.id) {
+      <li>
+        <span class="when">{{ slot(b.preferredDate, b.preferredTime) }}</span>
+        <span class="what">{{ b.serviceName }} · {{ b.customerName }}</span>
+      </li>
+    }
+  </ul>
+} @else {
+  <p class="empty">No upcoming bookings.</p>
+}

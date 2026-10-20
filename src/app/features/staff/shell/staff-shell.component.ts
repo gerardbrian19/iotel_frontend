@@ -6,24 +6,24 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { AuthService } from '../../../core/services/auth.service';
-import { Router } from '@angular/router';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { injectConfirmSignOut } from '../../../shared/utils/confirm-sign-out';
 
 @Component({
   selector: 'app-staff-shell',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, NzLayoutModule, NzMenuModule, NzIconModule, NzButtonModule, NzDrawerModule],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, NzLayoutModule, NzMenuModule, NzIconModule, NzButtonModule, NzDrawerModule, NzModalModule],
   templateUrl: './staff-shell.component.html',
   styleUrl: './staff-shell.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StaffShellComponent {
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
   readonly user = this.auth.currentUser;
   readonly siderCollapsed = signal(false);
   readonly drawerVisible = signal(false);
 
-  logout() { this.auth.logout(); this.router.navigate(['/auth/login']); }
+  readonly logout = injectConfirmSignOut();
   openDrawer(): void { this.drawerVisible.set(true); }
   closeDrawer(): void { this.drawerVisible.set(false); }
 }

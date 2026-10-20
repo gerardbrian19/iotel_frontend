@@ -149,9 +149,17 @@ $grid: #ededed;
   color: $muted;
 }
 
-// Not enough room for twelve labels; keep every other one, ending on the current month.
+// Labels can overflow their column when sparse (every 5th day); centred on it either way.
+.x-axis span {
+  white-space: nowrap;
+  overflow: visible;
+  display: flex;
+  justify-content: center;
+}
+
+// Narrow screens keep fewer labels (`mobileTick`), always including the latest bucket.
 @media (max-width: 560px) {
-  .x-axis span:nth-child(odd) {
+  .x-axis span.minor {
     visibility: hidden;
   }
 }

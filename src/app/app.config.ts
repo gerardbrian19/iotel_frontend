@@ -74,6 +74,8 @@ import {
   SafetyOutline,
   SafetyCertificateOutline,
   KeyOutline,
+  HistoryOutline,
+  DownloadOutline,
 } from '@ant-design/icons-angular/icons';
 
 registerLocaleData(en);
@@ -147,6 +149,8 @@ export const appConfig: ApplicationConfig = {
       SafetyOutline,
       SafetyCertificateOutline,
       KeyOutline,
+      HistoryOutline,
+      DownloadOutline,
     ]),
   ],
 };

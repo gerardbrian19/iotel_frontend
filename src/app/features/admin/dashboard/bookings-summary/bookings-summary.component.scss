@@ -1,0 +1,88 @@
+:host {
+  display: block;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f5f5f5;
+
+  &.attention {
+    background: #fff4e5;
+  }
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #737373;
+}
+
+.stat-value {
+  font-size: 18px;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+
+.statuses {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 12px;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.upcoming {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  li {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+  }
+}
+
+.when {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.what {
+  color: #737373;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 0;
+  font-size: 13px;
+  color: #737373;
+}

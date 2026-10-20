@@ -23,6 +23,8 @@ import {
 } from 'firebase/auth';
 import {
   DocumentData,
+  addDoc,
+  collection,
   deleteField,
   doc,
   getDoc,
@@ -504,6 +506,31 @@ export class AuthService {
     this.resetPending();
     this.signingIn = false;
     this.setUser(profile);
+    void this.recordSignIn(profile);
+  }
+
+  /**
+   * Adds this sign-in to the activity log (the one entry clients write; firestore.rules check it is the caller's own).
+   * Best effort: a failure never blocks signing in.
+   */
+  private async recordSignIn(profile: User): Promise<void> {
+    try {
+      const name = (profile.name || profile.email || 'User').slice(0, 100);
+      await addDoc(collection(this.db, 'activityLog'), {
+        category: 'account',
+        action: 'account.signIn',
+        summary: 'Signed in',
+        actorId: profile.id,
+        actorName: name,
+        actorRole: profile.role,
+        targetType: 'user',
+        targetId: profile.id,
+        targetLabel: name,
+        at: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn('Could not record the sign-in', err);
+    }
   }
 
   private async expireSignIn(): Promise<void> {

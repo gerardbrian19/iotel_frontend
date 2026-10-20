@@ -562,6 +562,26 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Activity log: written by the Cloud Functions (functions/src/activity.ts), read by admins, never edited. The one
+    // entry a client may write is its own sign-in, which no function sees (authenticator-app sign-ins never reach one).
+    match /activityLog/{entryId} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && request.resource.data.keys().hasOnly(['category', 'action', 'summary', 'actorId', 'actorName', 'actorRole', 'targetType', 'targetId', 'targetLabel', 'at'])
+        && request.resource.data.category == 'account'
+        && request.resource.data.action == 'account.signIn'
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.actorRole == userProfile().role
+        && shortText(request.resource.data.actorName, 100)
+        && shortText(request.resource.data.summary, 200)
+        && request.resource.data.targetType == 'user'
+        && request.resource.data.targetId == request.auth.uid
+        && shortText(request.resource.data.targetLabel, 100)
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
     // Everything else stays locked until its feature is migrated to Firestore.
     match /{document=**} {
       allow read, write: if false;

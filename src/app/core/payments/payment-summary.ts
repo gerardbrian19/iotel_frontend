@@ -1,0 +1,89 @@
+import { Booking, Order, Payment } from '../models';
+import { paymentMethodLabel } from './payment-methods';
+
+export interface MoneyCount {
+  amount: number;
+  count: number;
+}
+
+export interface PaymentSummary {
+  /** Paid and not refunded, orders and bookings together. */
+  collected: MoneyCount;
+  /** Of `collected`, paid since the start of the current month. */
+  collectedThisMonth: MoneyCount;
+  collectedOrders: MoneyCount;
+  collectedBookings: MoneyCount;
+  refunded: MoneyCount;
+  /** Open checkouts: pending unpaid orders and quoted bookings not paid yet. */
+  awaiting: MoneyCount;
+  /** Paid but cancelled (e.g. paid after the order expired): staff still have to refund these. */
+  toRefund: MoneyCount;
+  /** Collected money by payment method, largest first. */
+  byMethod: { label: string; amount: number; count: number; pct: number }[];
+}
+
+function add(target: MoneyCount, amount: number): void {
+  target.amount += amount;
+  target.count++;
+}
+
+const zero = (): MoneyCount => ({ amount: 0, count: 0 });
+
+/** Payment figures for the admin dashboard, from the live orders and bookings. */
+export function paymentSummary(
+  orders: readonly Order[],
+  bookings: readonly Booking[],
+  now = new Date(),
+): PaymentSummary {
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const summary: Omit<PaymentSummary, 'byMethod'> = {
+    collected: zero(),
+    collectedThisMonth: zero(),
+    collectedOrders: zero(),
+    collectedBookings: zero(),
+    refunded: zero(),
+    awaiting: zero(),
+    toRefund: zero(),
+  };
+  const methods = new Map<string, MoneyCount>();
+
+  const record = (payment: Payment, cancelled: boolean, source: MoneyCount) => {
+    if (payment.status === 'Refunded') {
+      add(summary.refunded, payment.amount);
+      return;
+    }
+    if (payment.status !== 'Paid') return;
+    add(summary.collected, payment.amount);
+    add(source, payment.amount);
+    if (payment.paidAt && payment.paidAt >= monthStart)
+      add(summary.collectedThisMonth, payment.amount);
+    if (cancelled) add(summary.toRefund, payment.amount);
+    const label = paymentMethodLabel(payment.method) || 'Other';
+    const entry = methods.get(label) ?? zero();
+    add(entry, payment.amount);
+    methods.set(label, entry);
+  };
+
+  for (const order of orders) {
+    record(order.payment, order.status === 'Cancelled', summary.collectedOrders);
+    if (order.status === 'Pending' && order.payment.status === 'Unpaid') {
+      add(summary.awaiting, order.payment.amount || order.total);
+    }
+  }
+  for (const booking of bookings) {
+    if (booking.payment) {
+      record(booking.payment, booking.status === 'Cancelled', summary.collectedBookings);
+    }
+    if (booking.status === 'Confirmed' && booking.payment?.status !== 'Paid') {
+      add(summary.awaiting, booking.quote?.amount ?? 0);
+    }
+  }
+
+  const top = Math.max(0, ...[...methods.values()].map((m) => m.amount));
+  return {
+    ...summary,
+    byMethod: [...methods]
+      .map(([label, m]) => ({ label, ...m, pct: top ? (m.amount / top) * 100 : 0 }))
+      .sort((a, b) => b.amount - a.amount),
+  };
+}

@@ -1,0 +1,102 @@
+.page-wrap {
+  padding: 28px 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0 0 4px;
+}
+
+.page-sub {
+  margin: 0;
+  color: #737373;
+  font-size: 13px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search {
+  flex: 1 1 260px;
+  max-width: 360px;
+}
+
+.filter {
+  width: 170px;
+}
+
+.when {
+  white-space: nowrap;
+  color: #595959;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.who-name {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.summary {
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.muted {
+  font-size: 13px;
+  color: #737373;
+}
+
+@media (max-width: 640px) {
+  .page-wrap {
+    padding: 16px;
+  }
+
+  .page-title {
+    font-size: 22px;
+  }
+
+  .search {
+    max-width: none;
+  }
+
+  .filter {
+    flex: 1 1 140px;
+    width: auto;
+  }
+
+  ::ng-deep .activity-table nz-table {
+    display: block;
+    overflow-x: auto;
+  }
+}

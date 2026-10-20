@@ -1,0 +1,118 @@
+<div class="page-wrap">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Activity Log</h1>
+      <p class="page-sub">
+        Orders, payments, bookings, inventory, products, services and accounts: who did what, and
+        when.
+      </p>
+    </div>
+    <button nz-button (click)="exportCsv()" [disabled]="!filtered().length">
+      <span nz-icon nzType="download"></span> Export CSV
+    </button>
+  </div>
+
+  <div class="filters">
+    <nz-input-group [nzPrefix]="searchIcon" class="search">
+      <input
+        nz-input
+        placeholder="Search by person, order number, product…"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+      />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+
+    <nz-select
+      class="filter"
+      nzPlaceHolder="All categories"
+      nzAllowClear
+      [ngModel]="category()"
+      (ngModelChange)="category.set($event ?? null)"
+    >
+      @for (c of categories; track c.value) {
+        <nz-option [nzValue]="c.value" [nzLabel]="c.label" />
+      }
+    </nz-select>
+
+    <nz-select
+      class="filter"
+      nzPlaceHolder="Anyone"
+      nzAllowClear
+      [ngModel]="role()"
+      (ngModelChange)="role.set($event ?? null)"
+    >
+      @for (r of roles; track r.value) {
+        <nz-option [nzValue]="r.value" [nzLabel]="r.label" />
+      }
+    </nz-select>
+
+    <nz-select class="filter" [ngModel]="range()" (ngModelChange)="range.set($event)">
+      @for (r of ranges; track r.value) {
+        <nz-option [nzValue]="r.value" [nzLabel]="r.label" />
+      }
+    </nz-select>
+
+    <button nz-button nzType="link" (click)="clearFilters()">Clear</button>
+  </div>
+
+  @if (error()) {
+    <nz-alert
+      nzType="error"
+      nzShowIcon
+      nzMessage="The activity log could not be loaded"
+      nzDescription="Check your connection and that the latest Firestore rules are deployed, then reload the page."
+    />
+  } @else {
+    <nz-table
+      #table
+      [nzData]="filtered()"
+      nzSize="middle"
+      [nzLoading]="loading()"
+      [nzPageSize]="25"
+      [nzNoResult]="
+        loadedCount() ? 'No activity matches these filters.' : 'No activity recorded yet.'
+      "
+      class="activity-table"
+    >
+      <thead>
+        <tr>
+          <th nzWidth="170px">When</th>
+          <th nzWidth="200px">Who</th>
+          <th nzWidth="120px">Category</th>
+          <th>Activity</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of table.data; track entry.id) {
+          <tr>
+            <td class="when">{{ entry.at | date: 'MMM d, y, h:mm a' }}</td>
+            <td>
+              <div class="who">
+                <span class="who-name">{{ entry.actorName || '—' }}</span>
+                <nz-tag [nzColor]="roleView(entry.actorRole).color">{{
+                  roleView(entry.actorRole).label
+                }}</nz-tag>
+              </div>
+            </td>
+            <td>
+              <nz-tag [nzColor]="categoryView(entry.category).color">{{
+                categoryView(entry.category).label
+              }}</nz-tag>
+            </td>
+            <td class="summary">{{ entry.summary }}</td>
+          </tr>
+        }
+      </tbody>
+    </nz-table>
+
+    <div class="footer">
+      <span class="muted">
+        {{ filtered().length }} shown · {{ loadedCount() }} most recent entries loaded
+      </span>
+      @if (hasMore()) {
+        <button nz-button (click)="loadMore()" [nzLoading]="loading()">Load older entries</button>
+      }
+    </div>
+  }
+</div>

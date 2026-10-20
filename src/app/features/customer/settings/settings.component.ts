@@ -6,6 +6,8 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { AuthService } from '../../../core/services/auth.service';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { injectConfirmSignOut } from '../../../shared/utils/confirm-sign-out';
 
 interface SettingsItem {
   label: string;
@@ -28,6 +30,7 @@ interface SettingsItem {
     NzIconModule,
     NzDividerModule,
     NzButtonModule,
+    NzModalModule,
   ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
@@ -76,7 +79,5 @@ export class SettingsComponent {
     },
   ];
 
-  logout(): void {
-    this.auth.logout();
-  }
+  readonly logout = injectConfirmSignOut();
 }

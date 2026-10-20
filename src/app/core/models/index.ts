@@ -7,3 +7,4 @@ export * from './cart-item.model';
 export * from './service.model';
 export * from './message.model';
 export * from './showcase.model';
+export * from './activity.model';

@@ -9,6 +9,8 @@ import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { AuthService } from '../../../core/services/auth.service';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { injectConfirmSignOut } from '../../../shared/utils/confirm-sign-out';
 import { CartService } from '../../../core/services/cart.service';
 import { FavoritesService } from '../../../core/services/favorites.service';
 import { MessageService } from '../../../core/services/message.service';
@@ -29,6 +31,7 @@ import { ChatbotWidgetComponent } from '../../../shared/components/chatbot-widge
     NzDropDownModule,
     NzButtonModule,
     NzDrawerModule,
+    NzModalModule,
     ChatbotWidgetComponent,
   ],
   templateUrl: './customer-shell.component.html',
@@ -48,9 +51,7 @@ export class CustomerShellComponent {
   readonly unreadMessages = this.messages.unreadTotal;
   readonly drawerVisible = signal(false);
 
-  logout(): void {
-    this.auth.logout();
-  }
+  readonly logout = injectConfirmSignOut();
 
   openDrawer(): void { this.drawerVisible.set(true); }
   closeDrawer(): void { this.drawerVisible.set(false); }

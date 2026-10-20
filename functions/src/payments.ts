@@ -106,11 +106,15 @@ async function expireSession(sessionId: string): Promise<void> {
 
 // ── Callers ──────────────────────────────────────────────────────────────────
 
-/** A customer whose session passed the emailed-code step (the same check as `secondStep()` in firestore.rules). */
+/**
+ * A customer whose session passed the second step: the emailed code, or an authenticator app if they set one up (the
+ * same check as `secondStep()` in firestore.rules).
+ */
 async function requireCustomer(req: CallableRequest): Promise<{ uid: string; name: string; email: string }> {
   if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in again.');
   const { uid, token } = req.auth;
-  if (TWO_STEP_SIGN_IN && token['otpAuthTime'] !== token.auth_time) throw new HttpsError('unauthenticated', 'Please sign in again.');
+  const secondStep = token['otpAuthTime'] === token.auth_time || token.firebase?.sign_in_second_factor === 'totp';
+  if (TWO_STEP_SIGN_IN && !secondStep) throw new HttpsError('unauthenticated', 'Please sign in again.');
   const profile = await db.doc(`users/${uid}`).get();
   if (profile.get('role') !== 'customer') throw new HttpsError('permission-denied', 'Only customers can pay here.');
   return { uid, name: String(profile.get('name') ?? ''), email: String(profile.get('email') ?? token.email ?? '') };
@@ -630,6 +634,8 @@ export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (r
       'payment.status': 'Refunded',
       'payment.refundId': refund.id,
       'payment.refundedAt': FieldValue.serverTimestamp(),
+      // Who refunded it, for the activity log (activity.ts).
+      'payment.refundedBy': staff.uid,
       updatedAt: FieldValue.serverTimestamp(),
     };
     if (current !== 'Cancelled') {

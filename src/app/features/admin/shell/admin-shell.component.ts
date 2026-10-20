@@ -6,11 +6,13 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { AuthService } from '../../../core/services/auth.service';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { injectConfirmSignOut } from '../../../shared/utils/confirm-sign-out';
 
 @Component({
   selector: 'app-admin-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, NzLayoutModule, NzMenuModule, NzIconModule, NzButtonModule, NzDrawerModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NzLayoutModule, NzMenuModule, NzIconModule, NzButtonModule, NzDrawerModule, NzModalModule],
   templateUrl: './admin-shell.component.html',
   styleUrl: './admin-shell.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -21,7 +23,7 @@ export class AdminShellComponent {
   readonly siderCollapsed = signal(false);
   readonly drawerVisible = signal(false);
 
-  logout(): void { this.auth.logout(); }
+  readonly logout = injectConfirmSignOut();
   openDrawer(): void { this.drawerVisible.set(true); }
   closeDrawer(): void { this.drawerVisible.set(false); }
 }

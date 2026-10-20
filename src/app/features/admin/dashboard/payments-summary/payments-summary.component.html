@@ -1,0 +1,86 @@
+@let s = summary();
+<div class="stats">
+  <div class="stat">
+    <span class="stat-label">Collected</span>
+    <strong class="stat-value">{{
+      s.collected.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+    }}</strong>
+    <span class="stat-note"
+      >{{ s.collected.count }} {{ s.collected.count === 1 ? 'payment' : 'payments' }}</span
+    >
+  </div>
+  <div class="stat">
+    <span class="stat-label">This month</span>
+    <strong class="stat-value">{{
+      s.collectedThisMonth.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+    }}</strong>
+    <span class="stat-note"
+      >{{ s.collectedThisMonth.count }}
+      {{ s.collectedThisMonth.count === 1 ? 'payment' : 'payments' }}</span
+    >
+  </div>
+  <div class="stat">
+    <span class="stat-label">Awaiting payment</span>
+    <strong class="stat-value">{{
+      s.awaiting.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+    }}</strong>
+    <span class="stat-note"
+      >{{ s.awaiting.count }} open {{ s.awaiting.count === 1 ? 'checkout' : 'checkouts' }}</span
+    >
+  </div>
+  <div class="stat">
+    <span class="stat-label">Refunded</span>
+    <strong class="stat-value">{{
+      s.refunded.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+    }}</strong>
+    <span class="stat-note"
+      >{{ s.refunded.count }} {{ s.refunded.count === 1 ? 'refund' : 'refunds' }}</span
+    >
+  </div>
+</div>
+
+@if (s.toRefund.count) {
+  <nz-alert
+    nzType="warning"
+    nzShowIcon
+    class="refund-alert"
+    [nzMessage]="
+      s.toRefund.count +
+      ' cancelled ' +
+      (s.toRefund.count === 1 ? 'payment' : 'payments') +
+      ' (' +
+      (s.toRefund.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0') +
+      ') still need a refund.'
+    "
+  />
+}
+
+<div class="split">
+  <div>
+    <span class="split-label">Orders</span>
+    <strong>{{ s.collectedOrders.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</strong>
+    <span class="stat-note">{{ s.collectedOrders.count }} paid</span>
+  </div>
+  <div>
+    <span class="split-label">Service bookings</span>
+    <strong>{{ s.collectedBookings.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</strong>
+    <span class="stat-note">{{ s.collectedBookings.count }} paid</span>
+  </div>
+</div>
+
+<h4 class="section-title">By payment method</h4>
+@if (s.byMethod.length) {
+  <ul class="methods">
+    @for (m of s.byMethod; track m.label) {
+      <li class="method">
+        <span class="method-name">{{ m.label }}</span>
+        <span class="method-track"><span class="method-bar" [style.width.%]="m.pct"></span></span>
+        <span class="method-amount">{{
+          m.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+        }}</span>
+      </li>
+    }
+  </ul>
+} @else {
+  <p class="empty">No payments received yet.</p>
+}

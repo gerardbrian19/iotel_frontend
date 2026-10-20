@@ -15,6 +15,7 @@ import { logger } from 'firebase-functions';
 import { createTransport, Transporter } from 'nodemailer';
 import { db } from './app.js';
 import { TWO_STEP_SIGN_IN } from './flags.js';
+import { logActivity } from './activity.js';
 
 // SMTP relay (Resend today: login `resend`, password = API key). Host/port/sender live in functions/.env;
 // the login and key are Secret Manager secrets.
@@ -212,6 +213,17 @@ export const resetAuthenticator = onCall(async (req) => {
   }
   await auth.revokeRefreshTokens(uid);
   logger.info('Authenticator reset', { uid, by: req.auth.uid });
+  const target = await db.doc(`users/${uid}`).get();
+  const name = String(target.get('name') || target.get('email') || uid);
+  await logActivity({
+    category: 'account',
+    action: 'account.authenticatorReset',
+    summary: `Reset the authenticator app of ${name}`,
+    actor: { id: req.auth.uid, name: String(caller.get('name') ?? ''), role: 'admin' },
+    targetType: 'user',
+    targetId: uid,
+    targetLabel: name,
+  });
   return { ok: true };
 });
 
@@ -333,5 +345,15 @@ export const deleteCustomerAccount = onCall(async (req) => {
     }
   }
   logger.info('Customer account removed', { uid, by: req.auth.uid });
+  const name = String(data['name'] || data['email'] || uid);
+  await logActivity({
+    category: 'account',
+    action: 'account.removed',
+    summary: `Removed the customer account of ${name}${data['email'] ? ` (${data['email']})` : ''}`,
+    actor: { id: req.auth.uid, name: String(caller.get('name') ?? ''), role: 'admin' },
+    targetType: 'user',
+    targetId: uid,
+    targetLabel: name,
+  });
   return { ok: true };
 });

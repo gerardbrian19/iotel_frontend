@@ -5,51 +5,90 @@
   <div class="kpi-grid">
     <nz-card class="kpi-card">
       <nz-statistic [nzValue]="totalProducts()" nzTitle="Total Products">
-        <ng-template #nzPrefix><span nz-icon nzType="shop" class="kpi-icon blue-icon"></span></ng-template>
+        <ng-template #nzPrefix
+          ><span nz-icon nzType="shop" class="kpi-icon blue-icon"></span
+        ></ng-template>
       </nz-statistic>
     </nz-card>
     <nz-card class="kpi-card">
       <nz-statistic [nzValue]="totalOrders()" nzTitle="Total Orders">
-        <ng-template #nzPrefix><span nz-icon nzType="file-text" class="kpi-icon green-icon"></span></ng-template>
+        <ng-template #nzPrefix
+          ><span nz-icon nzType="file-text" class="kpi-icon green-icon"></span
+        ></ng-template>
       </nz-statistic>
     </nz-card>
     <nz-card class="kpi-card">
       <nz-statistic [nzValue]="revenue()" nzTitle="Revenue (Delivered)" nzPrefix="₱">
-        <ng-template #nzPrefix><span nz-icon nzType="rise" class="kpi-icon gold-icon"></span></ng-template>
+        <ng-template #nzPrefix
+          ><span nz-icon nzType="rise" class="kpi-icon gold-icon"></span
+        ></ng-template>
       </nz-statistic>
     </nz-card>
     <nz-card class="kpi-card">
       <nz-statistic [nzValue]="lowStockItems().length" nzTitle="Low Stock Items">
-        <ng-template #nzPrefix><span nz-icon nzType="warning" class="kpi-icon red-icon"></span></ng-template>
+        <ng-template #nzPrefix
+          ><span nz-icon nzType="warning" class="kpi-icon red-icon"></span
+        ></ng-template>
       </nz-statistic>
     </nz-card>
   </div>
 
-  <!-- Sales per Month -->
-  <nz-card class="dash-card sales-card" nzTitle="Sales per Month" [nzExtra]="salesSummary">
-    <ng-template #salesSummary>
-      <span class="sales-summary">
-        {{ salesTotal() | currency:'PHP':'symbol-narrow':'1.0-0' }} delivered in the last 12 months
-      </span>
+  <!-- Sales per day / week / month -->
+  <nz-card class="dash-card sales-card" nzTitle="Sales" [nzExtra]="salesPeriodPicker">
+    <ng-template #salesPeriodPicker>
+      <nz-radio-group
+        nzButtonStyle="solid"
+        nzSize="small"
+        [ngModel]="salesPeriod()"
+        (ngModelChange)="salesPeriod.set($event)"
+        aria-label="Sales period"
+      >
+        @for (p of salesPeriods; track p.value) {
+          <label nz-radio-button [nzValue]="p.value">{{ p.label }}</label>
+        }
+      </nz-radio-group>
     </ng-template>
-    <app-sales-chart [data]="monthlySales()" />
+    <p class="sales-summary">
+      {{ salesTotal() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }} delivered in
+      {{ salesPeriodView().span }}
+    </p>
+    <app-sales-chart [data]="sales()" [label]="'Sales per ' + salesPeriod()" />
   </nz-card>
+
+  <!-- Payments and bookings -->
+  <div class="summary-grid">
+    <nz-card class="dash-card" nzTitle="Payments" [nzExtra]="paymentsLink">
+      <ng-template #paymentsLink><a routerLink="/admin/orders">Orders</a></ng-template>
+      <app-payments-summary [summary]="payments()" />
+    </nz-card>
+    <nz-card class="dash-card" nzTitle="Service Bookings" [nzExtra]="bookingsLink">
+      <ng-template #bookingsLink><a routerLink="/admin/bookings">View All</a></ng-template>
+      <app-bookings-summary [summary]="bookings()" />
+    </nz-card>
+  </div>
 
   <div class="dashboard-grid">
     <!-- Recent Orders -->
     <nz-card class="dash-card" nzTitle="Recent Orders" [nzExtra]="ordersLink">
       <ng-template #ordersLink><a routerLink="/admin/orders">View All</a></ng-template>
       <nz-table [nzData]="recentOrders()" [nzShowPagination]="false" nzSize="small">
-        <thead><tr>
-          <th>Order ID</th><th>Date</th><th>Total</th><th>Status</th>
-        </tr></thead>
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Date</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
         <tbody>
           @for (order of recentOrders(); track order.id) {
             <tr>
               <td>{{ order.code }}</td>
-              <td>{{ order.createdAt | date:'shortDate' }}</td>
-              <td>{{ order.total | currency:'PHP':'symbol-narrow':'1.0-0' }}</td>
-              <td><nz-tag [nzColor]="statusColors[order.status]">{{ order.status }}</nz-tag></td>
+              <td>{{ order.createdAt | date: 'shortDate' }}</td>
+              <td>{{ order.total | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</td>
+              <td>
+                <nz-tag [nzColor]="statusColors[order.status]">{{ order.status }}</nz-tag>
+              </td>
             </tr>
           }
         </tbody>
@@ -77,13 +116,16 @@
       <!-- Order Status Distribution -->
       <nz-card class="dash-card" nzTitle="Order Status">
         <div class="status-dist">
-          @for (entry of [
-            {label:'Pending', val: statusCounts().Pending, color:'warning'},
-            {label:'Processing', val: statusCounts().Processing, color:'processing'},
-            {label:'Shipped', val: statusCounts().Shipped, color:'blue'},
-            {label:'Delivered', val: statusCounts().Delivered, color:'success'},
-            {label:'Cancelled', val: statusCounts().Cancelled, color:'error'}
-          ]; track entry.label) {
+          @for (
+            entry of [
+              { label: 'Pending', val: statusCounts().Pending, color: 'warning' },
+              { label: 'Processing', val: statusCounts().Processing, color: 'processing' },
+              { label: 'Shipped', val: statusCounts().Shipped, color: 'blue' },
+              { label: 'Delivered', val: statusCounts().Delivered, color: 'success' },
+              { label: 'Cancelled', val: statusCounts().Cancelled, color: 'error' },
+            ];
+            track entry.label
+          ) {
             <div class="status-row">
               <nz-tag [nzColor]="entry.color">{{ entry.label }}</nz-tag>
               <strong>{{ entry.val }}</strong>
@@ -94,19 +136,50 @@
     </div>
   </div>
 
+  <!-- Recent Activity -->
+  <nz-card class="dash-card activity-card" nzTitle="Recent Activity" [nzExtra]="activityLink">
+    <ng-template #activityLink><a routerLink="/admin/activity">View All</a></ng-template>
+    @if (activityError()) {
+      <p class="muted">The activity log could not be loaded.</p>
+    } @else if (activityLoading()) {
+      <p class="muted">Loading…</p>
+    } @else if (recentActivity().length === 0) {
+      <p class="muted">No activity recorded yet.</p>
+    } @else {
+      <ul class="activity-list">
+        @for (entry of recentActivity(); track entry.id) {
+          <li>
+            <nz-tag [nzColor]="categoryView(entry.category).color">{{
+              categoryView(entry.category).label
+            }}</nz-tag>
+            <span class="activity-text">
+              <strong>{{ entry.actorName }}</strong> · {{ entry.summary }}
+            </span>
+            <span class="activity-time">{{ entry.at | date: 'MMM d, h:mm a' }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </nz-card>
+
   <!-- Category Stock Summary -->
   <nz-card class="dash-card" nzTitle="Category Stock Summary">
     <nz-table [nzData]="categoryStats()" [nzShowPagination]="false" nzSize="small">
-      <thead><tr>
-        <th>Category</th><th>Products</th><th>Total Units</th><th>Stock Value</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Products</th>
+          <th>Total Units</th>
+          <th>Stock Value</th>
+        </tr>
+      </thead>
       <tbody>
         @for (cat of categoryStats(); track cat.category) {
           <tr>
             <td>{{ cat.category }}</td>
             <td>{{ cat.count }}</td>
             <td>{{ cat.totalUnits }}</td>
-            <td>{{ cat.stockValue | currency:'PHP':'symbol-narrow':'1.0-0' }}</td>
+            <td>{{ cat.stockValue | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</td>
           </tr>
         }
       </tbody>
