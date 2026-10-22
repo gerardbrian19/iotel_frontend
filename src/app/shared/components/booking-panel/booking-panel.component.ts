@@ -37,7 +37,8 @@ import {
   bookingErrorMessage,
   paysOnsite,
 } from '../../../core/services/booking.service';
-import { ManualPaymentService } from '../../../core/services/manual-payment.service';
+import { ManualPaymentService, invoiceWarning } from '../../../core/services/manual-payment.service';
+import { InvoiceStatusComponent } from '../invoice-status/invoice-status.component';
 import { ManualPaymentPanelComponent } from '../manual-payment-panel/manual-payment-panel.component';
 import { PaymentProofComponent } from '../payment-proof/payment-proof.component';
 import { SlotPickerComponent } from '../slot-picker/slot-picker.component';
@@ -75,6 +76,7 @@ interface StatusView {
     NzModalModule,
     NzSelectModule,
     NzTagModule,
+    InvoiceStatusComponent,
     ManualPaymentPanelComponent,
     PaymentProofComponent,
     SlotPickerComponent,
@@ -125,6 +127,7 @@ export class BookingPanelComponent {
     amount: [0, [Validators.required, Validators.min(1)]],
     receiptNumber: ['', Validators.maxLength(40)],
     complete: [true],
+    sendInvoice: [true],
   });
 
   private readonly role = computed(() => this.auth.currentUser()?.role ?? 'customer');
@@ -316,7 +319,13 @@ export class BookingPanelComponent {
 
   openRecord(): void {
     const b = this.booking();
-    this.recordForm.reset({ method: 'cash', amount: b.quote?.amount ?? 0, receiptNumber: '', complete: true });
+    this.recordForm.reset({
+      method: 'cash',
+      amount: b.quote?.amount ?? 0,
+      receiptNumber: '',
+      complete: true,
+      sendInvoice: true,
+    });
     this.recordVisible.set(true);
   }
 
@@ -362,11 +371,15 @@ export class BookingPanelComponent {
     });
   }
 
+  /** `request` may resolve with why the invoice email failed (see `ManualPaymentService.recordOnsite`). */
   private run(request: Observable<unknown>, success: string, done?: () => void): void {
     this.busy.set(true);
     request.pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: () => {
+      next: (result) => {
         this.msg.success(success);
+        if (typeof result === 'string' && result) {
+          this.msg.warning(invoiceWarning(result), { nzDuration: 8000 });
+        }
         done?.();
       },
       error: (err) => this.msg.error(bookingErrorMessage(err)),

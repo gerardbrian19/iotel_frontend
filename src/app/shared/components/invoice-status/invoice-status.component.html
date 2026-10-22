@@ -1,0 +1,21 @@
+@if (visible()) {
+  <div class="inv">
+    <span nz-icon nzType="file-text" class="inv-icon"></span>
+    <span class="inv-text">
+      @if (invoice()?.sentAt; as sentAt) {
+        Invoice <strong>{{ invoice()!.number }}</strong> emailed
+        @if (isStaff() && invoice()!.sentTo) {
+          to {{ invoice()!.sentTo }}
+        }
+        on {{ sentAt | date: 'MMM d, y, h:mm a' }}
+      } @else {
+        No invoice sent yet.
+      }
+    </span>
+    @if (isStaff()) {
+      <button nz-button nzSize="small" [disabled]="busy()" [nzLoading]="busy()" (click)="send()">
+        {{ invoice()?.sentAt ? 'Resend invoice' : 'Send invoice' }}
+      </button>
+    }
+  </div>
+}

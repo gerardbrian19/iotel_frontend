@@ -20,7 +20,7 @@ import { functionErrorMessage } from '../firebase/auth-errors';
 import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { dataOf, isoOf } from '../firebase/timestamps';
 import { proofUnderReview } from '../payments/manual-payments';
-import { MIN_CHECKOUT_AMOUNT, toPayment } from '../payments/payment-methods';
+import { MIN_CHECKOUT_AMOUNT, toInvoice, toPayment } from '../payments/payment-methods';
 import {
   Booking,
   BookingStatus,
@@ -139,6 +139,7 @@ function toBooking(snap: QueryDocumentSnapshot<DocumentData>): Booking {
         }
       : undefined,
     payment: payment ? toPayment(payment) : undefined,
+    invoice: toInvoice(data['invoice']),
     createdAt: isoOf(data['createdAt']),
     updatedAt: isoOf(data['updatedAt']),
   };

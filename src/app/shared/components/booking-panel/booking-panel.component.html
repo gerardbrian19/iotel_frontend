@@ -32,6 +32,14 @@
     />
   }
 
+  <app-invoice-status
+    class="bp-block"
+    kind="booking"
+    [targetId]="booking().id"
+    [payment]="booking().payment"
+    [invoice]="booking().invoice"
+  />
+
   <div class="bp-actions">
     @if (showChatLink()) {
       <a nz-button nzSize="small" [routerLink]="chatLink()" [queryParams]="{ conversation: booking().conversationId }">
@@ -280,7 +288,10 @@
           <input nz-input formControlName="receiptNumber" maxlength="40" autocomplete="off" />
         </nz-form-control>
       </nz-form-item>
-      <label nz-checkbox formControlName="complete">The service is done: also mark the booking completed</label>
+      <div class="bp-checks">
+        <label nz-checkbox formControlName="complete">The service is done: also mark the booking completed</label>
+        <label nz-checkbox formControlName="sendInvoice">Email the invoice to the customer</label>
+      </div>
       <div class="modal-footer">
         <button nz-button type="button" (click)="recordVisible.set(false)">Close</button>
         <button nz-button nzType="primary" class="brand-btn" type="submit" [disabled]="recordForm.invalid || busy()" [nzLoading]="busy()">

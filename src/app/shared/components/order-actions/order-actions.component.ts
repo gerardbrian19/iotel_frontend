@@ -19,6 +19,7 @@ import { proofUnderReview } from '../../../core/payments/manual-payments';
 import { AuthService } from '../../../core/services/auth.service';
 import { OrderService, orderErrorMessage } from '../../../core/services/order.service';
 import { requiredTrimmed } from '../../utils/validators';
+import { InvoiceStatusComponent } from '../invoice-status/invoice-status.component';
 import { ManualPaymentPanelComponent } from '../manual-payment-panel/manual-payment-panel.component';
 import { PaymentProofComponent } from '../payment-proof/payment-proof.component';
 
@@ -41,6 +42,7 @@ import { PaymentProofComponent } from '../payment-proof/payment-proof.component'
     NzFormModule,
     NzInputModule,
     NzModalModule,
+    InvoiceStatusComponent,
     ManualPaymentPanelComponent,
     PaymentProofComponent,
   ],

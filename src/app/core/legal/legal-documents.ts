@@ -37,7 +37,7 @@ export interface LegalDocument {
   sections: readonly LegalSection[];
 }
 
-export const TERMS_VERSION = '1.3';
+export const TERMS_VERSION = '1.4';
 export const PRIVACY_VERSION = '1.4';
 
 const CONTACT_CONFIRM =
@@ -263,7 +263,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         {
           kind: 'list',
           items: [
-            'A flat shipping fee of ₱250 is added to every order.',
+            'No shipping fee is added at checkout: the amount you pay covers the products only.',
             'We deliver to the address you choose at checkout. Please make sure it and the mobile number are correct and that someone can receive the order. The address cannot be changed in IOTEL once the order is placed.',
             'The estimated delivery date shown on your order is an estimate, not a guaranteed delivery date. Actual delivery depends on stock, the courier and your location.',
             'When the order ships, we show the courier and, where available, a tracking number.',

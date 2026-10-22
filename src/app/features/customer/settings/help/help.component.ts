@@ -75,7 +75,9 @@ export class HelpComponent {
         },
         {
           question: 'How much is shipping?',
-          answer: `We ship across the Philippines for a flat ₱${SHIPPING_FEE} per order, no matter how many items are in it.`,
+          answer: SHIPPING_FEE
+            ? `We ship across the Philippines for a flat ₱${SHIPPING_FEE} per order, no matter how many items are in it.`
+            : 'There is no shipping fee at checkout: you pay only for the products.',
         },
         {
           question: 'How do I track my order?',

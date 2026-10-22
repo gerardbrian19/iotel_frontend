@@ -145,10 +145,12 @@
               <span>Subtotal</span>
               <span>{{ subtotal() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
             </div>
-            <div class="summary-row">
-              <span>Shipping</span>
-              <span>{{ shippingFee() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
-            </div>
+            @if (shippingFee()) {
+              <div class="summary-row">
+                <span>Shipping</span>
+                <span>{{ shippingFee() | currency: 'PHP' : 'symbol-narrow' : '1.0-0' }}</span>
+              </div>
+            }
             <nz-divider />
             <div class="summary-row total-row">
               <span>Total</span>

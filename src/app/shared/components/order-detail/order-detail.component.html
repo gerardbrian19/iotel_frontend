@@ -26,10 +26,13 @@
         <span>Subtotal</span
         ><span>{{ order().subtotal | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</span>
       </div>
-      <div class="od-row">
-        <span>Shipping</span
-        ><span>{{ order().shippingFee | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</span>
-      </div>
+      <!-- Orders placed before the shipping fee was removed still show theirs. -->
+      @if (order().shippingFee) {
+        <div class="od-row">
+          <span>Shipping</span
+          ><span>{{ order().shippingFee | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</span>
+        </div>
+      }
       <div class="od-row od-total">
         <span>Total</span
         ><span>{{ order().total | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</span>

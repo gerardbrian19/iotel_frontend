@@ -1,4 +1,4 @@
-import { OrderPayment } from './payment.model';
+import { InvoiceInfo, OrderPayment } from './payment.model';
 
 /**
  * Pending    – placed; waiting for the PayMongo payment, then for staff to start on it.
@@ -56,6 +56,7 @@ export interface Order {
   shippingFee: number;
   total: number;
   payment: OrderPayment;
+  invoice?: InvoiceInfo;
   address: ShippingAddress;
   shipment?: OrderShipment;
   /** Local calendar date, `YYYY-MM-DD`. */

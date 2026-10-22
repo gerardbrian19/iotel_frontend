@@ -89,7 +89,23 @@ Run `npm start` and sign in as a customer.
 - **Webhook:** PayMongo dashboard → Developers → Webhooks shows deliveries. A resent event doesn't change anything twice.
 - Logs: `firebase functions:log` (look for `Checkout paid`, `Payment refunded`, `PayMongo request failed`).
 
-PayMongo test mode doesn't email receipts (`send_email_receipt: false`), so testing never sends real emails.
+PayMongo's own receipts are off (`send_email_receipt: false`); IOTEL emails its own invoice instead (below). Test with
+accounts whose email is a Resend test inbox (`delivered@resend.dev`), never a made-up address: bounces get the sender
+suspended.
+
+## Invoices
+
+`functions/src/invoices.ts` emails the customer an invoice (HTML email + PDF, `INV-000123` from `counters/invoices`)
+once an order or booking is paid, to the email on their Firebase Auth account:
+
+- **PayMongo:** automatically (`onOrderPaid` / `onBookingPaid`, triggered when the webhook marks the payment Paid).
+- **Transfers and on-site payments:** only when staff choose to: the "Email the invoice" box in the approve and
+  record-payment dialogs (ticked by default), or **Send invoice** on the order or booking (`sendInvoiceEmail`).
+  Staff can resend any invoice; the number stays the same.
+
+What was sent is stored as `invoice` on the order or booking and logged as `invoice.sent` in the activity log. The PDF
+header reads `INVOICE_SELLER_NAME` / `INVOICE_SELLER_ADDRESS` / `INVOICE_SELLER_TIN` from `functions/.env`. Until
+Goldcomm confirms its BIR registration, the document is a payment acknowledgement, not an official receipt.
 
 ## Going live
 
@@ -100,6 +116,10 @@ Once Goldcomm's PayMongo account is verified:
    `PAYMONGO_WEBHOOK_SECRET`.
 3. `firebase deploy --only functions`.
 4. Update the Terms / Privacy Policy `confirm` notes (merchant agreement, receipts) and make one small real payment.
+   Refund it from the app to check refunds too.
+
+Payouts: PayMongo settles payments to the bank account Goldcomm registers during activation; payouts and withdrawals
+are managed in the PayMongo dashboard only, the app has nothing to change.
 
 To offer more methods (online banking, BillEase, …) once they are enabled on the account, add them to
 `PAYMENT_METHOD_TYPES` in `functions/src/payments.ts` and `ACCEPTED_PAYMENT_METHODS` in `payment-methods.ts`.

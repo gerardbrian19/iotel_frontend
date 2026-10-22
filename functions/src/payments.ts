@@ -53,8 +53,8 @@ const APP_ORIGINS = defineString('APP_ORIGINS', {
     'Origins of the IOTEL web app, comma-separated (e.g. http://localhost:4200,https://iotel-e9a72.web.app)',
 });
 
-/** Mirrors SHIPPING_FEE in src/app/core/services/cart.service.ts. */
-const SHIPPING_FEE = 250;
+/** Mirrors SHIPPING_FEE in src/app/core/services/cart.service.ts. 0: no shipping fee is charged. */
+const SHIPPING_FEE = 0;
 const ESTIMATED_DELIVERY_DAYS = 5;
 /** Unpaid PayMongo orders are cancelled after this long (mirrored in the app's order hints). */
 const UNPAID_ORDER_TTL_MS = 60 * 60 * 1000;
@@ -260,7 +260,9 @@ export const createOrderCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
           name: item.name.slice(0, 255),
           quantity: item.qty,
         })),
-        { currency: 'PHP', amount: centavos(SHIPPING_FEE), name: 'Shipping', quantity: 1 },
+        ...(SHIPPING_FEE > 0
+          ? [{ currency: 'PHP', amount: centavos(SHIPPING_FEE), name: 'Shipping', quantity: 1 }]
+          : []),
       ],
       payment_method_types: PAYMENT_METHOD_TYPES,
       description: `IOTEL order ${code}`,

@@ -47,7 +47,7 @@
         nzSize="small"
         class="pp-approve"
         [disabled]="busy()"
-        (click)="approve()"
+        (click)="openApprove()"
       >
         <span nz-icon nzType="check-circle"></span> Approve
       </button>
@@ -77,6 +77,44 @@
     </details>
   }
 }
+
+<nz-modal
+  [(nzVisible)]="approveVisible"
+  nzTitle="Approve this payment?"
+  [nzFooter]="null"
+  nzWidth="460px"
+>
+  <ng-container *nzModalContent>
+    @if (proof(); as proof) {
+      <p class="pp-copy">
+        Only approve once you see
+        <strong>{{ proof.amountSent | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }}</strong>
+        (ref {{ proof.referenceNumber }})
+        @if (proof.receiver; as r) {
+          in the {{ receiverTitle(r) }} account.
+        }
+        {{ label() }} is then marked paid.
+      </p>
+    }
+    <label nz-checkbox [ngModel]="emailInvoice()" (ngModelChange)="emailInvoice.set($event)">
+      Email the invoice to the customer
+    </label>
+    <div class="pp-footer">
+      <button nz-button type="button" (click)="approveVisible.set(false)">Not yet</button>
+      <button
+        nz-button
+        nzType="primary"
+        type="button"
+        class="pp-approve"
+        [disabled]="busy()"
+        [nzLoading]="busy()"
+        (click)="approve()"
+      >
+        Approve
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>
 
 <nz-modal
   [(nzVisible)]="rejectVisible"

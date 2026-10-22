@@ -94,3 +94,18 @@ export interface Payment {
 }
 
 export type OrderPayment = Payment;
+
+/**
+ * The invoice emailed to the customer for a paid order or booking (`invoice` on the document; only the backend writes
+ * it, see functions/src/invoices.ts). PayMongo payments send it automatically; staff send it for transfers and on-site
+ * payments, and can resend any.
+ */
+export interface InvoiceInfo {
+  /** e.g. `INV-000123`, kept on resends. */
+  number: string;
+  /** Unset while the first send hasn't gone through. */
+  sentAt?: string;
+  sentTo?: string;
+  sentByName?: string;
+  sendCount: number;
+}

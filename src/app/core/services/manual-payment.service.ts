@@ -44,6 +44,13 @@ export interface OnsitePaymentInput {
   receiptNumber: string;
   /** Also mark the booking completed. */
   complete: boolean;
+  /** Also email the invoice to the customer. */
+  sendInvoice: boolean;
+}
+
+/** Shown when a payment went through but its invoice email didn't. */
+export function invoiceWarning(error: string): string {
+  return `The invoice wasn't emailed: ${error} Use "Send invoice" to try again.`;
 }
 
 /**
@@ -112,37 +119,66 @@ export class ManualPaymentService {
     });
   }
 
-  /** Staff: the transfer arrived (the order or booking is now Paid). */
-  approve(kind: PaymentKind, id: string): Observable<void> {
-    return defer(() => this.call('reviewManualPayment', { kind, id, decision: 'approve' }));
+  /**
+   * Staff: the transfer arrived (the order or booking is now Paid). With `sendInvoice` the invoice is emailed too;
+   * resolves with why that failed, if it did (the approval stands either way).
+   */
+  approve(kind: PaymentKind, id: string, sendInvoice: boolean): Observable<string | undefined> {
+    return defer(
+      async () =>
+        (await this.call('reviewManualPayment', { kind, id, decision: 'approve', sendInvoice }))
+          .invoiceError,
+    );
   }
 
   /** Staff: the transfer couldn't be found or doesn't match; the customer is told why and can send it again. */
   reject(kind: PaymentKind, id: string, reason: string): Observable<void> {
-    return defer(() =>
-      this.call('reviewManualPayment', { kind, id, decision: 'reject', reason: reason.trim() }),
-    );
+    return defer(async () => {
+      await this.call('reviewManualPayment', {
+        kind,
+        id,
+        decision: 'reject',
+        reason: reason.trim(),
+      });
+    });
   }
 
   /** Customer: will pay the booking's quote on site. */
   chooseOnsite(bookingId: string): Observable<void> {
-    return defer(() => this.call('chooseOnsitePayment', { bookingId }));
+    return defer(async () => {
+      await this.call('chooseOnsitePayment', { bookingId });
+    });
   }
 
-  /** Staff: records money received on site for a booking. */
-  recordOnsite(bookingId: string, input: OnsitePaymentInput): Observable<void> {
-    return defer(() =>
-      this.call('recordOnsitePayment', {
-        bookingId,
-        method: input.method,
-        amount: input.amount,
-        receiptNumber: input.receiptNumber.trim(),
-        complete: input.complete,
-      }),
+  /** Staff: records money received on site for a booking. Resolves with why the invoice failed, as `approve`. */
+  recordOnsite(bookingId: string, input: OnsitePaymentInput): Observable<string | undefined> {
+    return defer(
+      async () =>
+        (
+          await this.call('recordOnsitePayment', {
+            bookingId,
+            method: input.method,
+            amount: input.amount,
+            receiptNumber: input.receiptNumber.trim(),
+            complete: input.complete,
+            sendInvoice: input.sendInvoice,
+          })
+        ).invoiceError,
     );
   }
 
-  private async call(name: string, data: object): Promise<void> {
-    await httpsCallable<object, { ok: boolean }>(this.functions, name)(data);
+  /** Staff: emails (or re-emails) the invoice of a paid order or booking. */
+  sendInvoice(kind: PaymentKind, id: string): Observable<void> {
+    return defer(async () => {
+      await this.call('sendInvoiceEmail', { kind, id });
+    });
+  }
+
+  private async call(name: string, data: object): Promise<{ ok: boolean; invoiceError?: string }> {
+    const res = await httpsCallable<object, { ok: boolean; invoiceError?: string }>(
+      this.functions,
+      name,
+    )(data);
+    return res.data;
   }
 }

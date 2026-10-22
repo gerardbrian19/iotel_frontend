@@ -1,4 +1,4 @@
-import { Payment } from './payment.model';
+import { InvoiceInfo, Payment } from './payment.model';
 
 /**
  * How a service's price is shown. Staff always quote the final amount after the customer describes the job.
@@ -88,6 +88,7 @@ export interface Booking {
   conversationId: string;
   quote?: BookingQuote;
   payment?: BookingPayment;
+  invoice?: InvoiceInfo;
   createdAt?: string;
   updatedAt?: string;
 }

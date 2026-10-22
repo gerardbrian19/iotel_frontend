@@ -2,8 +2,12 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 import { CartItem, Product } from '../models';
 import { ProductService } from './product.service';
 
-/** Flat shipping fee per order. Mirrored in `firestore.rules` (`validNewOrder`), so change both together. */
-export const SHIPPING_FEE = 250;
+/**
+ * Shipping fee charged at checkout, per order. 0 since 2026-10-23: customers pay only for the products, and the
+ * screens hide the shipping line while it is 0. Mirrored in functions/src/payments.ts, which is what actually charges
+ * it, so change both together.
+ */
+export const SHIPPING_FEE = 0;
 
 /**
  * unavailable – inactive, deleted, without a price, or out of stock.

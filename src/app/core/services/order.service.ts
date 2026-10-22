@@ -19,7 +19,7 @@ import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { functionErrorMessage } from '../firebase/auth-errors';
 import { dataOf, isoOf } from '../firebase/timestamps';
 import { customerCanCancel, isPaymentSettled } from '../orders/order-view';
-import { toPayment } from '../payments/payment-methods';
+import { toInvoice, toPayment } from '../payments/payment-methods';
 import {
   CartItem,
   ORDER_STATUSES,
@@ -84,6 +84,7 @@ function toOrder(snap: QueryDocumentSnapshot<DocumentData>): Order {
     shippingFee: Number(data['shippingFee']) || 0,
     total: Number(data['total']) || 0,
     payment: toPayment(data['payment']),
+    invoice: toInvoice(data['invoice']),
     address: {
       fullName: String(address['fullName'] ?? ''),
       addressLine: String(address['addressLine'] ?? ''),

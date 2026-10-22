@@ -20,6 +20,14 @@
   />
 }
 
+<app-invoice-status
+  class="oa-block"
+  kind="order"
+  [targetId]="order().id"
+  [payment]="order().payment"
+  [invoice]="order().invoice"
+/>
+
 <div class="oa-actions">
   @if (isStaff()) {
     @switch (step()) {

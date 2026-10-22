@@ -3,13 +3,18 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Observable, finalize } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { Payment } from '../../../core/models';
 import { proofUnderReview, receiverTitle } from '../../../core/payments/manual-payments';
-import { ManualPaymentService, PaymentKind } from '../../../core/services/manual-payment.service';
+import {
+  ManualPaymentService,
+  PaymentKind,
+  invoiceWarning,
+} from '../../../core/services/manual-payment.service';
 import { orderErrorMessage } from '../../../core/services/order.service';
 import { StorageImageComponent } from '../storage-image/storage-image.component';
 
@@ -34,6 +39,7 @@ const REJECT_REASONS = [
     DatePipe,
     FormsModule,
     NzButtonModule,
+    NzCheckboxModule,
     NzIconModule,
     NzInputModule,
     NzModalModule,
@@ -46,7 +52,6 @@ const REJECT_REASONS = [
 export class PaymentProofComponent {
   private readonly manual = inject(ManualPaymentService);
   private readonly msg = inject(NzMessageService);
-  private readonly modal = inject(NzModalService);
 
   readonly kind = input.required<PaymentKind>();
   readonly targetId = input.required<string>();
@@ -55,6 +60,9 @@ export class PaymentProofComponent {
   readonly label = input('');
 
   readonly busy = signal(false);
+  readonly approveVisible = signal(false);
+  /** Email the invoice along with the approval. */
+  readonly emailInvoice = signal(true);
   readonly rejectVisible = signal(false);
   readonly rejectReason = signal('');
   readonly reasons = REJECT_REASONS;
@@ -67,16 +75,17 @@ export class PaymentProofComponent {
   });
   readonly receiverTitle = receiverTitle;
 
+  openApprove(): void {
+    this.emailInvoice.set(true);
+    this.approveVisible.set(true);
+  }
+
   approve(): void {
-    const proof = this.proof();
-    this.modal.confirm({
-      nzTitle: 'Approve this payment?',
-      nzContent: `Only approve once you see ${proof?.amountSent?.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })} (ref ${proof?.referenceNumber}) in the ${proof?.receiver ? receiverTitle(proof.receiver) : ''} account. ${this.label()} is then marked paid.`,
-      nzOkText: 'Approve',
-      nzCancelText: 'Not yet',
-      nzOnOk: () =>
-        this.run(this.manual.approve(this.kind(), this.targetId()), 'Payment approved.'),
-    });
+    this.run(
+      this.manual.approve(this.kind(), this.targetId(), this.emailInvoice()),
+      'Payment approved.',
+      () => this.approveVisible.set(false),
+    );
   }
 
   openReject(): void {
@@ -94,11 +103,17 @@ export class PaymentProofComponent {
     );
   }
 
-  private run(request: Observable<unknown>, success: string, done?: () => void): void {
+  /** `request` may resolve with why the invoice email failed (see `ManualPaymentService.approve`). */
+  private run(
+    request: Observable<string | undefined | void>,
+    success: string,
+    done?: () => void,
+  ): void {
     this.busy.set(true);
     request.pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: () => {
+      next: (invoiceError) => {
         this.msg.success(success);
+        if (invoiceError) this.msg.warning(invoiceWarning(invoiceError), { nzDuration: 8000 });
         done?.();
       },
       error: (err) => this.msg.error(orderErrorMessage(err)),

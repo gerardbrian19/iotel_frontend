@@ -1040,7 +1040,9 @@ function ordersReply(ctx: AssistantContext): AssistantReply {
 function shippingReply(ctx: AssistantContext): AssistantReply {
   return {
     text:
-      `We ship across the Philippines for a flat ${peso(ctx.flatShippingFee)} per order, no matter how many items. ` +
+      (ctx.flatShippingFee
+        ? `We ship across the Philippines for a flat ${peso(ctx.flatShippingFee)} per order, no matter how many items. `
+        : 'There is no shipping fee at checkout: you pay only for the products. ') +
       'Each order shows an estimated delivery date once it is placed.',
     links: [MY_ORDERS],
     followUps: ['What payment methods do you accept?', 'Where is my order?'],
@@ -1072,7 +1074,9 @@ function cartReply(ctx: AssistantContext): AssistantReply {
   return {
     text:
       `You have ${plural(units, 'item')} in your cart:\n${bullets(lines)}${items.length > 5 ? `\n+${items.length - 5} more` : ''}\n\n` +
-      `Subtotal ${peso(subtotal)} + shipping ${peso(shippingFee)} = ${peso(total)}.`,
+      (shippingFee
+        ? `Subtotal ${peso(subtotal)} + shipping ${peso(shippingFee)} = ${peso(total)}.`
+        : `Total ${peso(total)}.`),
     links: [
       { label: 'View cart', url: '/customer/cart' },
       { label: 'Checkout', url: '/customer/checkout' },

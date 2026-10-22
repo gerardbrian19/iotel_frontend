@@ -10,24 +10,12 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 import { CallableRequest, HttpsError, onCall } from 'firebase-functions/v2/https';
-import { defineInt, defineSecret, defineString } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
-import { createTransport, Transporter } from 'nodemailer';
 import { db } from './app.js';
 import { TWO_STEP_SIGN_IN } from './flags.js';
 import { logActivity } from './activity.js';
+import { MAIL_SECRETS, sendMail } from './mail.js';
 
-// SMTP relay (Resend today: login `resend`, password = API key). Host/port/sender live in functions/.env;
-// the login and key are Secret Manager secrets.
-const SMTP_HOST = defineString('SMTP_HOST', { default: 'smtp.resend.com' });
-const SMTP_PORT = defineInt('SMTP_PORT', { default: 465 });
-const MAIL_FROM = defineString('MAIL_FROM', {
-  description: 'Sender address on the domain verified in Resend (just the address, e.g. no-reply@iotel.app)',
-});
-const SMTP_USER = defineSecret('SMTP_USER');
-const SMTP_PASS = defineSecret('SMTP_PASS');
-
-const SENDER_NAME = 'IOTEL by Goldcomm';
 const CODE_TTL_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
 const MAX_SENDS_PER_HOUR = 5;
@@ -44,18 +32,6 @@ interface LoginCodeDoc {
   authTime: number;
   /** Send times (ms) within the last hour, for the resend limits. */
   sentAt: number[];
-}
-
-let transporter: Transporter | null = null;
-
-function mailer(): Transporter {
-  transporter ??= createTransport({
-    host: SMTP_HOST.value(),
-    port: SMTP_PORT.value(),
-    secure: SMTP_PORT.value() === 465,
-    auth: { user: SMTP_USER.value(), pass: SMTP_PASS.value() },
-  });
-  return transporter;
 }
 
 function hashCode(code: string, salt: string): string {
@@ -96,7 +72,7 @@ function codeEmail(code: string): { subject: string; text: string; html: string 
 }
 
 /** Emails a new 6-digit code for the caller's current sign-in (identified by the token's `auth_time`). */
-export const sendLoginCode = onCall({ secrets: [SMTP_USER, SMTP_PASS] }, async (req) => {
+export const sendLoginCode = onCall({ secrets: MAIL_SECRETS }, async (req) => {
   const { uid, authTime, email } = requireSignIn(req);
   const ref = db.doc(`loginCodes/${uid}`);
   const now = Date.now();
@@ -129,7 +105,7 @@ export const sendLoginCode = onCall({ secrets: [SMTP_USER, SMTP_PASS] }, async (
   });
 
   try {
-    await mailer().sendMail({ from: { name: SENDER_NAME, address: MAIL_FROM.value() }, to: email, ...codeEmail(code) });
+    await sendMail({ to: email, ...codeEmail(code) });
   } catch (err) {
     logger.error('Sign-in code email failed', { uid, err });
     throw new HttpsError('unavailable', "We couldn't send the code right now. Please try again in a minute.");

@@ -29,6 +29,8 @@ import {
   requireStaff,
   stageEvent,
 } from './payment-common.js';
+import { trySendInvoice } from './invoices.js';
+import { MAIL_SECRETS } from './mail.js';
 
 /** Mirrors MAX_PROOF_BYTES in src/app/core/payments/manual-payments.ts and storage.rules. */
 const MAX_PROOF_BYTES = 5 * 1024 * 1024;
@@ -231,8 +233,11 @@ export const submitManualPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
   return { ok: true };
 });
 
-/** Staff: approves the transfer (the order or booking is then Paid) or rejects it with a reason. */
-export const reviewManualPayment = onCall(async (req) => {
+/**
+ * Staff: approves the transfer (the order or booking is then Paid) or rejects it with a reason. With `sendInvoice`, an
+ * approval also emails the invoice; if that fails the approval stands and `invoiceError` says why.
+ */
+export const reviewManualPayment = onCall({ secrets: MAIL_SECRETS }, async (req) => {
   const staff = await requireStaff(req);
   const kind = kindOf(req.data?.kind);
   const id = docId(req.data?.id);
@@ -304,6 +309,10 @@ export const reviewManualPayment = onCall(async (req) => {
     }
   });
   logger.info('Transfer reviewed', { kind, id, decision, by: staff.uid });
+  if (decision === 'approve' && req.data?.sendInvoice === true) {
+    const invoiceError = await trySendInvoice(kind, id, { id: staff.uid, name: staff.name, role: staff.role });
+    return { ok: true, invoiceError };
+  }
   return { ok: true };
 });
 
@@ -356,8 +365,11 @@ export const chooseOnsitePayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
   return { ok: true };
 });
 
-/** Staff: records a payment received on site for a confirmed booking, and with `complete` also completes it. */
-export const recordOnsitePayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (req) => {
+/**
+ * Staff: records a payment received on site for a confirmed booking, and with `complete` also completes it. With
+ * `sendInvoice` it also emails the invoice (as `reviewManualPayment`).
+ */
+export const recordOnsitePayment = onCall({ secrets: [PAYMONGO_SECRET_KEY, ...MAIL_SECRETS] }, async (req) => {
   const staff = await requireStaff(req);
   const id = docId(req.data?.bookingId);
   const method = req.data?.method as (typeof ONSITE_METHODS)[number];
@@ -426,5 +438,9 @@ export const recordOnsitePayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
     complete,
     by: staff.uid,
   });
+  if (req.data?.sendInvoice === true) {
+    const invoiceError = await trySendInvoice('booking', id, { id: staff.uid, name: staff.name, role: staff.role });
+    return { ok: true, invoiceError };
+  }
   return { ok: true };
 });

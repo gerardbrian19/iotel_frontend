@@ -1,6 +1,7 @@
 import { DocumentData } from 'firebase/firestore';
 import { isoOf } from '../firebase/timestamps';
 import {
+  InvoiceInfo,
   ManualPayment,
   ManualPaymentAttempt,
   ManualPaymentState,
@@ -153,5 +154,18 @@ export function toPayment(data: DocumentData | undefined): Payment {
     refundReference: text(payment['refundReference']),
     manual: toManual(payment['manual']),
     onsite: toOnsite(payment['onsite']),
+  };
+}
+
+/** Maps a stored `invoice` map (order or booking); undefined until an invoice number was given. */
+export function toInvoice(data: DocumentData | undefined): InvoiceInfo | undefined {
+  const number = text(data?.['number']);
+  if (!number) return undefined;
+  return {
+    number,
+    sentAt: isoOf(data!['sentAt']) || undefined,
+    sentTo: text(data!['sentTo']),
+    sentByName: text(data!['sentByName']),
+    sendCount: Number(data!['sendCount']) || 0,
   };
 }

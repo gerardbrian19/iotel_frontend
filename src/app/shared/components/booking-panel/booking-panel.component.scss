@@ -162,3 +162,13 @@
 .bp-refund-ref {
   margin-top: 8px;
 }
+
+.bp-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  label {
+    margin-left: 0;
+  }
+}

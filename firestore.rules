@@ -410,12 +410,13 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
           && request.resource.data.status == 'Cancelled'
           && request.resource.data.updatedAt == request.time)
-        // Staff and admins change everything except who booked what and the payment. Only the webhook makes a
-        // booking Paid, and a paid booking is cancelled only by refunding it (backend).
+        // Staff and admins change everything except who booked what, the payment and the invoice record (backend:
+        // invoices.ts). Only the webhook makes a booking Paid, and a paid booking is cancelled only by refunding it
+        // (backend).
         || (isStaffOrAdmin()
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['customerId', 'customerName',
             'customerEmail', 'customerMobile', 'serviceId', 'serviceName', 'servicePrice', 'conversationId',
-            'notes', 'createdAt', 'payment'])
+            'notes', 'createdAt', 'payment', 'invoice'])
           && request.resource.data.status in ['Pending', 'Confirmed', 'Paid', 'Completed', 'Cancelled']
           && (request.resource.data.status != 'Paid' || resource.data.status == 'Paid')
           && (request.resource.data.status != 'Completed' || resource.data.status in ['Paid', 'Completed'])
@@ -554,7 +555,7 @@ service cloud.firestore {
     }
 
     // `counters/orders` = { last }: the number of the latest order, moved up by createOrderCheckout. It holds nothing
-    // sensitive beyond how many orders there have been.
+    // sensitive beyond how many orders there have been. `counters/invoices` (invoice numbers, invoices.ts) is backend-only.
     match /counters/{counterId} {
       allow read: if signedIn() && counterId == 'orders';
       allow write: if false;
