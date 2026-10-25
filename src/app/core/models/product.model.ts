@@ -30,4 +30,7 @@ export interface Product {
   /** Derived: active and at least one unit in stock. Never stored. */
   inStock: boolean;
   searchKeywords: string[];
+  /** Average of the customers' star ratings (1–5), or null with no reviews yet. From `ratingSum` / `ratingCount`. */
+  ratingAverage: number | null;
+  ratingCount: number;
 }

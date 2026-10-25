@@ -42,6 +42,10 @@
           <span nz-icon nzType="audit"></span><span>Payments</span>
           @if (toVerify()) { <nz-badge nzStandalone [nzCount]="toVerify()" class="menu-badge" /> }
         </li>
+        <li nz-menu-item routerLink="/admin/cancellations" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="close-circle"></span><span>Cancellations</span>
+          @if (toReview()) { <nz-badge nzStandalone [nzCount]="toReview()" class="menu-badge" /> }
+        </li>
         <li nz-menu-item routerLink="/admin/payment-receivers" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="bank"></span><span>Payment Accounts</span>
         </li>
@@ -105,6 +109,10 @@
         <li nz-menu-item routerLink="/admin/payments" routerLinkActive="ant-menu-item-selected">
           <span nz-icon nzType="audit"></span><span>Payments</span>
           @if (toVerify()) { <nz-badge nzStandalone [nzCount]="toVerify()" class="menu-badge" /> }
+        </li>
+        <li nz-menu-item routerLink="/admin/cancellations" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="close-circle"></span><span>Cancellations</span>
+          @if (toReview()) { <nz-badge nzStandalone [nzCount]="toReview()" class="menu-badge" /> }
         </li>
         <li nz-menu-item routerLink="/admin/payment-receivers" routerLinkActive="ant-menu-item-selected">
           <span nz-icon nzType="bank"></span><span>Payment Accounts</span>

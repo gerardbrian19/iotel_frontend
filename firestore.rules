@@ -251,6 +251,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Product reviews (stars + comment), written only by the submitProductReview function, which checks the order was
+    // delivered. Every signed-in user can read them; the name is shortened ("Juan D.").
+    match /productReviews/{reviewId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // A showcased product's public copy: only what the landing page shows (never `dealerPrice`), and only products the
     // document already lists. Mirrors StoredShowcaseProduct in showcase.service.ts.
     function validShowcaseItem(items, i, productIds) {
@@ -491,7 +498,8 @@ service cloud.firestore {
 
     // ── Orders ─────────────────────────────────────────────────────────────────
 
-    // Pending → Processing (paid) → Shipped → Delivered; an unpaid Pending order → Cancelled. Paid orders are cancelled
+    // Pending → Processing (paid) → Shipped → Out for Delivery → Delivered (Shipped → Delivered stays allowed for
+    // app versions from before the Out for Delivery step); an unpaid Pending order → Cancelled. Paid orders are cancelled
     // only by refunding them (the refundPayment function), and the payment never changes here.
     function validStatusChange(before, after) {
       return (before.status == 'Pending'
@@ -513,6 +521,9 @@ service cloud.firestore {
           && after.shipment.trackingNumber is string
           && after.shipment.trackingNumber.size() <= 60)
         || (before.status == 'Shipped'
+          && after.status == 'Out for Delivery'
+          && after.outForDeliveryAt == request.time)
+        || (before.status in ['Shipped', 'Out for Delivery']
           && after.status == 'Delivered'
           && after.deliveredAt == request.time);
     }
@@ -520,7 +531,7 @@ service cloud.firestore {
     // Staff and admins can never touch who ordered what, the items, the amounts or the payment.
     function validStaffOrderUpdate(before, after) {
       return after.diff(before).affectedKeys().hasOnly(['status', 'shipment', 'processedAt', 'shippedAt',
-          'deliveredAt', 'cancelledAt', 'cancelledBy', 'cancelReason', 'updatedAt'])
+          'outForDeliveryAt', 'deliveredAt', 'cancelledAt', 'cancelledBy', 'cancelReason', 'updatedAt'])
         && after.updatedAt == request.time
         && after.status != before.status
         && validStatusChange(before, after);
@@ -615,6 +626,11 @@ service cloud.firestore {
 
     // Emailed sign-in codes (hashed), written and read only by the Cloud Functions (Admin SDK bypasses rules).
     match /loginCodes/{uid} {
+      allow read, write: if false;
+    }
+
+    // Per-IP rate limit of the forgot-password email check (checkResetEmail); Cloud Functions only.
+    match /resetChecks/{ipHash} {
       allow read, write: if false;
     }
 

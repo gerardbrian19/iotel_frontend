@@ -10,10 +10,20 @@ import { FavoritesService } from '../../../core/services/favorites.service';
 import { ProductActions } from '../../../core/services/product-actions.service';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../utils/product-image';
 
+import { StarRatingComponent } from '../star-rating/star-rating.component';
+
 @Component({
   selector: 'app-product-card',
   standalone: true,
-  imports: [CurrencyPipe, RouterLink, NzButtonModule, NzCardModule, NzIconModule, NzTagModule],
+  imports: [
+    CurrencyPipe,
+    RouterLink,
+    NzButtonModule,
+    NzCardModule,
+    NzIconModule,
+    NzTagModule,
+    StarRatingComponent,
+  ],
   templateUrl: './product-card.component.html',
   styleUrl: './product-card.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

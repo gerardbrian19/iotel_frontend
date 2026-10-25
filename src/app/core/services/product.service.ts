@@ -16,7 +16,8 @@ import { AuthService } from './auth.service';
 const COLLECTION = 'products';
 
 /** Fields an admin can set. `inStock` is derived and `id` is the document id, so neither is stored. */
-export type ProductInput = Omit<Product, 'id' | 'inStock'>;
+/** What the product form writes; ratings are kept by the reviews function. */
+export type ProductInput = Omit<Product, 'id' | 'inStock' | 'ratingAverage' | 'ratingCount'>;
 
 function toNumberOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
@@ -26,6 +27,8 @@ function toNumberOrNull(value: unknown): number | null {
 export function toProduct(id: string, data: DocumentData): Product {
   const stock = Math.max(0, Math.floor(Number(data['stock']) || 0));
   const isActive = data['isActive'] !== false;
+  // Kept by the submitProductReview function (functions/src/reviews.ts).
+  const ratingCount = Math.max(0, Math.floor(Number(data['ratingCount']) || 0));
   return {
     id,
     name: String(data['name'] ?? id),
@@ -41,6 +44,8 @@ export function toProduct(id: string, data: DocumentData): Product {
     isActive,
     inStock: isActive && stock > 0,
     searchKeywords: Array.isArray(data['searchKeywords']) ? data['searchKeywords'].map(String) : [],
+    ratingAverage: ratingCount > 0 ? (Number(data['ratingSum']) || 0) / ratingCount : null,
+    ratingCount,
   };
 }
 
@@ -55,7 +60,9 @@ function toDocument(changes: Partial<ProductInput>): DocumentData {
   return data;
 }
 
-function keywordsFor(product: Pick<ProductInput, 'name' | 'brand' | 'model' | 'category' | 'subcategory'>): string[] {
+function keywordsFor(
+  product: Pick<ProductInput, 'name' | 'brand' | 'model' | 'category' | 'subcategory'>,
+): string[] {
   const words = [product.name, product.brand, product.model, product.category, product.subcategory]
     .join(' ')
     .toLowerCase()
@@ -80,15 +87,15 @@ export class ProductService {
   /** Every product, including inactive ones (for admin and staff screens). */
   readonly products = this._products.asReadonly();
   /** Products visible in the storefront. */
-  readonly activeProducts = computed(() => this._products().filter(p => p.isActive));
-  readonly byId = computed(() => new Map(this._products().map(p => [p.id, p])));
+  readonly activeProducts = computed(() => this._products().filter((p) => p.isActive));
+  readonly byId = computed(() => new Map(this._products().map((p) => [p.id, p])));
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
   private readonly uid = computed(() => this.auth.currentUser()?.id ?? null);
 
   constructor() {
-    effect(onCleanup => {
+    effect((onCleanup) => {
       const uid = this.uid();
       untracked(() => {
         this._error.set(null);
@@ -103,13 +110,13 @@ export class ProductService {
 
       const unsubscribe = onSnapshot(
         collection(this.db, COLLECTION),
-        snapshot => {
-          const list = snapshot.docs.map(d => toProduct(d.id, d.data()));
+        (snapshot) => {
+          const list = snapshot.docs.map((d) => toProduct(d.id, d.data()));
           list.sort((a, b) => a.name.localeCompare(b.name));
           this._products.set(list);
           this._loading.set(false);
         },
-        err => {
+        (err) => {
           console.error('Could not load products', err);
           this._products.set([]);
           this._error.set(
@@ -127,10 +134,12 @@ export class ProductService {
   add(product: ProductInput): Observable<string> {
     const data = toDocument({
       ...product,
-      searchKeywords: product.searchKeywords?.length ? product.searchKeywords : keywordsFor(product),
+      searchKeywords: product.searchKeywords?.length
+        ? product.searchKeywords
+        : keywordsFor(product),
     });
     return from(addDoc(collection(this.db, COLLECTION), { ...data, currency: 'PHP' })).pipe(
-      map(ref => ref.id),
+      map((ref) => ref.id),
     );
   }
 

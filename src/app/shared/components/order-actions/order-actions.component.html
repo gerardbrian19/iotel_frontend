@@ -20,6 +20,52 @@
   />
 }
 
+@if (cancelRequest(); as r) {
+  <div class="oa-block cancel-request" [class]="'cr-' + r.status">
+    <div class="cr-head">
+      <span class="cr-title">Cancellation request</span>
+      @switch (r.status) {
+        @case ('pending') {
+          <nz-tag nzColor="orange">Waiting for review</nz-tag>
+        }
+        @case ('approved') {
+          <nz-tag nzColor="green">Approved · refunded</nz-tag>
+        }
+        @case ('rejected') {
+          <nz-tag nzColor="red">Rejected</nz-tag>
+        }
+      }
+      <span class="cr-when">{{ r.requestedAt | date: 'MMM d, y, h:mm a' }}</span>
+    </div>
+    <p class="cr-reason">{{ reasonLabels[r.reason] }}</p>
+    <p class="cr-details">“{{ r.details }}”</p>
+    @if (r.reviewNote && r.status !== 'pending') {
+      <p class="cr-note">
+        <strong>{{ r.status === 'rejected' ? 'Why it was rejected' : 'Note' }}:</strong>
+        {{ r.reviewNote }}
+        @if (isStaff() && r.reviewedByName) {
+          <span class="cr-by">· {{ r.reviewedByName }}</span>
+        }
+      </p>
+    }
+    @if (isStaff() && requestOpen()) {
+      <div class="cr-actions">
+        <button
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          class="brand-btn"
+          [disabled]="busy()"
+          (click)="approveRequest()"
+        >
+          Approve &amp; refund
+        </button>
+        <button nz-button nzSize="small" [disabled]="busy()" (click)="openReject()">Reject</button>
+      </div>
+    }
+  </div>
+}
+
 <app-invoice-status
   class="oa-block"
   kind="order"
@@ -56,6 +102,18 @@
           Mark shipped
         </button>
       }
+      @case ('out-for-delivery') {
+        <button
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          class="brand-btn"
+          [disabled]="busy()"
+          (click)="confirmOutForDelivery()"
+        >
+          Out for delivery
+        </button>
+      }
       @case ('deliver') {
         <button
           nz-button
@@ -78,6 +136,16 @@
   @if (canRefund()) {
     <button nz-button nzDanger nzSize="small" [disabled]="busy()" (click)="openRefund()">
       {{ refundCancels() ? 'Cancel & refund' : 'Refund payment' }}
+    </button>
+  }
+
+  @if (canRate()) {
+    <app-order-reviews [order]="order()" />
+  }
+
+  @if (canRequestCancel()) {
+    <button nz-button nzDanger nzSize="small" [disabled]="busy()" (click)="openRequestCancel()">
+      {{ cancelRequest()?.status === 'rejected' ? 'Ask to cancel again' : 'Cancel order' }}
     </button>
   }
 
@@ -161,6 +229,91 @@
         (click)="cancel()"
       >
         Yes, cancel it
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Customer: ask to cancel a paid order -->
+<nz-modal
+  [(nzVisible)]="requestVisible"
+  nzTitle="Request to cancel this order"
+  [nzFooter]="null"
+  nzWidth="480px"
+>
+  <ng-container *nzModalContent>
+    <p class="modal-copy">
+      You already paid for this order, so our team reviews the request first. If it is approved, the
+      order is cancelled and the full amount goes back to you.
+    </p>
+    <p class="field-label">Why do you want to cancel?</p>
+    <nz-radio-group
+      class="reason-list"
+      [ngModel]="requestReason()"
+      (ngModelChange)="requestReason.set($event)"
+    >
+      @for (r of reasons; track r[0]) {
+        <label nz-radio [nzValue]="r[0]">{{ r[1] }}</label>
+      }
+    </nz-radio-group>
+    <p class="field-label">Tell us more</p>
+    <textarea
+      nz-input
+      rows="4"
+      maxlength="500"
+      placeholder="Explain what happened (at least {{ detailsMin }} characters)"
+      [ngModel]="requestDetails()"
+      (ngModelChange)="requestDetails.set($event)"
+    ></textarea>
+    <p class="char-count">{{ requestDetails().length }}/500</p>
+    <div class="modal-footer">
+      <button nz-button type="button" (click)="requestVisible.set(false)">Keep order</button>
+      <button
+        nz-button
+        nzType="primary"
+        nzDanger
+        type="button"
+        [disabled]="busy() || !requestValid()"
+        [nzLoading]="busy()"
+        (click)="submitRequestCancel()"
+      >
+        Send request
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Staff: reject a cancellation request -->
+<nz-modal
+  [(nzVisible)]="rejectVisible"
+  nzTitle="Reject the cancellation request?"
+  [nzFooter]="null"
+  nzWidth="440px"
+>
+  <ng-container *nzModalContent>
+    <p class="modal-copy">
+      The order stays as it is and the customer sees your reason on their order.
+    </p>
+    <textarea
+      nz-input
+      rows="3"
+      maxlength="300"
+      placeholder="Reason, shown to the customer (required)"
+      [ngModel]="rejectNote()"
+      (ngModelChange)="rejectNote.set($event)"
+    ></textarea>
+    <div class="modal-footer">
+      <button nz-button type="button" (click)="rejectVisible.set(false)">Close</button>
+      <button
+        nz-button
+        nzType="primary"
+        nzDanger
+        type="button"
+        [disabled]="busy() || !rejectNote().trim()"
+        [nzLoading]="busy()"
+        (click)="reject()"
+      >
+        Reject request
       </button>
     </div>
   </ng-container>

@@ -1,0 +1,119 @@
+<div class="rate-entry">
+  <button nz-button type="button" class="rate-btn" [class.done]="allRated()" (click)="openForm()">
+    <span nz-icon nzType="star" nzTheme="fill"></span>
+    {{ allRated() ? 'Edit your ratings' : 'Rate products' }}
+  </button>
+  @if (myRating(); as rating) {
+    <span class="my-rating">
+      Your rating
+      <app-star-rating [value]="rating" [size]="14" />
+    </span>
+  } @else {
+    <span class="rate-nudge">Tell other shoppers what you think</span>
+  }
+</div>
+
+<nz-modal
+  [(nzVisible)]="visible"
+  [nzTitle]="modalTitle"
+  [nzFooter]="null"
+  nzWidth="600px"
+  nzClassName="order-reviews-modal"
+>
+  <ng-template #modalTitle>
+    <div class="modal-head">
+      <span class="head-icon"><span nz-icon nzType="star" nzTheme="fill"></span></span>
+      <div>
+        <div class="head-title">Rate your products</div>
+        <div class="head-sub">
+          {{ order().code }} · {{ ratedCount() }} of {{ items().length }} rated
+        </div>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-container *nzModalContent>
+    <div class="progress" aria-hidden="true">
+      <span class="progress-bar" [style.width.%]="(ratedCount() / items().length) * 100"></span>
+    </div>
+    <p class="intro">
+      How did they turn out? Your stars and notes appear on the product page with your first name
+      and last initial.
+    </p>
+
+    @for (item of items(); track item.productId) {
+      @let draft = drafts()[item.productId];
+      <div class="item" [class.item-done]="reviewed(item.productId)">
+        <div class="item-head">
+          <img
+            [src]="item.imageUrl || placeholder"
+            [alt]="item.name"
+            class="thumb"
+            (error)="onImageError($event)"
+          />
+          <div class="item-name">
+            <strong>{{ item.name }}</strong>
+            @if (reviewed(item.productId)) {
+              <span class="pill pill-done"><span nz-icon nzType="check"></span> Rated</span>
+            } @else {
+              <span class="pill">Not rated yet</span>
+            }
+          </div>
+        </div>
+
+        <div class="rate-row">
+          <nz-rate
+            class="stars-input"
+            [ngModel]="draft.rating"
+            (ngModelChange)="patch(item.productId, { rating: $event })"
+          />
+          <span class="rate-word" [class]="'tone-' + tone(draft.rating)">{{
+            words[draft.rating]
+          }}</span>
+        </div>
+
+        <div class="chips">
+          @for (phrase of phrases; track phrase) {
+            <button
+              type="button"
+              class="chip"
+              [class.chip-on]="hasPhrase(item.productId, phrase)"
+              (click)="togglePhrase(item.productId, phrase)"
+            >
+              {{ phrase }}
+            </button>
+          }
+        </div>
+
+        <textarea
+          nz-input
+          class="notes"
+          rows="3"
+          [maxlength]="maxComment"
+          placeholder="Share your notes: quality, range, battery life… (optional)"
+          [ngModel]="draft.comment"
+          (ngModelChange)="patch(item.productId, { comment: $event })"
+        ></textarea>
+
+        <div class="item-foot">
+          <span class="count">{{ draft.comment.length }}/{{ maxComment }}</span>
+          <button
+            nz-button
+            type="button"
+            class="submit-btn"
+            [disabled]="!draft.rating || saving() !== null"
+            [nzLoading]="saving() === item.productId"
+            (click)="save(item)"
+          >
+            <span nz-icon nzType="check"></span>
+            {{ reviewed(item.productId) ? 'Update rating' : 'Submit rating' }}
+          </button>
+        </div>
+      </div>
+    }
+
+    <div class="footer">
+      <button nz-button type="button" class="done-btn" (click)="visible.set(false)">Done</button>
+    </div>
+  </ng-container>
+</nz-modal>

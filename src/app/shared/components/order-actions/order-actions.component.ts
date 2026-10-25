@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, finalize } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -6,12 +7,17 @@ import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
-import { Order } from '../../../core/models';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
+import { NzTagModule } from 'ng-zorro-antd/tag';
+import { CANCEL_REQUEST_REASONS, CancelRequestReason, Order } from '../../../core/models';
 import {
   canPay,
   canRefund,
+  canRequestCancel,
   canSubmitProof,
+  hasOpenCancelRequest,
   customerCanCancel,
+  deliveryAddress,
   orderHint,
   staffAction,
 } from '../../../core/orders/order-view';
@@ -20,30 +26,39 @@ import { AuthService } from '../../../core/services/auth.service';
 import { OrderService, orderErrorMessage } from '../../../core/services/order.service';
 import { requiredTrimmed } from '../../utils/validators';
 import { InvoiceStatusComponent } from '../invoice-status/invoice-status.component';
+import { OrderReviewsComponent } from '../order-reviews/order-reviews.component';
 import { ManualPaymentPanelComponent } from '../manual-payment-panel/manual-payment-panel.component';
 import { PaymentProofComponent } from '../payment-proof/payment-proof.component';
 
 /**
  * What happens next with an order, and the actions that fit the viewer and the order's status:
  *
- * - Customer: pay through PayMongo (or send the proof of a bank / GCash transfer), cancel until the order is paid.
+ * - Customer: pay through PayMongo (or send the proof of a bank / GCash transfer), cancel until the order is paid,
+ *   then ask to cancel it (reason + explanation) until it ships.
  * - Staff / admin: approve or reject a transfer, start processing a paid order (takes the items out of stock), mark shipped with the courier, mark
- *   delivered, cancel an unpaid order, refund a paid one (which cancels it).
+ *   out for delivery, mark delivered, cancel an unpaid order, refund a paid one (which cancels it), approve (refund) or reject a customer's
+ *   cancellation request.
  *
  * Used on the customer's order pages and the staff and admin order screens.
  */
+const REQUEST_DETAILS_MIN = 10;
+
 @Component({
   selector: 'app-order-actions',
   standalone: true,
   imports: [
+    DatePipe,
     FormsModule,
     ReactiveFormsModule,
     NzButtonModule,
     NzFormModule,
     NzInputModule,
     NzModalModule,
+    NzRadioModule,
+    NzTagModule,
     InvoiceStatusComponent,
     ManualPaymentPanelComponent,
+    OrderReviewsComponent,
     PaymentProofComponent,
   ],
   templateUrl: './order-actions.component.html',
@@ -68,6 +83,16 @@ export class OrderActionsComponent {
   readonly refundReason = signal('');
   readonly refundReference = signal('');
 
+  readonly requestVisible = signal(false);
+  readonly requestReason = signal<CancelRequestReason | null>(null);
+  readonly requestDetails = signal('');
+  readonly rejectVisible = signal(false);
+  readonly rejectNote = signal('');
+
+  readonly reasons = Object.entries(CANCEL_REQUEST_REASONS) as [CancelRequestReason, string][];
+  readonly reasonLabels: Record<string, string> = CANCEL_REQUEST_REASONS;
+  readonly detailsMin = REQUEST_DETAILS_MIN;
+
   readonly shipForm = this.fb.nonNullable.group({
     courier: ['', [requiredTrimmed, Validators.maxLength(60)]],
     trackingNumber: ['', Validators.maxLength(60)],
@@ -80,7 +105,18 @@ export class OrderActionsComponent {
   readonly canPay = computed(() => !this.isStaff() && canPay(this.order()));
   /** Unpaid orders only; paid ones are cancelled by refunding them. */
   readonly canCancel = computed(() => customerCanCancel(this.order()));
-  readonly canRefund = computed(() => this.isStaff() && canRefund(this.order()));
+  /** An open request is approved by refunding, so the plain refund button steps aside meanwhile. */
+  readonly canRefund = computed(
+    () => this.isStaff() && canRefund(this.order()) && !hasOpenCancelRequest(this.order()),
+  );
+  /** Customers rate the products of a delivered order. */
+  readonly canRate = computed(() => !this.isStaff() && this.order().status === 'Delivered');
+  readonly canRequestCancel = computed(() => !this.isStaff() && canRequestCancel(this.order()));
+  readonly cancelRequest = computed(() => this.order().cancelRequest);
+  readonly requestOpen = computed(() => hasOpenCancelRequest(this.order()));
+  readonly requestValid = computed(
+    () => !!this.requestReason() && this.requestDetails().trim().length >= REQUEST_DETAILS_MIN,
+  );
   /** The customer still has to send the transfer proof, or is waiting for it to be checked. */
   readonly showTransferPanel = computed(
     () =>
@@ -117,6 +153,17 @@ export class OrderActionsComponent {
     );
   }
 
+  confirmOutForDelivery(): void {
+    this.modal.confirm({
+      nzTitle: 'Mark as out for delivery?',
+      nzContent: `The customer is told their order is out for delivery to ${deliveryAddress(this.order())}.`,
+      nzOkText: 'Out for delivery',
+      nzCancelText: 'Not yet',
+      nzOnOk: () =>
+        this.run(this.orders.markOutForDelivery(this.order()), 'Order is out for delivery.'),
+    });
+  }
+
   confirmDelivered(): void {
     this.modal.confirm({
       nzTitle: 'Mark as delivered?',
@@ -135,6 +182,44 @@ export class OrderActionsComponent {
   cancel(): void {
     this.run(this.orders.cancel(this.order(), this.cancelReason()), 'Order cancelled.', () =>
       this.cancelVisible.set(false),
+    );
+  }
+
+  openRequestCancel(): void {
+    this.requestReason.set(null);
+    this.requestDetails.set('');
+    this.requestVisible.set(true);
+  }
+
+  submitRequestCancel(): void {
+    const reason = this.requestReason();
+    if (!reason || !this.requestValid()) return;
+    this.run(
+      this.orders.requestCancellation(this.order(), reason, this.requestDetails()),
+      'Cancellation requested. We will review it and refund you if it is approved.',
+      () => this.requestVisible.set(false),
+    );
+  }
+
+  /** Approving a request is refunding the order, with the customer's reason as the note. */
+  approveRequest(): void {
+    const request = this.cancelRequest();
+    this.openRefund();
+    if (request)
+      this.refundReason.set(`Cancelled at your request: ${this.reasonLabels[request.reason]}`);
+  }
+
+  openReject(): void {
+    this.rejectNote.set('');
+    this.rejectVisible.set(true);
+  }
+
+  reject(): void {
+    if (!this.rejectNote().trim()) return;
+    this.run(
+      this.orders.rejectCancellation(this.order(), this.rejectNote()),
+      'Cancellation request rejected. The customer can see why.',
+      () => this.rejectVisible.set(false),
     );
   }
 

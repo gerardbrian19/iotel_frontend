@@ -112,11 +112,16 @@ function actorLookup() {
   };
 }
 
-/** The signed-in app user who made the change, or null when it came from a function or the console. */
+/**
+ * The signed-in app user who made the change, or null when it came from a function or the console. Writes from our
+ * own functions can arrive with the runtime's service account (`…@developer.gserviceaccount.com`) as `authId` and an
+ * auth type outside the list, so service-account ids are never taken for app users.
+ */
 function appUserOf(event: FirestoreAuthEvent<unknown>): string | null {
   const type = event.authType as string;
   if (!event.authId || ['service_account', 'system', 'api_key', 'unauthenticated'].includes(type))
     return null;
+  if (event.authId.endsWith('.gserviceaccount.com')) return null;
   return event.authId;
 }
 
@@ -124,7 +129,7 @@ function peso(value: unknown): string {
   return `₱${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
 }
 
-function orderCode(number: unknown): string {
+export function orderCode(number: unknown): string {
   return `ORD-${String(Number(number) || 0).padStart(4, '0')}`;
 }
 
@@ -319,6 +324,15 @@ export const logOrderActivity = watch('orders/{orderId}', async (before, after, 
         });
         break;
       }
+      case 'Out for Delivery':
+        entries.push({
+          ...base,
+          category: 'order',
+          action: 'order.outForDelivery',
+          summary: `Marked ${code} as out for delivery`,
+          actor: await actor(),
+        });
+        break;
       case 'Delivered':
         entries.push({
           ...base,
@@ -467,6 +481,9 @@ const QUIET_PRODUCT_FIELDS = new Set([
   'updatedAt',
   'createdAt',
   'searchKeywords',
+  // Moved by every product review (reviews.ts).
+  'ratingSum',
+  'ratingCount',
 ]);
 
 function changedFields(

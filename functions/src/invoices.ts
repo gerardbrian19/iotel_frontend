@@ -19,7 +19,7 @@ import { defineString } from 'firebase-functions/params';
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import PDFDocument from 'pdfkit';
-import { Actor, logActivity } from './activity.js';
+import { Actor, logActivity, orderCode } from './activity.js';
 import { db } from './app.js';
 import { MAIL_SECRETS, sendMail } from './mail.js';
 import {
@@ -123,7 +123,7 @@ function buildInvoice(kind: Kind, doc: DocumentData, number: string): InvoiceDat
     const address = (doc['address'] as DocumentData | undefined) ?? {};
     return {
       ...common,
-      reference: String(doc['code'] ?? ''),
+      reference: orderCode(doc['number']),
       address: [
         String(address['fullName'] ?? ''),
         String(address['addressLine'] ?? ''),
@@ -443,7 +443,7 @@ export async function sendInvoice(
   });
   const label =
     kind === 'order'
-      ? String(doc['code'] ?? id)
+      ? orderCode(doc['number'])
       : `${doc['serviceName'] ?? 'Service'} · ${doc['customerName'] ?? 'customer'}`;
   await logActivity({
     category: 'payment',

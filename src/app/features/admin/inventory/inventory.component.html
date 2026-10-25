@@ -49,12 +49,12 @@
                 (ngModelChange)="setEditStock(p.id, $event)"
                 [nzMin]="0"
                 [nzPrecision]="0"
-                style="width: 80px"
-                nzSize="small"
+                class="stock-input"
               />
-              <button nz-button nzSize="small" nzType="primary" class="save-btn"
+              <button nz-button type="button" class="save-btn"
                 [disabled]="editingStock()[p.id] === undefined || editingStock()[p.id] === p.stock"
                 (click)="saveStock(p.id)">
+                <nz-icon nzType="check" nzTheme="outline" />
                 Save
               </button>
             </div>

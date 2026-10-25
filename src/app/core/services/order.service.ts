@@ -18,11 +18,14 @@ import { Observable, defer } from 'rxjs';
 import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { functionErrorMessage } from '../firebase/auth-errors';
 import { dataOf, isoOf } from '../firebase/timestamps';
-import { customerCanCancel, isPaymentSettled } from '../orders/order-view';
+import { customerCanCancel, hasOpenCancelRequest, isPaymentSettled } from '../orders/order-view';
 import { toInvoice, toPayment } from '../payments/payment-methods';
 import {
+  CANCEL_REQUEST_REASONS,
+  CancelRequestReason,
   CartItem,
   ORDER_STATUSES,
+  OrderCancelRequest,
   Order,
   OrderItem,
   PaymentProvider,
@@ -34,6 +37,9 @@ import { ProductService } from './product.service';
 
 const ORDERS = 'orders';
 const PRODUCTS = 'products';
+
+const CANCEL_REQUEST_OPEN =
+  'The customer asked to cancel this order. Approve or reject the request first.';
 
 export function orderCode(number: number): string {
   return `ORD-${String(number).padStart(4, '0')}`;
@@ -55,6 +61,19 @@ export interface OrderCheckout {
 
 function optionalIso(value: unknown): string | undefined {
   return isoOf(value) || undefined;
+}
+
+function toCancelRequest(value: DocumentData | undefined): OrderCancelRequest | undefined {
+  if (!value || !['pending', 'approved', 'rejected'].includes(value['status'])) return undefined;
+  return {
+    status: value['status'],
+    reason: value['reason'] in CANCEL_REQUEST_REASONS ? value['reason'] : 'other',
+    details: String(value['details'] ?? ''),
+    requestedAt: isoOf(value['requestedAt']),
+    reviewNote: value['reviewNote'] ? String(value['reviewNote']) : undefined,
+    reviewedByName: value['reviewedByName'] ? String(value['reviewedByName']) : undefined,
+    reviewedAt: optionalIso(value['reviewedAt']),
+  };
 }
 
 function toOrder(snap: QueryDocumentSnapshot<DocumentData>): Order {
@@ -104,10 +123,12 @@ function toOrder(snap: QueryDocumentSnapshot<DocumentData>): Order {
       ? data['cancelledBy']
       : undefined,
     cancelReason: data['cancelReason'] ? String(data['cancelReason']) : undefined,
+    cancelRequest: toCancelRequest(data['cancelRequest']),
     createdAt: isoOf(data['createdAt']),
     updatedAt: isoOf(data['updatedAt']),
     processedAt: optionalIso(data['processedAt']),
     shippedAt: optionalIso(data['shippedAt']),
+    outForDeliveryAt: optionalIso(data['outForDeliveryAt']),
     deliveredAt: optionalIso(data['deliveredAt']),
     cancelledAt: optionalIso(data['cancelledAt']),
   };
@@ -143,7 +164,7 @@ export function orderErrorMessage(err: unknown): string {
  * the payment Paid (unpaid orders are cancelled after an hour). Or, paying by transfer, the customer sends the money
  * and uploads the proof from the order (ManualPaymentService), and staff verify it; those orders are not cancelled
  * automatically → staff start processing, which takes the items out
- * of stock in one transaction → staff mark it shipped with the courier → delivered.
+ * of stock in one transaction → staff mark it shipped with the courier → out for delivery → delivered.
  *
  * Stock is taken when staff start processing, not at checkout: an abandoned checkout never holds stock, and starting
  * to process fails if stock has run out since. A paid order is only ever cancelled through `refund` (the
@@ -163,6 +184,12 @@ export class OrderService {
   /** Newest first. Customers get their own orders, staff and admins all of them. */
   readonly orders = this._orders.asReadonly();
   readonly byId = computed(() => new Map(this._orders().map((o) => [o.id, o])));
+  /** Staff / admins: paid orders customers asked to cancel, waiting for a decision, oldest request first. */
+  readonly openCancelRequests = computed(() =>
+    this._orders()
+      .filter(hasOpenCancelRequest)
+      .sort((a, b) => a.cancelRequest!.requestedAt.localeCompare(b.cancelRequest!.requestedAt)),
+  );
   /** True until the first snapshot (or error) arrives. */
   readonly loading = this._loading.asReadonly();
   /** True when orders could not be loaded. */
@@ -269,6 +296,35 @@ export class OrderService {
   }
 
   /**
+   * Customer: asks for a paid order to be cancelled and refunded (`requestOrderCancellation` function). Staff approve
+   * it by refunding the order (`refund`) or turn it down with `rejectCancellation`.
+   */
+  requestCancellation(
+    order: Order,
+    reason: CancelRequestReason,
+    details: string,
+  ): Observable<void> {
+    return defer(async () => {
+      this.requireUser();
+      await httpsCallable<{ orderId: string; reason: string; details: string }, { ok: boolean }>(
+        this.functions,
+        'requestOrderCancellation',
+      )({ orderId: order.id, reason, details: details.trim() });
+    });
+  }
+
+  /** Staff: turns the customer's cancellation request down, telling them why. The order carries on. */
+  rejectCancellation(order: Order, note: string): Observable<void> {
+    return defer(async () => {
+      this.requireStaff();
+      await httpsCallable<{ orderId: string; note: string }, { ok: boolean }>(
+        this.functions,
+        'rejectOrderCancellation',
+      )({ orderId: order.id, note: note.trim() });
+    });
+  }
+
+  /**
    * Staff: refunds the order's payment in full and cancels it if it isn't already (a processing order's items go back
    * in stock). Runs in the `refundPayment` function. A PayMongo payment is refunded through PayMongo; for a transfer,
    * staff send the money back themselves and give that transfer's `refundReference`.
@@ -300,6 +356,7 @@ export class OrderService {
         const fresh = await this.freshOrder(tx, ref);
         if (fresh.status !== 'Pending')
           throw new Error(`This order is already ${fresh.status.toLowerCase()}.`);
+        if (fresh.cancelRequest?.status === 'pending') throw new Error(CANCEL_REQUEST_OPEN);
         if (!isPaymentSettled(fresh)) throw new Error('This order has not been paid yet.');
 
         const stock = await this.readStock(tx, fresh.items);
@@ -327,6 +384,8 @@ export class OrderService {
       this.requireStaff();
       if (this.current(order).status !== 'Processing')
         throw new Error('Only a processing order can be shipped.');
+      if (this.current(order).cancelRequest?.status === 'pending')
+        throw new Error(CANCEL_REQUEST_OPEN);
       const carrier = courier.trim();
       const tracking = trackingNumber.trim();
       if (!carrier) throw new Error('Enter the courier that will deliver the parcel.');
@@ -341,13 +400,27 @@ export class OrderService {
     });
   }
 
+  /** Staff: the parcel is on its way to the customer's address. */
+  markOutForDelivery(order: Order): Observable<void> {
+    return defer(async () => {
+      this.requireStaff();
+      if (this.current(order).status !== 'Shipped')
+        throw new Error('Only a shipped order can go out for delivery.');
+      await updateDoc(doc(this.db, ORDERS, order.id), {
+        status: 'Out for Delivery',
+        outForDeliveryAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    });
+  }
+
   /** Staff: the customer received the parcel. */
   markDelivered(order: Order): Observable<void> {
     return defer(async () => {
       this.requireStaff();
       const current = this.current(order);
-      if (current.status !== 'Shipped')
-        throw new Error('Only a shipped order can be marked delivered.');
+      if (current.status !== 'Out for Delivery')
+        throw new Error('Mark the order out for delivery first.');
       await updateDoc(doc(this.db, ORDERS, order.id), {
         status: 'Delivered',
         deliveredAt: serverTimestamp(),

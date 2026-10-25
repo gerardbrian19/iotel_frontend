@@ -87,6 +87,7 @@ export class DashboardComponent {
     Pending: 'warning',
     Processing: 'processing',
     Shipped: 'blue',
+    'Out for Delivery': 'cyan',
     Delivered: 'success',
     Cancelled: 'error',
   };
@@ -109,6 +110,7 @@ export class DashboardComponent {
       Pending: orders.filter((o) => o.status === 'Pending').length,
       Processing: orders.filter((o) => o.status === 'Processing').length,
       Shipped: orders.filter((o) => o.status === 'Shipped').length,
+      OutForDelivery: orders.filter((o) => o.status === 'Out for Delivery').length,
       Delivered: orders.filter((o) => o.status === 'Delivered').length,
       Cancelled: orders.filter((o) => o.status === 'Cancelled').length,
     };

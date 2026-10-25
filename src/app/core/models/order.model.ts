@@ -4,14 +4,22 @@ import { InvoiceInfo, OrderPayment } from './payment.model';
  * Pending    – placed; waiting for the PayMongo payment, then for staff to start on it.
  * Processing – staff accepted it and took the items out of stock; being packed.
  * Shipped    – handed to the courier.
+ * Out for Delivery – on the way to the customer's address today.
  * Delivered  – received by the customer.
  */
-export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+export type OrderStatus =
+  | 'Pending'
+  | 'Processing'
+  | 'Shipped'
+  | 'Out for Delivery'
+  | 'Delivered'
+  | 'Cancelled';
 
 export const ORDER_STATUSES: readonly OrderStatus[] = [
   'Pending',
   'Processing',
   'Shipped',
+  'Out for Delivery',
   'Delivered',
   'Cancelled',
 ];
@@ -39,6 +47,36 @@ export interface OrderShipment {
   trackingNumber: string;
 }
 
+/** Why a customer wants a paid order cancelled. Mirrored in functions/src/cancellations.ts. */
+export const CANCEL_REQUEST_REASONS = {
+  'changed-mind': 'Changed my mind',
+  'wrong-item': 'Ordered the wrong item or quantity',
+  'better-price': 'Found a better price elsewhere',
+  'too-long': 'It is taking too long',
+  'wrong-address': 'Wrong shipping address',
+  other: 'Other',
+} as const;
+
+export type CancelRequestReason = keyof typeof CANCEL_REQUEST_REASONS;
+
+/**
+ * pending  – the customer asked; staff / an admin still have to decide.
+ * approved – the order was refunded and cancelled.
+ * rejected – turned down (`reviewNote` says why); the order carries on.
+ */
+export type CancelRequestStatus = 'pending' | 'approved' | 'rejected';
+
+/** A customer's request to cancel a paid order, written only by the Cloud Functions (cancellations.ts). */
+export interface OrderCancelRequest {
+  status: CancelRequestStatus;
+  reason: CancelRequestReason;
+  details: string;
+  requestedAt: string;
+  reviewNote?: string;
+  reviewedByName?: string;
+  reviewedAt?: string;
+}
+
 /** A document of the Firestore `orders` collection. */
 export interface Order {
   /** `orders/{id}` document id. Use `code` wherever a person reads or says it. */
@@ -64,10 +102,12 @@ export interface Order {
   /** `system`: cancelled automatically because it wasn't paid in time. */
   cancelledBy?: 'customer' | 'staff' | 'system';
   cancelReason?: string;
+  cancelRequest?: OrderCancelRequest;
   createdAt: string;
   updatedAt: string;
   processedAt?: string;
   shippedAt?: string;
+  outForDeliveryAt?: string;
   deliveredAt?: string;
   cancelledAt?: string;
 }

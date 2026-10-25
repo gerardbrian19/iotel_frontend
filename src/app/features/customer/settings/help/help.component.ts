@@ -82,7 +82,7 @@ export class HelpComponent {
         {
           question: 'How do I track my order?',
           answer:
-            'Open My Orders from the user menu. Every order moves through Pending, Processing, Shipped and Delivered, and shows its estimated delivery date. If something looks wrong, message our team and include the order number.',
+            'Open My Orders from the user menu. Every order moves through Pending, Processing, Shipped, Out for Delivery and Delivered, and shows its estimated delivery date. If something looks wrong, message our team and include the order number.',
         },
         {
           question: 'Why can I not add more of an item to my cart?',

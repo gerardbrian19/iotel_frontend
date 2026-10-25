@@ -25,6 +25,7 @@ import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { db } from './app.js';
+import { CANCEL_REQUEST_REASONS } from './cancellations.js';
 import {
   CheckoutSessionAttributes,
   Kind,
@@ -666,12 +667,24 @@ export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (r
       updates['payment.refundReference'] = refundId;
       if (reason) updates['payment.refundNote'] = reason;
     }
+    // Refunding an order the customer asked to cancel is how that request is approved (cancellations.ts).
+    const requested = kind === 'order' && fresh.get('cancelRequest.status') === 'pending';
+    if (requested) {
+      updates['cancelRequest.status'] = 'approved';
+      updates['cancelRequest.reviewedAt'] = FieldValue.serverTimestamp();
+      updates['cancelRequest.reviewedBy'] = staff.uid;
+      updates['cancelRequest.reviewedByName'] = staff.name;
+      if (reason) updates['cancelRequest.reviewNote'] = reason;
+    }
     if (current !== 'Cancelled') {
       updates['status'] = 'Cancelled';
       if (kind === 'order') {
-        updates['cancelledBy'] = 'staff';
+        updates['cancelledBy'] = requested ? 'customer' : 'staff';
         updates['cancelledAt'] = FieldValue.serverTimestamp();
-        if (reason) updates['cancelReason'] = reason;
+        const why =
+          reason ||
+          (requested ? CANCEL_REQUEST_REASONS[String(fresh.get('cancelRequest.reason'))] : '');
+        if (why) updates['cancelReason'] = why;
       } else {
         tx.delete(
           db.doc(`bookingSlots/${fresh.get('preferredDate')}T${fresh.get('preferredTime')}`),

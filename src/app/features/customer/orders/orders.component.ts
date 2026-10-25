@@ -57,6 +57,7 @@ export class OrdersComponent {
     'Pending',
     'Processing',
     'Shipped',
+    'Out for Delivery',
     'Delivered',
     'Cancelled',
   ];

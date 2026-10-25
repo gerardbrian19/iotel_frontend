@@ -17,7 +17,7 @@ import { OrderActionsComponent } from '../../../shared/components/order-actions/
 import { OrderDetailComponent } from '../../../shared/components/order-detail/order-detail.component';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
 
-type Tab = 'Pending' | 'Processing' | 'Shipped' | 'All';
+type Tab = 'Pending' | 'Processing' | 'Shipped' | 'Out for Delivery' | 'All';
 
 @Component({
   selector: 'app-staff-orders',
@@ -54,7 +54,7 @@ export class StaffOrdersComponent {
   readonly loading = this.orderService.loading;
   readonly error = this.orderService.error;
 
-  readonly tabs: Tab[] = ['Pending', 'Processing', 'Shipped', 'All'];
+  readonly tabs: Tab[] = ['Pending', 'Processing', 'Shipped', 'Out for Delivery', 'All'];
   readonly activeTab = signal<Tab>('Pending');
   readonly search = signal('');
   readonly expanded = signal<ReadonlySet<string>>(new Set());

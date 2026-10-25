@@ -14,3 +14,5 @@ export * from './payments.js';
 export * from './manual-payments.js';
 export * from './invoices.js';
 export * from './activity.js';
+export * from './cancellations.js';
+export * from './reviews.js';

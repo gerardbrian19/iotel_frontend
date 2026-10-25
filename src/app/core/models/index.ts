@@ -9,3 +9,4 @@ export * from './service.model';
 export * from './message.model';
 export * from './showcase.model';
 export * from './activity.model';
+export * from './review.model';

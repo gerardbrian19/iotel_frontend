@@ -47,6 +47,17 @@
   </ng-template>
 }
 
+@if (s.cancelRequests.count) {
+  <nz-alert nzType="warning" nzShowIcon class="refund-alert" [nzMessage]="cancelMessage" />
+  <ng-template #cancelMessage>
+    {{ s.cancelRequests.count }} paid
+    {{ s.cancelRequests.count === 1 ? 'order' : 'orders' }} ({{
+      s.cancelRequests.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+    }}) the customer asked to cancel.
+    <a routerLink="/admin/cancellations">Review</a>
+  </ng-template>
+}
+
 @if (s.toRefund.count) {
   <nz-alert
     nzType="warning"
@@ -62,6 +73,23 @@
     "
   />
 }
+
+<h4 class="section-title">Revenue by channel</h4>
+<div class="channels">
+  @for (c of s.byChannel; track c.key) {
+    <div class="channel" [class]="'channel-' + c.key">
+      <span class="channel-label">{{ c.label }}</span>
+      <strong class="channel-value">{{
+        c.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-0'
+      }}</strong>
+      <span class="stat-note"
+        >{{ c.count }} {{ c.count === 1 ? 'payment' : 'payments' }} ·
+        {{ c.share | number: '1.0-0' }}%</span
+      >
+      <span class="channel-track"><span class="channel-bar" [style.width.%]="c.share"></span></span>
+    </div>
+  }
+</div>
 
 <div class="split">
   <div>

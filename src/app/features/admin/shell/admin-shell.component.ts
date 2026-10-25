@@ -8,6 +8,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { AuthService } from '../../../core/services/auth.service';
 import { ManualPaymentService } from '../../../core/services/manual-payment.service';
+import { OrderService } from '../../../core/services/order.service';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { injectConfirmSignOut } from '../../../shared/utils/confirm-sign-out';
 
@@ -22,9 +23,12 @@ import { injectConfirmSignOut } from '../../../shared/utils/confirm-sign-out';
 export class AdminShellComponent {
   private readonly auth = inject(AuthService);
   private readonly manualPayments = inject(ManualPaymentService);
+  private readonly orders = inject(OrderService);
   readonly user = this.auth.currentUser;
   /** Bank / GCash transfers waiting to be checked, for the Payments menu badge. */
   readonly toVerify = computed(() => this.manualPayments.toVerify().length);
+  /** Paid orders customers asked to cancel, for the Cancellations menu badge. */
+  readonly toReview = computed(() => this.orders.openCancelRequests().length);
   readonly siderCollapsed = signal(false);
   readonly drawerVisible = signal(false);
 

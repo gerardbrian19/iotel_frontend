@@ -19,7 +19,7 @@ import { emailFormat, requiredTrimmed } from '../../../shared/utils/validators';
 
 const RESEND_COOLDOWN_MS = 60_000;
 
-/** Sends Firebase's password-reset email. Never says whether the email has an account. */
+/** Sends Firebase's password-reset email to a registered account; unknown emails get an error instead. */
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
@@ -75,6 +75,7 @@ export class ForgotPasswordComponent {
       this.sent.set(true);
       this.sentAt.set(Date.now());
     } catch (err) {
+      this.sent.set(false);
       this.error.set(authErrorMessage(err));
     } finally {
       this.loading.set(false);

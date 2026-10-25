@@ -391,10 +391,20 @@ export class AuthService {
   }
 
   /**
-   * Sends Firebase's password-reset email. Resolves the same way whether or not the email has an account (email
-   * enumeration protection is on, so Firebase doesn't say either).
+   * Sends Firebase's password-reset email, but only to a registered account: the `checkResetEmail` function looks the
+   * email up first (Firebase's email enumeration protection hides that from the client), and an unknown email throws
+   * an `AppAuthError` instead.
    */
   async sendPasswordReset(email: string): Promise<void> {
+    const res = await httpsCallable<{ email: string }, { registered: boolean }>(
+      this.functions,
+      'checkResetEmail',
+    )({ email: email.trim() });
+    if (!res.data.registered) {
+      throw new AppAuthError(
+        "This email isn't registered. Check that it's spelled correctly, or create an account.",
+      );
+    }
     try {
       await sendPasswordResetEmail(this.auth, email.trim(), {
         url: `${window.location.origin}/auth/login`,

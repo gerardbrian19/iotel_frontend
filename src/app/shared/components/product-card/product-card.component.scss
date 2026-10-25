@@ -19,7 +19,7 @@
   position: relative;
   height: 200px;
   overflow: hidden;
-  background: #F5F5F5;
+  background: #f5f5f5;
   cursor: pointer;
 }
 
@@ -70,13 +70,13 @@
 }
 
 .liked {
-  color: #CC2020;
+  color: #cc2020;
 }
 
 .product-name {
   font-size: 15px;
   font-weight: 700;
-  color: #1A1A1A;
+  color: #1a1a1a;
   margin-bottom: 6px;
   cursor: pointer;
   display: -webkit-box;
@@ -106,7 +106,7 @@
 .product-price {
   font-size: 18px;
   font-weight: 800;
-  color: #CC2020;
+  color: #cc2020;
   display: block;
 
   &.on-request {
@@ -126,4 +126,8 @@
 .stock-count {
   font-size: 11px;
   color: #888;
+}
+
+.card-rating {
+  margin: -4px 0 6px;
 }

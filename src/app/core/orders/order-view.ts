@@ -11,6 +11,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   Pending: 'warning',
   Processing: 'processing',
   Shipped: 'blue',
+  'Out for Delivery': 'cyan',
   Delivered: 'success',
   Cancelled: 'error',
 };
@@ -69,10 +70,32 @@ export function canRefund(order: Order): boolean {
   );
 }
 
+/** The customer can ask to cancel a paid order that hasn't shipped (staff then refund it or say no). */
+export function canRequestCancel(order: Order): boolean {
+  return (
+    order.payment.status === 'Paid' &&
+    (order.status === 'Pending' || order.status === 'Processing') &&
+    order.cancelRequest?.status !== 'pending'
+  );
+}
+
+/** A cancellation request staff still have to approve or reject. */
+export function hasOpenCancelRequest(order: Order): boolean {
+  return order.cancelRequest?.status === 'pending' && order.status !== 'Cancelled';
+}
+
 /** What staff have to do to move the order along, or null when it is waiting on someone else or finished. */
-export type StaffAction = 'verify-payment' | 'start-processing' | 'ship' | 'deliver' | 'refund';
+export type StaffAction =
+  | 'verify-payment'
+  | 'review-cancel'
+  | 'start-processing'
+  | 'ship'
+  | 'out-for-delivery'
+  | 'deliver'
+  | 'refund';
 
 export function staffAction(order: Order): StaffAction | null {
+  if (hasOpenCancelRequest(order)) return 'review-cancel';
   switch (order.status) {
     case 'Pending':
       if (proofUnderReview(order.payment)) return 'verify-payment';
@@ -80,6 +103,8 @@ export function staffAction(order: Order): StaffAction | null {
     case 'Processing':
       return 'ship';
     case 'Shipped':
+      return 'out-for-delivery';
+    case 'Out for Delivery':
       return 'deliver';
     case 'Cancelled':
       // Paid after it was cancelled (e.g. the checkout was completed late): the money has to go back.
@@ -90,8 +115,19 @@ export function staffAction(order: Order): StaffAction | null {
 }
 
 /** One line on what happens next, from the viewer's side. */
+/** "123 Rizal St, Makati City, Metro Manila 1200": where the parcel goes. */
+export function deliveryAddress(order: Order): string {
+  const { addressLine, city, province, zip } = order.address;
+  return [addressLine, city, [province, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+}
+
 export function orderHint(order: Order, staff: boolean): string {
   const { payment } = order;
+  if (hasOpenCancelRequest(order)) {
+    return staff
+      ? 'The customer asked to cancel this order. Approve (refund) or reject the request before moving it along.'
+      : 'You asked to cancel this order. We will review your request and let you know here.';
+  }
   switch (order.status) {
     case 'Cancelled': {
       const by =
@@ -110,9 +146,13 @@ export function orderHint(order: Order, staff: boolean): string {
     }
     case 'Delivered':
       return staff ? 'Delivered to the customer.' : 'Delivered. Thank you for shopping with IOTEL!';
+    case 'Out for Delivery':
+      return staff
+        ? `Out for delivery to ${deliveryAddress(order)}. Mark it delivered once the customer has it.`
+        : `Your order is out for delivery to ${deliveryAddress(order)}.`;
     case 'Shipped':
       return staff
-        ? 'With the courier. Mark it delivered once the customer has it.'
+        ? 'With the courier. Mark it out for delivery when it leaves for the customer.'
         : `On its way with ${order.shipment?.courier ?? 'the courier'}.`;
     case 'Processing':
       return staff
@@ -202,7 +242,8 @@ export function orderTimeline(order: Order): TimelineStep[] {
     Pending: 0,
     Processing: 1,
     Shipped: 2,
-    Delivered: 3,
+    'Out for Delivery': 3,
+    Delivered: 4,
     Cancelled: -1,
   };
   const flow: { status: OrderStatus; label: string; date?: string; detail?: string }[] = [
@@ -214,6 +255,12 @@ export function orderTimeline(order: Order): TimelineStep[] {
       detail: order.shipment
         ? [order.shipment.courier, order.shipment.trackingNumber].filter(Boolean).join(' · ')
         : undefined,
+    },
+    {
+      status: 'Out for Delivery',
+      label: 'Out for delivery',
+      date: order.outForDeliveryAt,
+      detail: order.outForDeliveryAt ? `To ${deliveryAddress(order)}` : undefined,
     },
     { status: 'Delivered', label: 'Delivered', date: order.deliveredAt },
   ];

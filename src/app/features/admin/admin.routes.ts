@@ -13,6 +13,7 @@ export const ADMIN_ROUTES: Routes = [
       { path: 'inventory', loadComponent: () => import('./inventory/inventory.component').then(m => m.AdminInventoryComponent) },
       { path: 'services', loadComponent: () => import('../../shared/components/services-manager/services-manager.component').then(m => m.ServicesManagerComponent) },
       { path: 'payments', loadComponent: () => import('../../shared/components/payment-review-queue/payment-review-queue.component').then(m => m.PaymentReviewQueueComponent) },
+      { path: 'cancellations', loadComponent: () => import('../../shared/components/cancellation-queue/cancellation-queue.component').then(m => m.CancellationQueueComponent) },
       { path: 'payment-receivers', loadComponent: () => import('./payment-receivers/payment-receivers.component').then(m => m.AdminPaymentReceiversComponent) },
       { path: 'bookings', loadComponent: () => import('../../shared/components/bookings-board/bookings-board.component').then(m => m.BookingsBoardComponent) },
       { path: 'messages', loadComponent: () => import('./messages/messages.component').then(m => m.AdminMessagesComponent) },

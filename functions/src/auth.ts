@@ -22,7 +22,6 @@ const MAX_SENDS_PER_HOUR = 5;
 const MAX_ATTEMPTS = 5;
 const HOUR_MS = 60 * 60 * 1000;
 
-
 interface LoginCodeDoc {
   hash: string;
   salt: string;
@@ -41,7 +40,8 @@ function hashCode(code: string, salt: string): string {
 function requireSignIn(req: CallableRequest): { uid: string; authTime: number; email: string } {
   if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in again.');
   const { uid, token } = req.auth;
-  if (!token.email) throw new HttpsError('failed-precondition', 'Your account has no email address.');
+  if (!token.email)
+    throw new HttpsError('failed-precondition', 'Your account has no email address.');
   return { uid, authTime: token.auth_time, email: token.email };
 }
 
@@ -81,17 +81,26 @@ export const sendLoginCode = onCall({ secrets: MAIL_SECRETS }, async (req) => {
 
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    const recent = ((snap.get('sentAt') as number[] | undefined) ?? []).filter((t) => t > now - HOUR_MS);
+    const recent = ((snap.get('sentAt') as number[] | undefined) ?? []).filter(
+      (t) => t > now - HOUR_MS,
+    );
     const last = recent.length ? Math.max(...recent) : 0;
     // The cooldown is for resends within one sign-in; a fresh sign-in gets its code at once (still capped per hour).
     if (snap.get('authTime') === authTime && now - last < RESEND_COOLDOWN_MS) {
       const wait = Math.ceil((RESEND_COOLDOWN_MS - (now - last)) / 1000);
-      throw new HttpsError('resource-exhausted', `Please wait ${wait} seconds before asking for another code.`, {
-        retryAfterSeconds: wait,
-      });
+      throw new HttpsError(
+        'resource-exhausted',
+        `Please wait ${wait} seconds before asking for another code.`,
+        {
+          retryAfterSeconds: wait,
+        },
+      );
     }
     if (recent.length >= MAX_SENDS_PER_HOUR) {
-      throw new HttpsError('resource-exhausted', 'Too many codes requested. Please try again in an hour.');
+      throw new HttpsError(
+        'resource-exhausted',
+        'Too many codes requested. Please try again in an hour.',
+      );
     }
     const doc: LoginCodeDoc = {
       hash: hashCode(code, salt),
@@ -108,7 +117,10 @@ export const sendLoginCode = onCall({ secrets: MAIL_SECRETS }, async (req) => {
     await sendMail({ to: email, ...codeEmail(code) });
   } catch (err) {
     logger.error('Sign-in code email failed', { uid, err });
-    throw new HttpsError('unavailable', "We couldn't send the code right now. Please try again in a minute.");
+    throw new HttpsError(
+      'unavailable',
+      "We couldn't send the code right now. Please try again in a minute.",
+    );
   }
   return { resendAfterSeconds: RESEND_COOLDOWN_MS / 1000, expiresInSeconds: CODE_TTL_MS / 1000 };
 });
@@ -117,7 +129,8 @@ export const sendLoginCode = onCall({ secrets: MAIL_SECRETS }, async (req) => {
 export const verifyLoginCode = onCall(async (req) => {
   const { uid, authTime } = requireSignIn(req);
   const code = typeof req.data?.code === 'string' ? req.data.code.trim() : '';
-  if (!/^\d{6}$/.test(code)) throw new HttpsError('invalid-argument', 'Enter the 6-digit code from the email.');
+  if (!/^\d{6}$/.test(code))
+    throw new HttpsError('invalid-argument', 'Enter the 6-digit code from the email.');
 
   const ref = db.doc(`loginCodes/${uid}`);
   const now = Date.now();
@@ -142,7 +155,10 @@ export const verifyLoginCode = onCall(async (req) => {
 
   switch (outcome) {
     case 'missing':
-      throw new HttpsError('failed-precondition', 'No active code for this sign-in. Please send a new code.');
+      throw new HttpsError(
+        'failed-precondition',
+        'No active code for this sign-in. Please send a new code.',
+      );
     case 'expired':
       throw new HttpsError('deadline-exceeded', 'That code has expired. Please send a new code.');
     case 'locked':
@@ -165,6 +181,43 @@ export const verifyLoginCode = onCall(async (req) => {
   return { ok: true };
 });
 
+const MAX_RESET_CHECKS_PER_HOUR = 10;
+
+/**
+ * Forgot-password page: says whether an email belongs to a registered account (an Auth user with a `users/{uid}`
+ * profile), so the page can refuse unknown emails instead of pretending to send. This reveals which emails are
+ * registered, so each caller IP gets only a few checks an hour (`resetChecks/{ip hash}`).
+ */
+export const checkResetEmail = onCall(async (req) => {
+  const email = typeof req.data?.email === 'string' ? req.data.email.trim().toLowerCase() : '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    throw new HttpsError('invalid-argument', 'Please enter a valid email address.');
+  }
+
+  const ip = req.rawRequest.ip ?? 'unknown';
+  const limitRef = db.doc(`resetChecks/${createHash('sha256').update(ip).digest('hex')}`);
+  const now = Date.now();
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(limitRef);
+    const recent = ((snap.get('at') as number[] | undefined) ?? []).filter(
+      (t) => now - t < HOUR_MS,
+    );
+    if (recent.length >= MAX_RESET_CHECKS_PER_HOUR) {
+      throw new HttpsError('resource-exhausted', 'Too many attempts. Please try again in an hour.');
+    }
+    tx.set(limitRef, { at: [...recent, now] });
+  });
+
+  let uid: string;
+  try {
+    uid = (await getAuth().getUserByEmail(email)).uid;
+  } catch {
+    return { registered: false };
+  }
+  const profile = await db.doc(`users/${uid}`).get();
+  return { registered: profile.exists };
+});
+
 /** Admin action: removes another account's authenticator app and signs it out everywhere. */
 export const resetAuthenticator = onCall(async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in again.');
@@ -172,12 +225,16 @@ export const resetAuthenticator = onCall(async (req) => {
     throw new HttpsError('permission-denied', 'Sign in with your authenticator app first.');
   }
   const caller = await db.doc(`users/${req.auth.uid}`).get();
-  if (caller.get('role') !== 'admin') throw new HttpsError('permission-denied', 'Only admins can do this.');
+  if (caller.get('role') !== 'admin')
+    throw new HttpsError('permission-denied', 'Only admins can do this.');
 
   const uid = typeof req.data?.uid === 'string' ? req.data.uid : '';
   if (!uid) throw new HttpsError('invalid-argument', 'Missing account.');
   if (uid === req.auth.uid) {
-    throw new HttpsError('failed-precondition', 'You can replace your own authenticator from your Account page.');
+    throw new HttpsError(
+      'failed-precondition',
+      'You can replace your own authenticator from your Account page.',
+    );
   }
 
   const auth = getAuth();
@@ -203,7 +260,7 @@ export const resetAuthenticator = onCall(async (req) => {
   return { ok: true };
 });
 
-const OPEN_ORDER_STATUSES = ['Pending', 'Processing', 'Shipped'];
+const OPEN_ORDER_STATUSES = ['Pending', 'Processing', 'Shipped', 'Out for Delivery'];
 const OPEN_BOOKING_STATUSES = ['Pending', 'Confirmed', 'Paid'];
 
 /**
@@ -222,7 +279,8 @@ async function openWork(uid: string): Promise<string | null> {
     first('orders', 'status', ['Cancelled'], ['payment.status', 'Paid']),
     first('bookings', 'status', ['Cancelled'], ['payment.status', 'Paid']),
   ]);
-  if (!orders.empty) return 'This customer has an order in progress. Complete or cancel it before removing the account.';
+  if (!orders.empty)
+    return 'This customer has an order in progress. Complete or cancel it before removing the account.';
   if (!bookings.empty) {
     return 'This customer has a service booking in progress. Complete or cancel it before removing the account.';
   }
@@ -254,7 +312,8 @@ export const deleteCustomerAccount = onCall(async (req) => {
     throw new HttpsError('permission-denied', 'Sign in with your authenticator app first.');
   }
   const caller = await db.doc(`users/${req.auth.uid}`).get();
-  if (caller.get('role') !== 'admin') throw new HttpsError('permission-denied', 'Only admins can do this.');
+  if (caller.get('role') !== 'admin')
+    throw new HttpsError('permission-denied', 'Only admins can do this.');
 
   const uid = typeof req.data?.uid === 'string' ? req.data.uid : '';
   if (!uid) throw new HttpsError('invalid-argument', 'Missing account.');
@@ -264,7 +323,10 @@ export const deleteCustomerAccount = onCall(async (req) => {
   const profile = await profileRef.get();
   if (!profile.exists) throw new HttpsError('not-found', 'That account could not be found.');
   if (profile.get('role') !== 'customer') {
-    throw new HttpsError('permission-denied', 'Staff and admin accounts are protected and cannot be removed.');
+    throw new HttpsError(
+      'permission-denied',
+      'Staff and admin accounts are protected and cannot be removed.',
+    );
   }
   const blocked = await openWork(uid);
   if (blocked) throw new HttpsError('failed-precondition', blocked);
@@ -287,17 +349,22 @@ export const deleteCustomerAccount = onCall(async (req) => {
   }
 
   const data = profile.data()!;
-  await db.runTransaction(async (tx) => {
-    const fresh = await tx.get(profileRef);
-    if (fresh.exists && fresh.get('role') !== 'customer') {
-      throw new HttpsError('permission-denied', 'Staff and admin accounts are protected and cannot be removed.');
-    }
-    tx.set(markerRef, { removedAt: FieldValue.serverTimestamp(), removedBy: req.auth!.uid });
-    tx.delete(profileRef);
-  }).catch(async (err) => {
-    await setLoginDisabled(false);
-    throw err;
-  });
+  await db
+    .runTransaction(async (tx) => {
+      const fresh = await tx.get(profileRef);
+      if (fresh.exists && fresh.get('role') !== 'customer') {
+        throw new HttpsError(
+          'permission-denied',
+          'Staff and admin accounts are protected and cannot be removed.',
+        );
+      }
+      tx.set(markerRef, { removedAt: FieldValue.serverTimestamp(), removedBy: req.auth!.uid });
+      tx.delete(profileRef);
+    })
+    .catch(async (err) => {
+      await setLoginDisabled(false);
+      throw err;
+    });
 
   const lateWork = await openWork(uid);
   if (lateWork) {

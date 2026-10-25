@@ -1027,7 +1027,7 @@ function ordersReply(ctx: AssistantContext): AssistantReply {
   return {
     text:
       `${orders.length === 1 ? 'Your order' : `Your latest ${Math.min(orders.length, 3)} orders`}:\n${bullets(lines)}${more > 0 ? `\n\n+${more} more in My Orders.` : ''}\n\n` +
-      'Orders go Pending → Processing → Shipped → Delivered.',
+      'Orders go Pending → Processing → Shipped → Out for Delivery → Delivered.',
     links: [MY_ORDERS],
     followUps: [
       'How much is shipping?',
