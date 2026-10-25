@@ -112,6 +112,11 @@ export class OrderReviewsComponent {
     if (next.length <= MAX_COMMENT) this.patch(productId, { comment: next });
   }
 
+  /** An admin hid the customer's review of this product. */
+  hiddenByTeam(productId: string): boolean {
+    return this.reviews.mineByProduct().get(productId)?.hidden === true;
+  }
+
   reviewed(productId: string): boolean {
     return this.reviews.mineByProduct().has(productId);
   }
@@ -142,8 +147,12 @@ export class OrderReviewsComponent {
       .submit(this.order().id, item.productId, draft.rating, draft.comment)
       .pipe(finalize(() => this.saving.set(null)))
       .subscribe({
-        next: () =>
-          this.msg.success(update ? 'Rating updated.' : 'Thanks for rating this product!'),
+        next: (hidden) =>
+          hidden
+            ? this.msg.info(
+                'Saved. Our team has hidden your review of this product from other shoppers.',
+              )
+            : this.msg.success(update ? 'Rating updated.' : 'Thanks for rating this product!'),
         error: (err) =>
           this.msg.error(
             functionErrorMessage(err) ?? 'Your rating could not be saved. Please try again.',

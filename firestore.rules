@@ -258,6 +258,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Reviews an admin hid (setReviewHidden moves them here, out of the shoppers' view and the average). Staff and
+    // admins read them all; the author reads their own (so their order still shows it as rated). Functions only write.
+    match /hiddenReviews/{reviewId} {
+      allow read: if isStaffOrAdmin() || (signedIn() && resource.data.customerId == request.auth.uid);
+      allow write: if false;
+    }
+
     // A showcased product's public copy: only what the landing page shows (never `dealerPrice`), and only products the
     // document already lists. Mirrors StoredShowcaseProduct in showcase.service.ts.
     function validShowcaseItem(items, i, productIds) {

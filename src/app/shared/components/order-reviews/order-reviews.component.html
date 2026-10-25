@@ -53,7 +53,9 @@
           />
           <div class="item-name">
             <strong>{{ item.name }}</strong>
-            @if (reviewed(item.productId)) {
+            @if (hiddenByTeam(item.productId)) {
+              <span class="pill pill-hidden">Rated · hidden by our team</span>
+            } @else if (reviewed(item.productId)) {
               <span class="pill pill-done"><span nz-icon nzType="check"></span> Rated</span>
             } @else {
               <span class="pill">Not rated yet</span>

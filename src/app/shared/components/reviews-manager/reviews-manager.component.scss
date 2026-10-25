@@ -1,0 +1,227 @@
+.rm {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.rm-title {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+
+.rm-intro {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: #595959;
+}
+
+.rm-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rm-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  background: #ffffff;
+  text-align: left;
+}
+
+.rm-stat-btn {
+  cursor: pointer;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: #c9a84c;
+  }
+}
+
+.rm-stat-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.rm-stat-value {
+  font-size: 22px;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+
+  &.rm-warn {
+    color: #cc2020;
+  }
+}
+
+.rm-avg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rm-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rm-search {
+  flex: 1 1 260px;
+}
+
+.rm-select {
+  width: 150px;
+
+  &.rm-product {
+    width: 220px;
+  }
+
+  @media (max-width: 560px) {
+    flex: 1 1 140px;
+    width: auto;
+
+    &.rm-product {
+      flex-basis: 100%;
+    }
+  }
+}
+
+.rm-count,
+.rm-loading {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.rm-card {
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  background: #ffffff;
+
+  &.rm-hidden {
+    background: #fafafa;
+    border-style: dashed;
+
+    .rm-comment {
+      color: #8c8c8c;
+    }
+  }
+}
+
+.rm-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rm-thumb {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  padding: 4px;
+  object-fit: contain;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.rm-product-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rm-product-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #1a1a1a;
+}
+
+.rm-rating-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.rm-date {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.rm-status {
+  margin: 0;
+}
+
+.rm-comment {
+  margin: 12px 0 8px;
+  font-size: 14px;
+  color: #1a1a1a;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+
+  &.rm-no-comment {
+    font-style: italic;
+    color: #8c8c8c;
+  }
+}
+
+.rm-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12px;
+  color: #595959;
+}
+
+.rm-muted {
+  color: #8c8c8c;
+}
+
+.rm-hidden-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #cc2020;
+}
+
+.rm-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.rm-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.rm-modal-copy {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #595959;
+}
+
+.rm-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}

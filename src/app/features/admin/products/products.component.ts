@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormsModule, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagModule } from 'ng-zorro-antd/tag';
@@ -17,6 +18,7 @@ import { Observable } from 'rxjs';
 import { ProductService } from '../../../core/services/product.service';
 import { PRODUCT_CATEGORIES, Product, ProductCategory } from '../../../core/models';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-image';
+import { StarRatingComponent } from '../../../shared/components/star-rating/star-rating.component';
 import {
   CategoryFilter, CategoryFilterComponent, filterByCategory,
 } from '../../../shared/components/category-filter/category-filter.component';
@@ -28,7 +30,7 @@ const IMAGE_URL_RE = /^(\/\S+|https?:\/\/\S+)$/i;
 @Component({
   selector: 'app-admin-products',
   standalone: true,
-  imports: [
+  imports: [RouterLink, StarRatingComponent, 
     CurrencyPipe, FormsModule, ReactiveFormsModule,
     NzTableModule, NzTagModule, NzButtonModule, NzInputModule, NzIconModule,
     NzSelectModule, NzModalModule, NzFormModule, NzSwitchModule, NzInputNumberModule, NzAlertModule,

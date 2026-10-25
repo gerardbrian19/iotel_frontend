@@ -1,0 +1,231 @@
+@let s = stats();
+<div class="rm">
+  <h1 class="rm-title">Product reviews</h1>
+  <p class="rm-intro">
+    What customers say about the products they received.
+    @if (isAdmin()) {
+      Hide a review that is abusive, spam or off-topic: shoppers stop seeing it and it leaves the
+      product's average. You can show it again any time.
+    } @else {
+      Only admins can hide a review.
+    }
+  </p>
+
+  <div class="rm-stats">
+    <div class="rm-stat">
+      <span class="rm-stat-label">Reviews</span>
+      <strong class="rm-stat-value">{{ s.total }}</strong>
+    </div>
+    <div class="rm-stat">
+      <span class="rm-stat-label">Average rating</span>
+      <span class="rm-stat-value rm-avg">
+        <strong>{{ s.total ? (s.average | number: '1.1-1') : '—' }}</strong>
+        @if (s.total) {
+          <app-star-rating [value]="s.average" [size]="14" />
+        }
+      </span>
+    </div>
+    <button type="button" class="rm-stat rm-stat-btn" (click)="starFilter.set('low')">
+      <span class="rm-stat-label">Low ratings (1–2★)</span>
+      <strong class="rm-stat-value" [class.rm-warn]="s.low > 0">{{ s.low }}</strong>
+    </button>
+    <button type="button" class="rm-stat rm-stat-btn" (click)="statusFilter.set('hidden')">
+      <span class="rm-stat-label">Hidden</span>
+      <strong class="rm-stat-value">{{ s.hidden }}</strong>
+    </button>
+  </div>
+
+  <div class="rm-filters">
+    <nz-input-group [nzPrefix]="searchIcon" class="rm-search">
+      <input
+        nz-input
+        placeholder="Search product, comment, customer or order…"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+      />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+
+    <nz-select
+      class="rm-select rm-product"
+      nzShowSearch
+      nzAllowClear
+      nzPlaceHolder="All products"
+      [ngModel]="productFilter()"
+      (ngModelChange)="productFilter.set($event)"
+    >
+      @for (p of productOptions(); track p.id) {
+        <nz-option [nzValue]="p.id" [nzLabel]="p.name" />
+      }
+    </nz-select>
+
+    <nz-select class="rm-select" [ngModel]="starFilter()" (ngModelChange)="starFilter.set($event)">
+      <nz-option nzValue="all" nzLabel="All stars" />
+      <nz-option nzValue="low" nzLabel="Low (1–2★)" />
+      <nz-option nzValue="5" nzLabel="5★" />
+      <nz-option nzValue="4" nzLabel="4★" />
+      <nz-option nzValue="3" nzLabel="3★" />
+      <nz-option nzValue="2" nzLabel="2★" />
+      <nz-option nzValue="1" nzLabel="1★" />
+    </nz-select>
+
+    <nz-select
+      class="rm-select"
+      [ngModel]="statusFilter()"
+      (ngModelChange)="statusFilter.set($event)"
+    >
+      <nz-option nzValue="all" nzLabel="Visible & hidden" />
+      <nz-option nzValue="visible" nzLabel="Visible" />
+      <nz-option nzValue="hidden" nzLabel="Hidden" />
+    </nz-select>
+
+    <button nz-button nzType="link" type="button" (click)="resetFilters()">Clear filters</button>
+  </div>
+
+  <p class="rm-count">
+    {{ filtered().length }} {{ filtered().length === 1 ? 'review' : 'reviews' }}
+  </p>
+
+  @if (error()) {
+    <nz-empty nzNotFoundContent="Reviews could not be loaded. Check your connection and reload." />
+  } @else if (loading()) {
+    <p class="rm-loading">Loading reviews…</p>
+  } @else {
+    @for (r of shown(); track r.id) {
+      @let info = orderInfo(r);
+      <article class="rm-card" [class.rm-hidden]="r.hidden">
+        <div class="rm-card-head">
+          <img
+            class="rm-thumb"
+            [src]="productImage(r.productId)"
+            [alt]="r.productName"
+            (error)="onImageError($event)"
+          />
+          <div class="rm-product-info">
+            <strong class="rm-product-name">{{ r.productName }}</strong>
+            <div class="rm-rating-row">
+              <app-star-rating [value]="r.rating" [size]="15" />
+              <span class="rm-date">{{ r.updatedAt | date: 'MMM d, y, h:mm a' }}</span>
+            </div>
+          </div>
+          @if (r.hidden) {
+            <nz-tag nzColor="red" class="rm-status">Hidden</nz-tag>
+          } @else {
+            <nz-tag nzColor="green" class="rm-status">Visible</nz-tag>
+          }
+        </div>
+
+        @if (r.comment) {
+          <p class="rm-comment">“{{ r.comment }}”</p>
+        } @else {
+          <p class="rm-comment rm-no-comment">No comment, stars only.</p>
+        }
+
+        <div class="rm-meta">
+          <span>
+            <span nz-icon nzType="user"></span>
+            {{ info?.name || r.customerName }}
+            <span class="rm-muted">(shown as “{{ r.customerName }}”)</span>
+          </span>
+          @if (info) {
+            <span><span nz-icon nzType="file-text"></span> {{ info.code }}</span>
+          }
+        </div>
+
+        @if (r.hidden) {
+          <p class="rm-hidden-note">
+            Hidden{{ r.hiddenByName ? ' by ' + r.hiddenByName : '' }}
+            @if (r.hiddenAt) {
+              on {{ r.hiddenAt | date: 'MMM d, y' }}
+            }
+            @if (r.hiddenReason) {
+              · {{ r.hiddenReason }}
+            }
+          </p>
+        }
+
+        @if (isAdmin()) {
+          <div class="rm-actions">
+            @if (r.hidden) {
+              <button
+                nz-button
+                nzSize="small"
+                type="button"
+                [nzLoading]="busy() === r.id"
+                [disabled]="busy() !== null"
+                (click)="showAgain(r)"
+              >
+                <span nz-icon nzType="eye"></span> Show again
+              </button>
+            } @else {
+              <button
+                nz-button
+                nzSize="small"
+                nzDanger
+                type="button"
+                [disabled]="busy() !== null"
+                (click)="openHide(r)"
+              >
+                <span nz-icon nzType="eye-invisible"></span> Hide
+              </button>
+            }
+          </div>
+        }
+      </article>
+    } @empty {
+      <nz-empty
+        [nzNotFoundContent]="
+          reviews().length
+            ? 'No reviews match these filters.'
+            : 'No reviews yet. Customers can rate products once their order is delivered.'
+        "
+      />
+    }
+
+    @if (filtered().length > shown().length) {
+      <div class="rm-more">
+        <button nz-button type="button" (click)="showMore()">Show more reviews</button>
+      </div>
+    }
+  }
+</div>
+
+<nz-modal
+  [nzVisible]="hideTarget() !== null"
+  nzTitle="Hide this review?"
+  [nzFooter]="null"
+  nzWidth="440px"
+  (nzOnCancel)="closeHide()"
+>
+  <ng-container *nzModalContent>
+    @if (hideTarget(); as r) {
+      <p class="rm-modal-copy">
+        Shoppers stop seeing {{ r.customerName }}'s {{ r.rating }}★ review of
+        <strong>{{ r.productName }}</strong
+        >, and it leaves the product's average. The customer still sees it on their order, marked as
+        hidden.
+      </p>
+      <textarea
+        nz-input
+        rows="3"
+        maxlength="200"
+        placeholder="Reason (optional, for staff), e.g. spam, abusive language"
+        [ngModel]="hideReason()"
+        (ngModelChange)="hideReason.set($event)"
+      ></textarea>
+      <div class="rm-modal-footer">
+        <button nz-button type="button" (click)="closeHide()">Cancel</button>
+        <button
+          nz-button
+          nzType="primary"
+          nzDanger
+          type="button"
+          [nzLoading]="busy() === r.id"
+          (click)="confirmHide()"
+        >
+          Hide review
+        </button>
+      </div>
+    }
+  </ng-container>
+</nz-modal>

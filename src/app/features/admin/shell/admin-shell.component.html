@@ -46,6 +46,9 @@
           <span nz-icon nzType="close-circle"></span><span>Cancellations</span>
           @if (toReview()) { <nz-badge nzStandalone [nzCount]="toReview()" class="menu-badge" /> }
         </li>
+        <li nz-menu-item routerLink="/admin/reviews" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
+          <span nz-icon nzType="star"></span><span>Reviews</span>
+        </li>
         <li nz-menu-item routerLink="/admin/payment-receivers" routerLinkActive="ant-menu-item-selected" (click)="closeDrawer()">
           <span nz-icon nzType="bank"></span><span>Payment Accounts</span>
         </li>
@@ -113,6 +116,9 @@
         <li nz-menu-item routerLink="/admin/cancellations" routerLinkActive="ant-menu-item-selected">
           <span nz-icon nzType="close-circle"></span><span>Cancellations</span>
           @if (toReview()) { <nz-badge nzStandalone [nzCount]="toReview()" class="menu-badge" /> }
+        </li>
+        <li nz-menu-item routerLink="/admin/reviews" routerLinkActive="ant-menu-item-selected">
+          <span nz-icon nzType="star"></span><span>Reviews</span>
         </li>
         <li nz-menu-item routerLink="/admin/payment-receivers" routerLinkActive="ant-menu-item-selected">
           <span nz-icon nzType="bank"></span><span>Payment Accounts</span>

@@ -13,6 +13,7 @@ export const STAFF_ROUTES: Routes = [
       { path: 'services', loadComponent: () => import('../../shared/components/services-manager/services-manager.component').then(m => m.ServicesManagerComponent) },
       { path: 'payments', loadComponent: () => import('../../shared/components/payment-review-queue/payment-review-queue.component').then(m => m.PaymentReviewQueueComponent) },
       { path: 'cancellations', loadComponent: () => import('../../shared/components/cancellation-queue/cancellation-queue.component').then(m => m.CancellationQueueComponent) },
+      { path: 'reviews', loadComponent: () => import('../../shared/components/reviews-manager/reviews-manager.component').then(m => m.ReviewsManagerComponent) },
       { path: 'bookings', loadComponent: () => import('../../shared/components/bookings-board/bookings-board.component').then(m => m.BookingsBoardComponent) },
       { path: 'messages', loadComponent: () => import('./messages/messages.component').then(m => m.StaffMessagesComponent) },
       { path: 'account', loadComponent: () => import('../../shared/components/account-security/account-security.component').then(m => m.AccountSecurityComponent) },
