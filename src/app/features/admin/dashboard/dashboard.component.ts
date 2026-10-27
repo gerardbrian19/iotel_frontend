@@ -22,6 +22,7 @@ import { activityCategoryView } from '../activity/activity-view';
 import { SalesChartComponent } from './sales-chart/sales-chart.component';
 import { PaymentsSummaryComponent } from './payments-summary/payments-summary.component';
 import { BookingsSummaryComponent } from './bookings-summary/bookings-summary.component';
+import { SalesReportComponent } from './sales-report/sales-report.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -42,6 +43,7 @@ import { BookingsSummaryComponent } from './bookings-summary/bookings-summary.co
     SalesChartComponent,
     PaymentsSummaryComponent,
     BookingsSummaryComponent,
+    SalesReportComponent,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
@@ -55,6 +57,7 @@ export class DashboardComponent {
 
   readonly products = this.productService.products;
   readonly orders = this.orderService.orders;
+  readonly allBookings = this.bookingService.bookings;
 
   readonly totalProducts = computed(() => this.products().length);
   readonly totalOrders = computed(() => this.orders().length);

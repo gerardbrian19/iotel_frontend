@@ -11,11 +11,13 @@ export interface MoneyCount {
 /** Revenue channels the dashboard keeps apart, whichever way (PayMongo, transfer, on site) the money came in. */
 export type RevenueChannel = 'gcash' | 'bank' | 'cash' | 'other';
 
+/**
+ * The channels the dashboard shows. Goldcomm only takes GCash and bank transfers for now, so cash and cards / other
+ * e-wallets get no tile (`revenueChannel` still tells them apart, e.g. for the sales report's "other methods").
+ */
 export const REVENUE_CHANNELS: readonly { key: RevenueChannel; label: string }[] = [
   { key: 'gcash', label: 'GCash' },
   { key: 'bank', label: 'Bank transfer' },
-  { key: 'cash', label: 'Cash' },
-  { key: 'other', label: 'Cards & other e-wallets' },
 ];
 
 /** `gcash` (PayMongo or transfer), `bank:<Bank>` / `bank` / online banking, `cash`; the rest is card, Maya, etc. */
@@ -42,7 +44,7 @@ export interface PaymentSummary {
   toVerify: MoneyCount;
   /** Paid orders customers asked to cancel, waiting for a decision. */
   cancelRequests: MoneyCount;
-  /** Collected money per revenue channel, in `REVENUE_CHANNELS` order, all channels present. */
+  /** Collected money per shown channel (GCash, bank), in `REVENUE_CHANNELS` order; `share` is of their sum. */
   byChannel: { key: RevenueChannel; label: string; amount: number; count: number; share: number }[];
   /** Collected money by payment method, largest first. */
   byMethod: { label: string; amount: number; count: number; pct: number }[];
@@ -96,7 +98,8 @@ export function paymentSummary(
     const entry = methods.get(label) ?? zero();
     add(entry, payment.amount);
     methods.set(label, entry);
-    add(channels.get(revenueChannel(payment.method))!, payment.amount);
+    const channel = channels.get(revenueChannel(payment.method));
+    if (channel) add(channel, payment.amount);
     const way = PAYMENT_PROVIDER_LABELS[payment.provider];
     const byWay = providers.get(way) ?? zero();
     add(byWay, payment.amount);
@@ -121,9 +124,10 @@ export function paymentSummary(
     }
   }
 
+  const shown = [...channels.values()].reduce((sum, m) => sum + m.amount, 0);
   const byChannel = REVENUE_CHANNELS.map(({ key, label }) => {
     const m = channels.get(key)!;
-    const share = summary.collected.amount ? (m.amount / summary.collected.amount) * 100 : 0;
+    const share = shown ? (m.amount / shown) * 100 : 0;
     return { key, label, ...m, share };
   });
   return { ...summary, byChannel, byMethod: ranked(methods), byProvider: ranked(providers) };

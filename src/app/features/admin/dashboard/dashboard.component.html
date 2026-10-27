@@ -55,6 +55,9 @@
     <app-sales-chart [data]="sales()" [label]="'Sales per ' + salesPeriod()" />
   </nz-card>
 
+  <!-- Downloadable sales & revenue report (GCash / bank transfer) -->
+  <app-sales-report class="report-section" [orders]="orders()" [bookings]="allBookings()" />
+
   <!-- Payments and bookings -->
   <div class="summary-grid">
     <nz-card class="dash-card" nzTitle="Payments" [nzExtra]="paymentsLink">

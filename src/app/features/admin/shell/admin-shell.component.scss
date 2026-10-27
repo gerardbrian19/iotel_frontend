@@ -13,7 +13,7 @@
 }
 .brand-name { font-size: 20px; font-weight: 900; color: #FFFFFF; letter-spacing: 5px; }
 .brand-role { font-size: 10px; color: #CC2020; letter-spacing: 3px; text-transform: uppercase; }
-.admin-menu { background: #1A1A1A !important; flex: 1; }
+.admin-menu { background: #1A1A1A !important; }
 .sider-footer {
   padding: 16px;
   display: flex;
@@ -23,6 +23,30 @@
   .user-name { font-size: 13px; color: rgba(255,255,255,.6); }
 }
 .admin-content { background: #F5F5F5; min-height: 100vh; }
+
+/* Desktop sidebar stays put while the page scrolls; a menu taller than the window scrolls inside it. */
+.desktop-sider {
+  position: sticky !important;
+  top: 0;
+  height: 100vh;
+  align-self: flex-start;
+
+  ::ng-deep > .ant-layout-sider-children {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+}
+.admin-menu {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
 
 /* Mobile header — hidden on desktop */
 .mobile-header {

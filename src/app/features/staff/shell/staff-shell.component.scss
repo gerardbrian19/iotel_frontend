@@ -8,6 +8,30 @@
 .user-name { color: rgba(255,255,255,.7); font-size: 13px; }
 .main-content { background: #F5F5F5; min-height: 100vh; overflow-y: auto; }
 
+/* Desktop sidebar stays put while the page scrolls; a menu taller than the window scrolls inside it. */
+.desktop-sider {
+  position: sticky !important;
+  top: 0;
+  height: 100vh;
+  align-self: flex-start;
+
+  ::ng-deep > .ant-layout-sider-children {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+}
+.sider-menu {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+
 /* Mobile header — hidden on desktop */
 .mobile-header {
   display: none;

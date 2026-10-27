@@ -78,6 +78,8 @@ import {
   KeyOutline,
   HistoryOutline,
   DownloadOutline,
+  FileExcelOutline,
+  PrinterOutline,
   AuditOutline,
   CloseCircleOutline,
 } from '@ant-design/icons-angular/icons';
@@ -157,6 +159,8 @@ export const appConfig: ApplicationConfig = {
       KeyOutline,
       HistoryOutline,
       DownloadOutline,
+      FileExcelOutline,
+      PrinterOutline,
       AuditOutline,
       CloseCircleOutline,
     ]),

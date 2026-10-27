@@ -1,0 +1,177 @@
+@let r = report();
+<nz-card class="sr-card" nzTitle="Sales & Revenue Report" [nzExtra]="downloadBtn">
+  <ng-template #downloadBtn>
+    <button
+      nz-button
+      type="button"
+      class="sr-download"
+      nz-dropdown
+      [nzDropdownMenu]="downloadMenu"
+      nzTrigger="click"
+      nzPlacement="bottomRight"
+    >
+      <span nz-icon nzType="download"></span> Download Report
+      <span nz-icon nzType="down"></span>
+    </button>
+    <nz-dropdown-menu #downloadMenu="nzDropdownMenu">
+      <ul nz-menu class="sr-menu">
+        <li nz-menu-item (click)="downloadExcel()">
+          <span nz-icon nzType="file-excel" class="sr-xlsx"></span>
+          <span>
+            <strong>Excel (.xlsx)</strong>
+            <small>Summary + Transactions sheets, formatted</small>
+          </span>
+        </li>
+        <li nz-menu-item (click)="downloadCsv()">
+          <span nz-icon nzType="file-text"></span>
+          <span>
+            <strong>CSV</strong>
+            <small>Plain data for any spreadsheet</small>
+          </span>
+        </li>
+        <li nz-menu-item (click)="print()">
+          <span nz-icon nzType="printer"></span>
+          <span>
+            <strong>Print / Save as PDF</strong>
+            <small>Opens a printable page</small>
+          </span>
+        </li>
+      </ul>
+    </nz-dropdown-menu>
+  </ng-template>
+
+  <div class="sr-controls">
+    <nz-radio-group
+      nzButtonStyle="solid"
+      [ngModel]="period()"
+      (ngModelChange)="period.set($event)"
+      aria-label="Reporting period"
+    >
+      @for (p of periods; track p.value) {
+        <label nz-radio-button [nzValue]="p.value">{{ p.label }}</label>
+      }
+    </nz-radio-group>
+
+    @if (period() === 'month') {
+      <nz-date-picker
+        nzMode="month"
+        nzFormat="MMMM yyyy"
+        [nzAllowClear]="false"
+        [nzDisabledDate]="disabledDate"
+        [ngModel]="anchor()"
+        (ngModelChange)="setAnchor($event)"
+        class="sr-date"
+      />
+    } @else {
+      <nz-date-picker
+        nzFormat="MMM d, yyyy"
+        [nzAllowClear]="false"
+        [nzDisabledDate]="disabledDate"
+        [nzPlaceHolder]="period() === 'week' ? 'Any day in the week' : 'Day'"
+        [ngModel]="anchor()"
+        (ngModelChange)="setAnchor($event)"
+        class="sr-date"
+      />
+    }
+
+    <nz-select
+      class="sr-method"
+      [ngModel]="filter()"
+      (ngModelChange)="filter.set($event)"
+      aria-label="Payment method"
+    >
+      @for (f of methodFilters; track f.value) {
+        <nz-option [nzValue]="f.value" [nzLabel]="f.label" />
+      }
+    </nz-select>
+  </div>
+
+  <p class="sr-range">
+    <span nz-icon nzType="calendar"></span>
+    {{ period() === 'week' ? 'Week of ' : '' }}{{ r.range.label }}
+    <span class="sr-muted">· {{ r.range.startKey }} to {{ r.range.endKey }}</span>
+  </p>
+
+  <div class="sr-tiles">
+    @if (filter() !== 'bank') {
+      <div class="sr-tile sr-gcash">
+        <span class="sr-label">GCash revenue</span>
+        <strong>{{ r.gcash.amount | currency: 'PHP' : 'symbol-narrow' : '1.2-2' }}</strong>
+        <span class="sr-muted"
+          >{{ r.gcash.count }} {{ r.gcash.count === 1 ? 'payment' : 'payments' }}</span
+        >
+      </div>
+    }
+    @if (filter() !== 'gcash') {
+      <div class="sr-tile sr-bank">
+        <span class="sr-label">Bank transfer revenue</span>
+        <strong>{{ r.bank.amount | currency: 'PHP' : 'symbol-narrow' : '1.2-2' }}</strong>
+        <span class="sr-muted"
+          >{{ r.bank.count }} {{ r.bank.count === 1 ? 'payment' : 'payments' }}</span
+        >
+      </div>
+    }
+    @if (filter() === 'all') {
+      <div class="sr-tile sr-combined">
+        <span class="sr-label">Combined (GCash + Bank)</span>
+        <strong>{{ r.combined.amount | currency: 'PHP' : 'symbol-narrow' : '1.2-2' }}</strong>
+        <span class="sr-muted"
+          >{{ r.combined.count }} {{ r.combined.count === 1 ? 'payment' : 'payments' }}</span
+        >
+      </div>
+    }
+  </div>
+
+  @if (filter() === 'all' && r.other.count) {
+    <p class="sr-note">
+      Also received through other methods (card, Maya, cash…):
+      <strong>{{ r.other.amount | currency: 'PHP' : 'symbol-narrow' : '1.2-2' }}</strong>
+      from {{ r.other.count }} {{ r.other.count === 1 ? 'payment' : 'payments' }}. Listed in the
+      report, not in the combined total.
+    </p>
+  }
+
+  <nz-table
+    #table
+    [nzData]="r.rows"
+    nzSize="small"
+    [nzPageSize]="8"
+    [nzHideOnSinglePage]="true"
+    [nzScroll]="{ x: '640px' }"
+    [nzNoResult]="noRows"
+  >
+    <thead>
+      <tr>
+        <th>Reference</th>
+        <th>Paid</th>
+        <th>Customer</th>
+        <th>Method</th>
+        <th nzAlign="right">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of table.data; track row.kind + row.reference + row.paidDate) {
+        <tr>
+          <td>
+            <span class="sr-ref">{{ row.reference }}</span>
+            @if (row.kind !== 'Order') {
+              <span class="sr-kind">Service</span>
+            }
+          </td>
+          <td>{{ row.paidDate | date: 'MMM d, h:mm a' }}</td>
+          <td>{{ row.customerName }}</td>
+          <td>{{ row.method }}</td>
+          <td nzAlign="right">{{ row.amount | currency: 'PHP' : 'symbol-narrow' : '1.2-2' }}</td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+  <ng-template #noRows>
+    <p class="sr-empty">No paid orders or bookings in this period for this payment method.</p>
+  </ng-template>
+
+  <p class="sr-footnote">
+    Counts paid orders and service bookings by payment date. Unpaid, refunded and cancelled ones are
+    left out.
+  </p>
+</nz-card>
