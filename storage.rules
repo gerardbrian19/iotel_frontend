@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Firebase Storage: transfer proofs and the QR codes of the accounts customers pay into (docs/manual-payments.md).
+// Firebase Storage: transfer proofs, refund screenshots and the QR codes of the accounts customers pay into (docs/manual-payments.md).
 // The session checks mirror firestore.rules (two-step sign-in, staff/admins with an authenticator app).
 service firebase.storage {
   match /b/{bucket}/o {
@@ -44,6 +44,16 @@ service firebase.storage {
       allow read: if signedIn() && (request.auth.uid == uid || isStaffOrAdmin());
       allow create: if signedIn()
         && request.auth.uid == uid
+        && folder.matches('^(order|booking)-[^/]+$')
+        && image(5 * 1024 * 1024);
+      allow update, delete: if false;
+    }
+
+    // `refundProofs/{customerId}/{order|booking}-{id}/{file}`: a screenshot of the refund staff sent back themselves,
+    // uploaded before refundPayment checks it. The customer it was sent to and staff/admins can see it.
+    match /refundProofs/{uid}/{folder}/{file} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaffOrAdmin());
+      allow create: if isStaffOrAdmin()
         && folder.matches('^(order|booking)-[^/]+$')
         && image(5 * 1024 * 1024);
       allow update, delete: if false;

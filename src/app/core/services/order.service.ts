@@ -15,11 +15,12 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { Observable, defer } from 'rxjs';
-import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
+import { FIREBASE_STORAGE, FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { functionErrorMessage } from '../firebase/auth-errors';
 import { dataOf, isoOf } from '../firebase/timestamps';
 import { customerCanCancel, hasOpenCancelRequest, isPaymentSettled } from '../orders/order-view';
-import { toInvoice, toPayment } from '../payments/payment-methods';
+import { toInvoice, toPayment, toRefundAccount } from '../payments/payment-methods';
+import { uploadRefundProof } from '../payments/refund-proof';
 import {
   CANCEL_REQUEST_REASONS,
   CancelRequestReason,
@@ -29,6 +30,7 @@ import {
   Order,
   OrderItem,
   PaymentProvider,
+  RefundAccount,
   ShippingAddress,
 } from '../models';
 import { AuthService } from './auth.service';
@@ -69,6 +71,7 @@ function toCancelRequest(value: DocumentData | undefined): OrderCancelRequest | 
     status: value['status'],
     reason: value['reason'] in CANCEL_REQUEST_REASONS ? value['reason'] : 'other',
     details: String(value['details'] ?? ''),
+    refundTo: toRefundAccount(value['refundTo']),
     requestedAt: isoOf(value['requestedAt']),
     reviewNote: value['reviewNote'] ? String(value['reviewNote']) : undefined,
     reviewedByName: value['reviewedByName'] ? String(value['reviewedByName']) : undefined,
@@ -174,6 +177,7 @@ export function orderErrorMessage(err: unknown): string {
 export class OrderService {
   private readonly db = inject(FIRESTORE);
   private readonly functions = inject(FUNCTIONS);
+  private readonly storage = inject(FIREBASE_STORAGE);
   private readonly auth = inject(AuthService);
   private readonly products = inject(ProductService);
 
@@ -297,19 +301,24 @@ export class OrderService {
 
   /**
    * Customer: asks for a paid order to be cancelled and refunded (`requestOrderCancellation` function). Staff approve
-   * it by refunding the order (`refund`) or turn it down with `rejectCancellation`.
+   * it by refunding the order (`refund`) or turn it down with `rejectCancellation`. When staff will send the money
+   * back themselves (`refundsManually`), `refundTo` says where.
    */
   requestCancellation(
     order: Order,
     reason: CancelRequestReason,
     details: string,
+    refundTo?: RefundAccount,
   ): Observable<void> {
     return defer(async () => {
       this.requireUser();
-      await httpsCallable<{ orderId: string; reason: string; details: string }, { ok: boolean }>(
+      await httpsCallable<
+        { orderId: string; reason: string; details: string; refundTo?: RefundAccount },
+        { ok: boolean }
+      >(
         this.functions,
         'requestOrderCancellation',
-      )({ orderId: order.id, reason, details: details.trim() });
+      )({ orderId: order.id, reason, details: details.trim(), ...(refundTo ? { refundTo } : {}) });
     });
   }
 
@@ -326,14 +335,28 @@ export class OrderService {
 
   /**
    * Staff: refunds the order's payment in full and cancels it if it isn't already (a processing order's items go back
-   * in stock). Runs in the `refundPayment` function. A PayMongo payment is refunded through PayMongo; for a transfer,
-   * staff send the money back themselves and give that transfer's `refundReference`.
+   * in stock). Runs in the `refundPayment` function. A PayMongo payment is refunded through PayMongo; for a transfer
+   * or a QR Ph payment (`refundsManually`), staff send the money back themselves and give that transfer's
+   * `refundReference`, optionally with a screenshot of it (`proof`), which the customer sees.
    */
-  refund(order: Order, reason = '', refundReference = ''): Observable<void> {
+  refund(order: Order, reason = '', refundReference = '', proof?: File | null): Observable<void> {
     return defer(async () => {
       this.requireStaff();
+      const refundProofPath = proof
+        ? await uploadRefundProof(
+            this.storage,
+            { kind: 'order', id: order.id, customerId: order.customerId },
+            proof,
+          )
+        : '';
       await httpsCallable<
-        { kind: 'order'; id: string; reason: string; refundReference: string },
+        {
+          kind: 'order';
+          id: string;
+          reason: string;
+          refundReference: string;
+          refundProofPath: string;
+        },
         { ok: boolean }
       >(
         this.functions,
@@ -343,6 +366,7 @@ export class OrderService {
         id: order.id,
         reason: reason.trim(),
         refundReference: refundReference.trim(),
+        refundProofPath,
       });
     });
   }

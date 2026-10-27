@@ -17,10 +17,11 @@ import { httpsCallable } from 'firebase/functions';
 import { Observable, defer, from, map } from 'rxjs';
 import { formatSlot, slotId, toDateKey } from '../booking/schedule';
 import { functionErrorMessage } from '../firebase/auth-errors';
-import { FIRESTORE, FUNCTIONS } from '../firebase/firebase';
+import { FIREBASE_STORAGE, FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { dataOf, isoOf } from '../firebase/timestamps';
 import { proofUnderReview } from '../payments/manual-payments';
 import { MIN_CHECKOUT_AMOUNT, toInvoice, toPayment } from '../payments/payment-methods';
+import { uploadRefundProof } from '../payments/refund-proof';
 import {
   Booking,
   BookingStatus,
@@ -181,6 +182,7 @@ export function bookingErrorMessage(err: unknown): string {
 export class BookingService {
   private readonly db = inject(FIRESTORE);
   private readonly functions = inject(FUNCTIONS);
+  private readonly storage = inject(FIREBASE_STORAGE);
   private readonly auth = inject(AuthService);
   private readonly messages = inject(MessageService);
 
@@ -426,15 +428,34 @@ export class BookingService {
 
   /**
    * Staff: refunds the booking's payment in full, cancels the booking (freeing its slot) and says so in the chat. Runs
-   * in the `refundPayment` function. PayMongo payments are refunded through PayMongo; for a transfer or an on-site
-   * payment, staff give the money back themselves and enter its `refundReference`.
+   * in the `refundPayment` function. PayMongo payments are refunded through PayMongo; for a transfer, an on-site or a
+   * QR Ph payment (`refundsManually`), staff give the money back themselves and enter its `refundReference`,
+   * optionally with a screenshot of it (`proof`).
    */
-  refund(booking: Booking, reason = '', refundReference = ''): Observable<void> {
+  refund(
+    booking: Booking,
+    reason = '',
+    refundReference = '',
+    proof?: File | null,
+  ): Observable<void> {
     return defer(async () => {
       const user = this.requireUser();
       if (user.role === 'customer') throw new Error('Only staff can do that.');
+      const refundProofPath = proof
+        ? await uploadRefundProof(
+            this.storage,
+            { kind: 'booking', id: booking.id, customerId: booking.customerId },
+            proof,
+          )
+        : '';
       await httpsCallable<
-        { kind: 'booking'; id: string; reason: string; refundReference: string },
+        {
+          kind: 'booking';
+          id: string;
+          reason: string;
+          refundReference: string;
+          refundProofPath: string;
+        },
         { ok: boolean }
       >(
         this.functions,
@@ -444,6 +465,7 @@ export class BookingService {
         id: booking.id,
         reason: reason.trim(),
         refundReference: refundReference.trim(),
+        refundProofPath,
       });
     });
   }

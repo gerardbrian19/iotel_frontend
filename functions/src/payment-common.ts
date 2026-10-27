@@ -3,6 +3,7 @@
  * reads. Used by payments.ts (PayMongo) and manual-payments.ts (GCash / bank transfers and on-site payments).
  */
 import { FieldValue, Transaction } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { defineSecret } from 'firebase-functions/params';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
@@ -221,4 +222,79 @@ export async function readStock(
     qty: wanted.get(snap.id)!,
     stock: Math.max(0, Math.floor(Number(snap.get('stock')) || 0)),
   }));
+}
+
+// ── Manual refunds and screenshots ───────────────────────────────────────────
+
+/** Mirrors MAX_PROOF_BYTES in src/app/core/payments/manual-payments.ts and storage.rules. */
+export const MAX_PROOF_BYTES = 5 * 1024 * 1024;
+
+/** True when the screenshot at `path` exists in Storage and is a JPG, PNG or WebP of at most 5 MB. */
+export async function proofImageOk(path: string): Promise<boolean> {
+  const [meta] = await getStorage()
+    .bucket()
+    .file(path)
+    .getMetadata()
+    .catch(() => [null]);
+  return (
+    !!meta &&
+    /^image\/(jpeg|png|webp)$/.test(String(meta.contentType)) &&
+    Number(meta.size) <= MAX_PROOF_BYTES
+  );
+}
+
+/**
+ * Payments staff refund by sending the money back themselves (with a reference number) instead of through PayMongo:
+ * transfers, on-site payments, and PayMongo QR Ph, which PayMongo refuses to refund on this account ("Refunds are not
+ * allowed for payments with source type qrph"). Mirrors `refundsManually` in src/app/core/payments/payment-methods.ts.
+ */
+export function refundsManually(payment: Record<string, unknown> | undefined): boolean {
+  return (payment?.['provider'] ?? 'paymongo') !== 'paymongo' || payment?.['method'] === 'qrph';
+}
+
+/** Where the customer wants a manual refund sent. Mirrors `RefundAccount` in the app's payment.model.ts. */
+export interface RefundAccount {
+  type: 'gcash' | 'bank';
+  /** Bank accounts only. */
+  bank?: string;
+  accountName: string;
+  /** `09XXXXXXXXX` for GCash; digits only for a bank account. */
+  accountNumber: string;
+}
+
+const ACCOUNT_NAME = /^[\p{L}][\p{L} .,'-]{1,59}$/u;
+const BANK_NAME = /^[\p{L}\d][\p{L}\d &.,'()-]{1,59}$/u;
+
+/** Checks the refund account a customer typed; throws a message they can act on. */
+export function refundAccountOf(value: unknown): RefundAccount {
+  const input = (value ?? {}) as Record<string, unknown>;
+  const str = (key: string) =>
+    typeof input[key] === 'string' ? (input[key] as string).trim() : '';
+  const type = input['type'];
+  if (type !== 'gcash' && type !== 'bank') {
+    throw new HttpsError('invalid-argument', 'Choose where we should send your refund.');
+  }
+  const accountName = str('accountName').replace(/\s+/g, ' ');
+  if (!ACCOUNT_NAME.test(accountName)) {
+    throw new HttpsError('invalid-argument', 'Enter the account name exactly as registered.');
+  }
+  if (type === 'gcash') {
+    // `+63 917-123-4567` → `09171234567`, as `normalizeMobile` in the app.
+    const number = str('accountNumber')
+      .replace(/[^\d+]/g, '')
+      .replace(/^\+?63(?=9)/, '0')
+      .replace(/\D/g, '');
+    if (!/^09\d{9}$/.test(number)) {
+      throw new HttpsError('invalid-argument', 'Enter your GCash number as 09XXXXXXXXX.');
+    }
+    return { type, accountName, accountNumber: number };
+  }
+  const bank = str('bank').replace(/\s+/g, ' ');
+  if (!BANK_NAME.test(bank))
+    throw new HttpsError('invalid-argument', 'Enter the name of your bank.');
+  const number = str('accountNumber').replace(/[\s-]/g, '');
+  if (!/^\d{6,20}$/.test(number)) {
+    throw new HttpsError('invalid-argument', 'Enter your bank account number (6 to 20 digits).');
+  }
+  return { type, bank, accountName, accountNumber: number };
 }

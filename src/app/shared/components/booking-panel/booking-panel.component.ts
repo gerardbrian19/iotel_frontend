@@ -29,6 +29,7 @@ import {
   MIN_CHECKOUT_AMOUNT,
   PAYMENT_PROVIDER_LABELS,
   paymentMethodLabel,
+  refundsManually,
 } from '../../../core/payments/payment-methods';
 import { AuthService } from '../../../core/services/auth.service';
 import {
@@ -41,6 +42,8 @@ import { ManualPaymentService, invoiceWarning } from '../../../core/services/man
 import { InvoiceStatusComponent } from '../invoice-status/invoice-status.component';
 import { ManualPaymentPanelComponent } from '../manual-payment-panel/manual-payment-panel.component';
 import { PaymentProofComponent } from '../payment-proof/payment-proof.component';
+import { RefundProofPickerComponent } from '../refund-proof-picker/refund-proof-picker.component';
+import { StorageImageComponent } from '../storage-image/storage-image.component';
 import { SlotPickerComponent } from '../slot-picker/slot-picker.component';
 
 interface StatusView {
@@ -79,7 +82,9 @@ interface StatusView {
     InvoiceStatusComponent,
     ManualPaymentPanelComponent,
     PaymentProofComponent,
+    RefundProofPickerComponent,
     SlotPickerComponent,
+    StorageImageComponent,
   ],
   templateUrl: './booking-panel.component.html',
   styleUrl: './booking-panel.component.scss',
@@ -115,6 +120,7 @@ export class BookingPanelComponent {
   readonly newTime = signal<string | null>(null);
   readonly refundReason = signal('');
   readonly refundReference = signal('');
+  readonly refundProof = signal<File | null>(null);
 
   readonly quoteForm = this.fb.nonNullable.group({
     amount: [0, [Validators.required, Validators.min(MIN_CHECKOUT_AMOUNT)]],
@@ -163,8 +169,11 @@ export class BookingPanelComponent {
   readonly canRecord = computed(
     () => this.isStaff() && this.booking().status === 'Confirmed' && !this.isPaid() && !this.underReview(),
   );
-  /** Transfers and on-site payments are refunded by staff themselves, not through PayMongo. */
-  readonly manualRefund = computed(() => (this.booking().payment?.provider ?? 'paymongo') !== 'paymongo');
+  /** Transfers, on-site and QR Ph payments are refunded by staff themselves, not through PayMongo. */
+  readonly manualRefund = computed(() => {
+    const payment = this.booking().payment;
+    return !!payment && refundsManually(payment);
+  });
   readonly canReschedule = computed(() =>
     ['Pending', 'Confirmed', 'Paid'].includes(this.booking().status),
   );
@@ -342,13 +351,19 @@ export class BookingPanelComponent {
   openRefund(): void {
     this.refundReason.set('');
     this.refundReference.set('');
+    this.refundProof.set(null);
     this.refundVisible.set(true);
   }
 
   refund(): void {
     if (this.manualRefund() && !this.refundReference().trim()) return;
     this.run(
-      this.bookings.refund(this.booking(), this.refundReason(), this.refundReference()),
+      this.bookings.refund(
+        this.booking(),
+        this.refundReason(),
+        this.refundReference(),
+        this.manualRefund() ? this.refundProof() : null,
+      ),
       'Payment refunded.',
       () => this.refundVisible.set(false),
     );

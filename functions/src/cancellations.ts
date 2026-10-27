@@ -3,13 +3,22 @@
  * back), so they ask: `requestOrderCancellation` stores `cancelRequest` on the order (reason + explanation), and staff
  * or an admin either approve it by refunding the order (`refundPayment`, which marks the request approved) or reject it
  * with `rejectOrderCancellation`. Clients never write `cancelRequest` (firestore.rules).
+ *
+ * When staff have to send the money back themselves (`refundsManually`: transfers and PayMongo QR Ph), the customer
+ * also says where to (`refundTo`: their GCash number or bank account).
  */
 import { FieldValue } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import { db } from './app.js';
 import { logActivity, orderCode } from './activity.js';
-import { docId, requireCustomer, requireStaff } from './payment-common.js';
+import {
+  docId,
+  refundAccountOf,
+  refundsManually,
+  requireCustomer,
+  requireStaff,
+} from './payment-common.js';
 
 /** Mirrors CANCEL_REQUEST_REASONS in src/app/core/models/order.model.ts. */
 export const CANCEL_REQUEST_REASONS: Record<string, string> = {
@@ -41,6 +50,7 @@ export const requestOrderCancellation = onCall(async (req) => {
       `Please explain in ${MIN_DETAILS} to ${MAX_DETAILS} characters.`,
     );
   }
+  const refundTo = req.data?.refundTo ? refundAccountOf(req.data.refundTo) : null;
 
   const ref = db.doc(`orders/${id}`);
   const code = await db.runTransaction(async (tx) => {
@@ -64,11 +74,16 @@ export const requestOrderCancellation = onCall(async (req) => {
     if (snap.get('cancelRequest.status') === 'pending') {
       throw new HttpsError('already-exists', 'You already asked to cancel this order.');
     }
+    const manual = refundsManually(snap.get('payment'));
+    if (manual && !refundTo) {
+      throw new HttpsError('invalid-argument', 'Tell us where to send your refund.');
+    }
     tx.update(ref, {
       cancelRequest: {
         status: 'pending',
         reason,
         details,
+        ...(manual && refundTo ? { refundTo } : {}),
         requestedAt: FieldValue.serverTimestamp(),
       },
       updatedAt: FieldValue.serverTimestamp(),

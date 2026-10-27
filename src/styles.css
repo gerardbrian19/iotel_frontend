@@ -1,2 +1,10 @@
 /* You can add global styles to this file, and also import other style files */
 @import "tailwindcss";
+
+/*
+ * Tailwind's preflight makes every <img> a block, but ng-zorro's full-size image viewer (nz-image) centres the picture
+ * as an inline-block next to a half-height spacer; as a block it drops to the bottom-left corner.
+ */
+.ant-image-preview-img {
+  display: inline-block;
+}

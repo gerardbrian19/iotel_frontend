@@ -87,6 +87,12 @@
           Refund reference: <strong>{{ order().payment.refundReference }}</strong>
         </p>
       }
+      @if (order().payment.refundNote; as note) {
+        <p class="od-line">{{ note }}</p>
+      }
+      @if (order().payment.refundProofPath; as path) {
+        <app-storage-image [path]="path" alt="Refund screenshot" [size]="80" />
+      }
       @if (showCustomer() && order().payment.paymentId) {
         <p class="od-line">
           {{ paymentIdLabel() }}: <strong>{{ order().payment.paymentId }}</strong>

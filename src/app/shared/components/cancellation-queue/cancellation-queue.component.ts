@@ -41,9 +41,10 @@ const HISTORY_SIZE = 30;
       <h1 class="cq-title">Cancellation requests</h1>
       <p class="cq-intro">
         Customers who already paid ask here to cancel their order. Approving refunds the full amount
-        and cancels the order (a processing order's items go back into stock); for a bank / GCash
-        transfer, send the money back first and enter that transfer's reference. Rejecting keeps the
-        order going and shows the customer your reason.
+        and cancels the order (a processing order's items go back into stock). PayMongo can't refund
+        QR Ph payments, so for those and for bank / GCash transfers, send the money to the account
+        the customer gave first, then enter that transfer's reference (and a screenshot if you have
+        one). Rejecting keeps the order going and shows the customer your reason.
       </p>
 
       <div class="cq-tabs">

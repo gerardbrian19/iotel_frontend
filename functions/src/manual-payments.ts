@@ -13,7 +13,6 @@
  * transfers and on-site payments are recorded by `refundPayment` in payments.ts.
  */
 import { DocumentData, FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { db } from './app.js';
@@ -25,6 +24,7 @@ import {
   kindOf,
   methodLabel,
   peso,
+  proofImageOk,
   requireCustomer,
   requireStaff,
   stageEvent,
@@ -32,8 +32,6 @@ import {
 import { trySendInvoice } from './invoices.js';
 import { MAIL_SECRETS } from './mail.js';
 
-/** Mirrors MAX_PROOF_BYTES in src/app/core/payments/manual-payments.ts and storage.rules. */
-const MAX_PROOF_BYTES = 5 * 1024 * 1024;
 /** How many times a customer may send a proof for one order or booking (rejected ones included). */
 const MAX_ATTEMPTS = 5;
 /** Mirrors SERVICE_MAX_PRICE in the app: the largest amount staff can record. */
@@ -116,16 +114,7 @@ export const submitManualPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
   ) {
     throw new HttpsError('invalid-argument', 'Please attach the screenshot again.');
   }
-  const [meta] = await getStorage()
-    .bucket()
-    .file(proofPath)
-    .getMetadata()
-    .catch(() => [null]);
-  if (
-    !meta ||
-    !/^image\/(jpeg|png|webp)$/.test(String(meta.contentType)) ||
-    Number(meta.size) > MAX_PROOF_BYTES
-  ) {
+  if (!(await proofImageOk(proofPath))) {
     throw new HttpsError(
       'invalid-argument',
       'Please attach the screenshot again (JPG, PNG or WebP, up to 5 MB).',

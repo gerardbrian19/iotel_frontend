@@ -8,6 +8,7 @@ import {
   paymentMethodLabel,
 } from '../../../core/payments/payment-methods';
 import { PLACEHOLDER_IMAGE, onImageError } from '../../utils/product-image';
+import { StorageImageComponent } from '../storage-image/storage-image.component';
 
 /**
  * Everything about one order, read-only: its items and totals, a progress tracker, the payment, the delivery address
@@ -16,7 +17,7 @@ import { PLACEHOLDER_IMAGE, onImageError } from '../../utils/product-image';
 @Component({
   selector: 'app-order-detail',
   standalone: true,
-  imports: [CurrencyPipe, DatePipe, NzTagModule],
+  imports: [CurrencyPipe, DatePipe, NzTagModule, StorageImageComponent],
   templateUrl: './order-detail.component.html',
   styleUrl: './order-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

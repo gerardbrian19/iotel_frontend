@@ -1,4 +1,4 @@
-import { InvoiceInfo, OrderPayment } from './payment.model';
+import { InvoiceInfo, OrderPayment, RefundAccount } from './payment.model';
 
 /**
  * Pending    – placed; waiting for the PayMongo payment, then for staff to start on it.
@@ -71,6 +71,8 @@ export interface OrderCancelRequest {
   status: CancelRequestStatus;
   reason: CancelRequestReason;
   details: string;
+  /** Where to send the money, when staff refund it themselves (QR Ph and transfer payments). */
+  refundTo?: RefundAccount;
   requestedAt: string;
   reviewNote?: string;
   reviewedByName?: string;

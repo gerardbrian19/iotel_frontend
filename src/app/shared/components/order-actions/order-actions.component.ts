@@ -9,7 +9,12 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzTagModule } from 'ng-zorro-antd/tag';
-import { CANCEL_REQUEST_REASONS, CancelRequestReason, Order } from '../../../core/models';
+import {
+  CANCEL_REQUEST_REASONS,
+  CancelRequestReason,
+  Order,
+  RefundAccount,
+} from '../../../core/models';
 import {
   canPay,
   canRefund,
@@ -22,26 +27,33 @@ import {
   staffAction,
 } from '../../../core/orders/order-view';
 import { proofUnderReview } from '../../../core/payments/manual-payments';
+import { refundAccountLabel, refundsManually } from '../../../core/payments/payment-methods';
 import { AuthService } from '../../../core/services/auth.service';
 import { OrderService, orderErrorMessage } from '../../../core/services/order.service';
-import { requiredTrimmed } from '../../utils/validators';
+import { MobileInputDirective } from '../../directives/mobile-input.directive';
+import { normalizeMobile, requiredTrimmed } from '../../utils/validators';
 import { InvoiceStatusComponent } from '../invoice-status/invoice-status.component';
 import { OrderReviewsComponent } from '../order-reviews/order-reviews.component';
 import { ManualPaymentPanelComponent } from '../manual-payment-panel/manual-payment-panel.component';
 import { PaymentProofComponent } from '../payment-proof/payment-proof.component';
+import { RefundProofPickerComponent } from '../refund-proof-picker/refund-proof-picker.component';
 
 /**
  * What happens next with an order, and the actions that fit the viewer and the order's status:
  *
  * - Customer: pay through PayMongo (or send the proof of a bank / GCash transfer), cancel until the order is paid,
- *   then ask to cancel it (reason + explanation) until it ships.
+ *   then ask to cancel it (reason + explanation, plus their GCash / bank account when staff refund it by hand) until
+ *   it ships.
  * - Staff / admin: approve or reject a transfer, start processing a paid order (takes the items out of stock), mark shipped with the courier, mark
  *   out for delivery, mark delivered, cancel an unpaid order, refund a paid one (which cancels it), approve (refund) or reject a customer's
- *   cancellation request.
+ *   cancellation request. QR Ph and transfer payments (`refundsManually`) are refunded by sending the money back by
+ *   hand: staff enter its reference number and may attach a screenshot, which the customer then sees.
  *
  * Used on the customer's order pages and the staff and admin order screens.
  */
 const REQUEST_DETAILS_MIN = 10;
+/** Mirrors ACCOUNT_NAME in functions/src/payment-common.ts. */
+const ACCOUNT_NAME = /^[\p{L}][\p{L} .,'-]{1,59}$/u;
 
 @Component({
   selector: 'app-order-actions',
@@ -58,8 +70,10 @@ const REQUEST_DETAILS_MIN = 10;
     NzTagModule,
     InvoiceStatusComponent,
     ManualPaymentPanelComponent,
+    MobileInputDirective,
     OrderReviewsComponent,
     PaymentProofComponent,
+    RefundProofPickerComponent,
   ],
   templateUrl: './order-actions.component.html',
   styleUrl: './order-actions.component.scss',
@@ -82,10 +96,16 @@ export class OrderActionsComponent {
   readonly cancelReason = signal('');
   readonly refundReason = signal('');
   readonly refundReference = signal('');
+  readonly refundProof = signal<File | null>(null);
 
   readonly requestVisible = signal(false);
   readonly requestReason = signal<CancelRequestReason | null>(null);
   readonly requestDetails = signal('');
+  /** Where the customer wants a manual refund sent. */
+  readonly refundToType = signal<'gcash' | 'bank'>('gcash');
+  readonly refundToBank = signal('');
+  readonly refundToName = signal('');
+  readonly refundToNumber = signal('');
   readonly rejectVisible = signal(false);
   readonly rejectNote = signal('');
 
@@ -114,9 +134,34 @@ export class OrderActionsComponent {
   readonly canRequestCancel = computed(() => !this.isStaff() && canRequestCancel(this.order()));
   readonly cancelRequest = computed(() => this.order().cancelRequest);
   readonly requestOpen = computed(() => hasOpenCancelRequest(this.order()));
+  /** Staff send the refund back by hand (QR Ph, transfers), so the customer says where to. */
+  readonly needsRefundAccount = computed(() => refundsManually(this.order().payment));
+  /** The account the customer typed, or null while it is incomplete (checked again by the function). */
+  readonly refundAccount = computed<RefundAccount | null>(() => {
+    const accountName = this.refundToName().trim().replace(/\s+/g, ' ');
+    if (!ACCOUNT_NAME.test(accountName)) return null;
+    if (this.refundToType() === 'gcash') {
+      const number = normalizeMobile(this.refundToNumber());
+      return /^09\d{9}$/.test(number)
+        ? { type: 'gcash', accountName, accountNumber: number }
+        : null;
+    }
+    const bank = this.refundToBank().trim().replace(/\s+/g, ' ');
+    const number = this.refundToNumber().replace(/[\s-]/g, '');
+    return bank.length >= 2 && /^\d{6,20}$/.test(number)
+      ? { type: 'bank', bank, accountName, accountNumber: number }
+      : null;
+  });
   readonly requestValid = computed(
-    () => !!this.requestReason() && this.requestDetails().trim().length >= REQUEST_DETAILS_MIN,
+    () =>
+      !!this.requestReason() &&
+      this.requestDetails().trim().length >= REQUEST_DETAILS_MIN &&
+      (!this.needsRefundAccount() || !!this.refundAccount()),
   );
+  readonly refundToLabel = computed(() => {
+    const account = this.cancelRequest()?.refundTo;
+    return account ? refundAccountLabel(account) : '';
+  });
   /** The customer still has to send the transfer proof, or is waiting for it to be checked. */
   readonly showTransferPanel = computed(
     () =>
@@ -124,8 +169,8 @@ export class OrderActionsComponent {
   );
   /** Staff see what the customer sent for a transfer. */
   readonly showProof = computed(() => this.isStaff() && !!this.order().payment.manual?.proofPath);
-  /** Transfers are refunded by staff sending the money back themselves, not through PayMongo. */
-  readonly manualRefund = computed(() => this.order().payment.provider !== 'paymongo');
+  /** Transfers and QR Ph payments are refunded by staff sending the money back themselves, not through PayMongo. */
+  readonly manualRefund = computed(() => refundsManually(this.order().payment));
   /** Refunding cancels the order too, unless it already is. */
   readonly refundCancels = computed(() => this.order().status !== 'Cancelled');
   /** Refunding a processing order returns its items to stock. */
@@ -188,6 +233,10 @@ export class OrderActionsComponent {
   openRequestCancel(): void {
     this.requestReason.set(null);
     this.requestDetails.set('');
+    this.refundToType.set('gcash');
+    this.refundToBank.set('');
+    this.refundToName.set(this.order().address.fullName);
+    this.refundToNumber.set('');
     this.requestVisible.set(true);
   }
 
@@ -195,7 +244,12 @@ export class OrderActionsComponent {
     const reason = this.requestReason();
     if (!reason || !this.requestValid()) return;
     this.run(
-      this.orders.requestCancellation(this.order(), reason, this.requestDetails()),
+      this.orders.requestCancellation(
+        this.order(),
+        reason,
+        this.requestDetails(),
+        this.needsRefundAccount() ? (this.refundAccount() ?? undefined) : undefined,
+      ),
       'Cancellation requested. We will review it and refund you if it is approved.',
       () => this.requestVisible.set(false),
     );
@@ -232,13 +286,19 @@ export class OrderActionsComponent {
   openRefund(): void {
     this.refundReason.set('');
     this.refundReference.set('');
+    this.refundProof.set(null);
     this.refundVisible.set(true);
   }
 
   refund(): void {
     if (this.manualRefund() && !this.refundReference().trim()) return;
     this.run(
-      this.orders.refund(this.order(), this.refundReason(), this.refundReference()),
+      this.orders.refund(
+        this.order(),
+        this.refundReason(),
+        this.refundReference(),
+        this.manualRefund() ? this.refundProof() : null,
+      ),
       this.refundCancels() ? 'Order cancelled and payment refunded.' : 'Payment refunded.',
       () => this.refundVisible.set(false),
     );

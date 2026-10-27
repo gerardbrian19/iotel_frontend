@@ -37,8 +37,8 @@ export interface LegalDocument {
   sections: readonly LegalSection[];
 }
 
-export const TERMS_VERSION = '1.4';
-export const PRIVACY_VERSION = '1.4';
+export const TERMS_VERSION = '1.5';
+export const PRIVACY_VERSION = '1.5';
 
 const CONTACT_CONFIRM =
   'Goldcomm Corporation to provide: registered business address, customer-support email address and telephone number, and business hours.';
@@ -232,7 +232,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           items: [
             'You can cancel your order yourself from My Orders while it is still Pending and has not been paid (and no transfer is being checked). Orders paid online that are not paid within 60 minutes are cancelled automatically; orders paid by transfer are not, and our staff may cancel one that is never paid.',
             'Once your order is paid, please contact us through Messages if you need to cancel.',
-            'Goldcomm may cancel an order that is Pending or Processing, for example when the items are out of stock. If the order was paid, we refund the full amount: through PayMongo to the payment method you used, or, for a transfer, by sending it back to the account you paid from. We may give a reason on the order.',
+            'Goldcomm may cancel an order that is Pending or Processing, for example when the items are out of stock. If the order was paid, we refund the full amount: through PayMongo to the payment method you used, or, for a QR Ph payment or a transfer, by sending it to the GCash or bank account you give us (or, for a transfer, back to the account you paid from). We may give a reason on the order.',
             'If we receive a payment for an order that was already cancelled, we refund it in full.',
           ],
         },
@@ -244,7 +244,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       blocks: [
         {
           kind: 'p',
-          text: "When Goldcomm cancels a paid order or booking, the full amount is refunded: through PayMongo to the payment method you used (how long it takes to reach you depends on PayMongo and your card issuer or e-wallet), or, for a transfer or an on-site payment, by our staff sending it back to you directly, with the refund's reference shown on the order or booking. Other requests about returns, replacements, defective items or refunds are handled by our staff; please contact us through Messages and include your order number.",
+          text: "When Goldcomm cancels a paid order or booking, the full amount is refunded: through PayMongo to the payment method you used (how long it takes to reach you depends on PayMongo and your card issuer or e-wallet), or, for a QR Ph payment, a transfer or an on-site payment, by our staff sending it to you directly (for an order you asked to cancel, to the GCash or bank account you gave in your request), with the refund's reference and, where available, a screenshot of it shown on the order or booking. Please check the account details carefully: we send the refund to the account exactly as you entered it. Other requests about returns, replacements, defective items or refunds are handled by our staff; please contact us through Messages and include your order number.",
         },
         {
           kind: 'p',
@@ -546,7 +546,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         },
         {
           kind: 'p',
-          text: 'When you pay by bank or GCash transfer, we keep what you enter: the account you paid into, the reference number, the amount, when you sent it and the screenshot you upload, plus earlier attempts that could not be verified and who on our staff checked them. Screenshots are stored in Google Cloud Storage (Firebase Storage) and can be seen only by you and by Goldcomm staff and administrators. A screenshot often shows your own name, account or mobile number and balance; you may crop it to the transfer details before uploading. When we refund a transfer or an on-site payment, we record the reference of the refund we sent. For on-site payments we record how you paid, the amount, the receipt number and which staff member recorded it.',
+          text: 'When you pay by bank or GCash transfer, we keep what you enter: the account you paid into, the reference number, the amount, when you sent it and the screenshot you upload, plus earlier attempts that could not be verified and who on our staff checked them. Screenshots are stored in Google Cloud Storage (Firebase Storage) and can be seen only by you and by Goldcomm staff and administrators. A screenshot often shows your own name, account or mobile number and balance; you may crop it to the transfer details before uploading. When we refund a QR Ph payment, a transfer or an on-site payment ourselves, we keep the GCash or bank account you gave us for the refund (account name, number and, for a bank, its name), the reference of the refund we sent and, if our staff attach one, a screenshot of it; these can be seen only by you and by Goldcomm staff and administrators, and are used only to send and prove the refund. For on-site payments we record how you paid, the amount, the receipt number and which staff member recorded it.',
         },
       ],
     },
@@ -588,7 +588,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       blocks: [
         {
           kind: 'p',
-          text: 'IOTEL is built on Google Firebase. Sign-in is handled by Firebase Authentication, and everything else described in this policy (profiles, addresses, favorites, orders, bookings, payment records and messages) is stored in Cloud Firestore, a Google cloud database, except transfer screenshots, which are stored in Firebase Storage. Google processes this information on our behalf as a service provider.',
+          text: 'IOTEL is built on Google Firebase. Sign-in is handled by Firebase Authentication, and everything else described in this policy (profiles, addresses, favorites, orders, bookings, payment records and messages) is stored in Cloud Firestore, a Google cloud database, except transfer and refund screenshots, which are stored in Firebase Storage. Google processes this information on our behalf as a service provider.',
         },
         {
           kind: 'p',

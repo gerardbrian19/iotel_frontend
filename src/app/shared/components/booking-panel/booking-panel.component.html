@@ -131,6 +131,9 @@
             @if (payment.refundReference) {
               <br />Refund reference {{ payment.refundReference }}
             }
+            @if (payment.status === 'Refunded' && payment.refundProofPath) {
+              <br /><app-storage-image class="bp-refund-proof" [path]="payment.refundProofPath" alt="Refund screenshot" [size]="80" />
+            }
             @if (isStaff() && payment.paymentId) {
               <br />{{ payment.provider === 'paymongo' ? 'PayMongo payment' : payment.provider === 'manual' ? 'Reference no.' : 'Receipt no.' }} {{ payment.paymentId }}
             }
@@ -217,6 +220,9 @@
       @if (manualRefund()) {
         Give {{ booking().payment?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} back to
         {{ booking().customerName }} yourself (to the account they paid from, or in cash), then enter its reference.
+        @if (booking().payment?.method === 'qrph') {
+          PayMongo does not refund QR Ph payments on this account, so ask the customer in chat where to send it.
+        }
       } @else {
         {{ booking().payment?.amount | currency: 'PHP' : 'symbol-narrow' : '1.0-2' }} goes back to
         {{ booking().customerName }} through PayMongo.
@@ -243,6 +249,7 @@
         [ngModel]="refundReference()"
         (ngModelChange)="refundReference.set($event)"
       />
+      <app-refund-proof-picker [(file)]="refundProof" />
     }
     <div class="modal-footer">
       <button nz-button type="button" (click)="refundVisible.set(false)">Close</button>

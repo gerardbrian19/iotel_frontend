@@ -39,6 +39,14 @@
     </div>
     <p class="cr-reason">{{ reasonLabels[r.reason] }}</p>
     <p class="cr-details">“{{ r.details }}”</p>
+    @if (refundToLabel(); as account) {
+      <p class="cr-refund-to">
+        <strong>Refund to:</strong> {{ account }}
+        @if (isStaff() && requestOpen()) {
+          <span class="cr-by">· check the name matches the customer before sending</span>
+        }
+      </p>
+    }
     @if (r.reviewNote && r.status !== 'pending') {
       <p class="cr-note">
         <strong>{{ r.status === 'rejected' ? 'Why it was rejected' : 'Note' }}:</strong>
@@ -266,6 +274,60 @@
       (ngModelChange)="requestDetails.set($event)"
     ></textarea>
     <p class="char-count">{{ requestDetails().length }}/500</p>
+    @if (needsRefundAccount()) {
+      <p class="field-label">Where should we send your refund?</p>
+      <nz-radio-group
+        class="refund-type"
+        [ngModel]="refundToType()"
+        (ngModelChange)="refundToType.set($event); refundToNumber.set('')"
+      >
+        <label nz-radio-button nzValue="gcash">GCash</label>
+        <label nz-radio-button nzValue="bank">Bank account</label>
+      </nz-radio-group>
+      @if (refundToType() === 'bank') {
+        <input
+          nz-input
+          class="refund-field"
+          maxlength="60"
+          placeholder="Bank, e.g. BPI, BDO, UnionBank"
+          [ngModel]="refundToBank()"
+          (ngModelChange)="refundToBank.set($event)"
+        />
+      }
+      <input
+        nz-input
+        class="refund-field"
+        maxlength="60"
+        placeholder="Account name, as registered"
+        autocomplete="name"
+        [ngModel]="refundToName()"
+        (ngModelChange)="refundToName.set($event)"
+      />
+      @if (refundToType() === 'gcash') {
+        <input
+          nz-input
+          appMobileInput
+          class="refund-field"
+          placeholder="GCash number (09XXXXXXXXX)"
+          [ngModel]="refundToNumber()"
+          (ngModelChange)="refundToNumber.set($event)"
+        />
+      } @else {
+        <input
+          nz-input
+          class="refund-field"
+          inputmode="numeric"
+          maxlength="30"
+          placeholder="Account number"
+          [ngModel]="refundToNumber()"
+          (ngModelChange)="refundToNumber.set($event)"
+        />
+      }
+      <p class="refund-hint">
+        We send the refund here by hand, so please double-check it. Only you and our team can see
+        it.
+      </p>
+    }
     <div class="modal-footer">
       <button nz-button type="button" (click)="requestVisible.set(false)">Keep order</button>
       <button
@@ -330,8 +392,16 @@
     <p class="pay-amount">₱{{ order().payment.amount.toLocaleString('en-PH') }}</p>
     <p class="modal-copy">
       @if (manualRefund()) {
-        Send the full amount back to the customer yourself (to the account they paid from), then
-        enter that transfer's reference number here.
+        @if (refundToLabel(); as account) {
+          Send the full amount to <strong>{{ account }}</strong> yourself, then enter that
+          transfer's reference number here.
+        } @else {
+          Send the full amount back to the customer yourself (to the account they paid from), then
+          enter that transfer's reference number here.
+        }
+        @if (order().payment.method === 'qrph') {
+          PayMongo does not refund QR Ph payments on this account.
+        }
       } @else {
         The full amount goes back to the customer through PayMongo.
       }
@@ -360,6 +430,7 @@
         [ngModel]="refundReference()"
         (ngModelChange)="refundReference.set($event)"
       />
+      <app-refund-proof-picker [(file)]="refundProof" />
     }
     <div class="modal-footer">
       <button nz-button type="button" (click)="refundVisible.set(false)">Close</button>

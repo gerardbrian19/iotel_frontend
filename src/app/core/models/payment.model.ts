@@ -28,6 +28,19 @@ export type PaymentMethod = string;
  */
 export type ManualPaymentState = 'awaiting' | 'submitted' | 'rejected' | 'approved';
 
+/**
+ * Where a customer wants a refund sent when staff send it back themselves (`refundsManually`): given with their
+ * cancellation request. Mirrors `RefundAccount` in functions/src/payment-common.ts.
+ */
+export interface RefundAccount {
+  type: 'gcash' | 'bank';
+  /** Bank accounts only. */
+  bank?: string;
+  accountName: string;
+  /** `09XXXXXXXXX` for GCash; digits only for a bank account. */
+  accountNumber: string;
+}
+
 /** The account the customer paid into, as it was when they paid. */
 export interface ReceiverSnapshot {
   type: 'gcash' | 'bank';
@@ -87,8 +100,15 @@ export interface Payment {
   paidAt?: string;
   refundId?: string;
   refundedAt?: string;
-  /** For transfers and on-site payments: the reference of the refund staff sent back themselves. */
+  /**
+   * For refunds staff sent back themselves (transfers, on-site and PayMongo QR Ph payments, see `refundsManually`):
+   * the reference of that transfer or receipt.
+   */
   refundReference?: string;
+  /** Screenshot of that refund in Firebase Storage (`refundProofs/…`), when staff attached one. */
+  refundProofPath?: string;
+  /** What staff wrote when refunding a manual refund, shown to the customer. */
+  refundNote?: string;
   manual?: ManualPayment;
   onsite?: OnsitePayment;
 }

@@ -12,6 +12,7 @@ import {
   PaymentProvider,
   PaymentStatus,
   ReceiverSnapshot,
+  RefundAccount,
 } from '../models';
 
 /**
@@ -62,6 +63,35 @@ export function paymentMethodLabel(method: PaymentMethod | undefined): string {
   if (!method) return '';
   if (method.startsWith('bank:')) return `${method.slice(5)} transfer`;
   return METHOD_LABELS[method] ?? method;
+}
+
+/**
+ * Staff refund this payment by sending the money back themselves (with a reference number), not through PayMongo:
+ * transfers, on-site payments, and PayMongo QR Ph, which PayMongo refuses to refund on this account. Mirrors
+ * `refundsManually` in functions/src/payment-common.ts.
+ */
+export function refundsManually(payment: Payment): boolean {
+  return payment.provider !== 'paymongo' || payment.method === 'qrph';
+}
+
+/** "GCash 0917 123 4567 · Juan Dela Cruz" or "BPI 1234567890 · Juan Dela Cruz". */
+export function refundAccountLabel(account: RefundAccount): string {
+  const number =
+    account.type === 'gcash'
+      ? account.accountNumber.replace(/^(\d{4})(\d{3})(\d{4})$/, '$1 $2 $3')
+      : account.accountNumber;
+  return `${account.type === 'gcash' ? 'GCash' : account.bank} ${number} · ${account.accountName}`;
+}
+
+/** Maps a stored `refundTo` map; undefined when it is missing or incomplete. */
+export function toRefundAccount(data: DocumentData | undefined): RefundAccount | undefined {
+  const type = data?.['type'];
+  const accountName = text(data?.['accountName']);
+  const accountNumber = text(data?.['accountNumber']);
+  if ((type !== 'gcash' && type !== 'bank') || !accountName || !accountNumber) return undefined;
+  return type === 'bank'
+    ? { type, bank: text(data?.['bank']) ?? 'Bank', accountName, accountNumber }
+    : { type, accountName, accountNumber };
 }
 
 /** How each way of paying is called on the screens. */
@@ -149,6 +179,8 @@ export function toPayment(data: DocumentData | undefined): Payment {
     refundId: text(payment['refundId']),
     refundedAt: isoOf(payment['refundedAt']) || undefined,
     refundReference: text(payment['refundReference']),
+    refundProofPath: text(payment['refundProofPath']),
+    refundNote: text(payment['refundNote']),
     manual: toManual(payment['manual']),
     onsite: toOnsite(payment['onsite']),
   };

@@ -40,7 +40,9 @@ import {
   methodLabel,
   paymongo,
   peso,
+  proofImageOk,
   readStock,
+  refundsManually,
   requireCustomer,
   requireStaff,
   stageEvent,
@@ -585,9 +587,11 @@ export const paymongoWebhook = onRequest(
  * back into stock; a booking's time slot is freed. Shipped or delivered orders and completed bookings are refunded
  * from the PayMongo dashboard instead.
  *
- * PayMongo payments are refunded through PayMongo. Transfers and on-site payments are sent back by staff themselves
- * (to the customer's account, or in cash), so they must give `refundReference`: their transfer's reference number or
- * the receipt.
+ * PayMongo payments are refunded through PayMongo. Transfers, on-site payments and PayMongo QR Ph payments (which
+ * PayMongo won't refund on this account, see `refundsManually`) are sent back by staff themselves (to the account in
+ * the customer's cancellation request, or in cash), so they must give `refundReference`: their transfer's reference
+ * number or the receipt. They may attach a screenshot of it (`refundProofPath`, uploaded to Storage under
+ * `refundProofs/{customerId}/{kind}-{id}/` first), which the customer sees.
  */
 export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (req) => {
   const staff = await requireStaff(req);
@@ -600,12 +604,13 @@ export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (r
   if (!snap.exists) throw new HttpsError('not-found', 'This could not be found.');
   const status = snap.get('status');
   const provider = snap.get('payment.provider') ?? 'paymongo';
+  const manual = refundsManually(snap.get('payment'));
   const refundable =
     kind === 'order' ? ['Pending', 'Processing', 'Cancelled'] : ['Confirmed', 'Paid', 'Cancelled'];
   if (!refundable.includes(status)) {
     throw new HttpsError(
       'failed-precondition',
-      provider === 'paymongo'
+      !manual
         ? `This ${kind} is already ${String(status).toLowerCase()}. Refund it from the PayMongo dashboard if needed.`
         : `This ${kind} is already ${String(status).toLowerCase()}.`,
     );
@@ -617,7 +622,8 @@ export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (r
   }
 
   let refundId: string;
-  if (provider === 'paymongo') {
+  let refundProofPath = '';
+  if (!manual) {
     if (typeof paymentId !== 'string' || !paymentId) {
       throw new HttpsError('failed-precondition', 'There is no payment to refund.');
     }
@@ -639,6 +645,19 @@ export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (r
       );
     }
     refundId = reference;
+    refundProofPath =
+      typeof req.data?.refundProofPath === 'string' ? req.data.refundProofPath.trim() : '';
+    if (
+      refundProofPath &&
+      (!refundProofPath.startsWith(`refundProofs/${snap.get('customerId')}/${kind}-${id}/`) ||
+        refundProofPath.includes('..') ||
+        !(await proofImageOk(refundProofPath)))
+    ) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Please attach the screenshot again (JPG, PNG or WebP, up to 5 MB).',
+      );
+    }
   }
 
   await db.runTransaction(async (tx) => {
@@ -667,8 +686,9 @@ export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (r
       'payment.refundedBy': staff.uid,
       updatedAt: FieldValue.serverTimestamp(),
     };
-    if (provider !== 'paymongo') {
+    if (manual) {
       updates['payment.refundReference'] = refundId;
+      if (refundProofPath) updates['payment.refundProofPath'] = refundProofPath;
       if (reason) updates['payment.refundNote'] = reason;
     }
     // Refunding an order the customer asked to cancel is how that request is approved (cancellations.ts).
@@ -700,13 +720,13 @@ export const refundPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, async (r
         tx,
         fresh.get('conversationId'),
         `${current !== 'Cancelled' ? 'Booking cancelled and payment' : 'Payment'} of ${peso(amount)} refunded${
-          provider !== 'paymongo' ? ` (ref ${refundId})` : ''
+          manual ? ` (ref ${refundId})` : ''
         }${reason ? `: ${reason}` : '.'}`,
         { id: staff.uid, name: staff.name, role: staff.role },
       );
     }
     tx.update(ref, updates);
   });
-  logger.info('Payment refunded', { kind, id, provider, refundId, by: staff.uid });
+  logger.info('Payment refunded', { kind, id, provider, manual, refundId, by: staff.uid });
   return { ok: true };
 });
