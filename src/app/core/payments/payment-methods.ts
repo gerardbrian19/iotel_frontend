@@ -37,10 +37,7 @@ export const MIN_CHECKOUT_AMOUNT = 20;
 
 /** What the PayMongo checkout offers (`PAYMENT_METHOD_TYPES` in functions/src/payments.ts), for the screens. */
 export const ACCEPTED_PAYMENT_METHODS: readonly { label: string; icon: string }[] = [
-  { label: 'GCash', icon: '📱' },
-  { label: 'Maya', icon: '💳' },
-  { label: 'Credit / Debit Card', icon: '💳' },
-  { label: 'GrabPay', icon: '🚗' },
+  // Only QR Ph until the live PayMongo account is verified; GCash, Maya, cards and GrabPay come back then.
   { label: 'QR Ph', icon: '🔳' },
 ];
 

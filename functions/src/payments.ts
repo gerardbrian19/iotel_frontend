@@ -62,8 +62,12 @@ const UNPAID_ORDER_TTL_MS = 60 * 60 * 1000;
 const MAX_ORDER_LINES = 50;
 /** PayMongo's smallest checkout amount, in pesos. Mirrors MIN_CHECKOUT_AMOUNT in the app's payment-methods.ts. */
 const MIN_CHECKOUT_AMOUNT = 20;
-/** What the PayMongo checkout page offers. Add 'dob', 'billease', … here once they are enabled on the account. */
-const PAYMENT_METHOD_TYPES = ['card', 'gcash', 'paymaya', 'grab_pay', 'qrph'];
+/**
+ * What the PayMongo checkout page offers. Only QR Ph while the live account is activated but not yet verified (the
+ * other methods are refused until then); add back 'card', 'gcash', 'paymaya', 'grab_pay', … once they are enabled.
+ * Mirrors ACCEPTED_PAYMENT_METHODS in the app's payment-methods.ts.
+ */
+const PAYMENT_METHOD_TYPES = ['qrph'];
 
 interface WebhookEvent {
   id: string;
