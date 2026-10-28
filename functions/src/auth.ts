@@ -379,6 +379,8 @@ export const deleteCustomerAccount = onCall(async (req) => {
   // Favorites and addresses (the profile document itself is already gone).
   await db.recursiveDelete(profileRef);
   await db.doc(`loginCodes/${uid}`).delete();
+  // The public copy of their profile picture (firestore.rules: avatars/{uid}).
+  await db.doc(`avatars/${uid}`).delete();
   try {
     await auth.deleteUser(uid);
   } catch (err) {

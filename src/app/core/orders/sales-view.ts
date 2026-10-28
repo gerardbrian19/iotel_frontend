@@ -1,21 +1,22 @@
 import { Order } from '../models';
 
 /** How the sales chart groups orders. */
-export type SalesPeriod = 'day' | 'week' | 'month';
+export type SalesPeriod = 'day' | 'week' | 'month' | 'year';
 
 export const SALES_PERIODS: readonly { value: SalesPeriod; label: string; span: string }[] = [
   { value: 'day', label: 'Daily', span: 'the last 30 days' },
   { value: 'week', label: 'Weekly', span: 'the last 12 weeks' },
   { value: 'month', label: 'Monthly', span: 'the last 12 months' },
+  { value: 'year', label: 'Yearly', span: 'the last 5 years' },
 ];
 
 /** Buckets per period, ending with the one that contains today. */
-const BUCKETS: Record<SalesPeriod, number> = { day: 30, week: 12, month: 12 };
+const BUCKETS: Record<SalesPeriod, number> = { day: 30, week: 12, month: 12, year: 5 };
 
 export interface SalesBucket {
-  /** `YYYY-MM-DD` (day, or the Monday that starts a week) or `YYYY-MM` (month). */
+  /** `YYYY-MM-DD` (day, or the Monday that starts a week), `YYYY-MM` (month) or `YYYY` (year). */
   key: string;
-  /** Short axis label, e.g. `Sep` or `Oct 13`. */
+  /** Short axis label, e.g. `Sep`, `Oct 13` or `2026`. */
   label: string;
   /** Long name for tooltips, e.g. `September 2026` or `Week of Oct 13 – 19, 2026`. */
   title: string;
@@ -68,6 +69,7 @@ function weekStart(date: Date): Date {
 function keyOf(period: SalesPeriod, date: Date): string {
   if (period === 'day') return dayKey(date);
   if (period === 'week') return dayKey(weekStart(date));
+  if (period === 'year') return String(date.getFullYear());
   return monthKey(date);
 }
 
@@ -78,6 +80,7 @@ function bucketStart(period: SalesPeriod, now: Date, back: number): Date {
     const start = weekStart(now);
     return new Date(start.getFullYear(), start.getMonth(), start.getDate() - back * 7);
   }
+  if (period === 'year') return new Date(now.getFullYear() - back, 0, 1);
   return new Date(now.getFullYear(), now.getMonth() - back, 1);
 }
 
@@ -92,13 +95,18 @@ function names(period: SalesPeriod, start: Date): { label: string; title: string
       title: `Week of ${SHORT_DAY.format(start)} – ${endText}, ${end.getFullYear()}`,
     };
   }
+  if (period === 'year') {
+    const year = String(start.getFullYear());
+    return { label: year, title: year };
+  }
   return { label: SHORT_MONTH.format(start), title: LONG_MONTH.format(start) };
 }
 
 /**
- * Sales per day (last 30 days), week (last 12 weeks, Monday to Sunday) or month (last 12 months), oldest first, each
- * series ending with the bucket that contains `now`. Same definition as the dashboard's revenue figure: delivered
- * orders only, counted when they were delivered (their creation time if the delivery time is missing).
+ * Sales per day (last 30 days), week (last 12 weeks, Monday to Sunday), month (last 12 months) or year (last 5
+ * years), oldest first, each series ending with the bucket that contains `now`. Same definition as the dashboard's
+ * revenue figure: delivered orders only, counted when they were delivered (their creation time if the delivery time
+ * is missing).
  */
 export function salesSeries(
   orders: readonly Order[],

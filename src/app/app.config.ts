@@ -11,6 +11,7 @@ import { provideHttpClient } from '@angular/common/http';
 
 import { routes } from './app.routes';
 import { AuthService } from './core/services/auth.service';
+import { AvatarService } from './core/services/avatar.service';
 import { ShowcaseService } from './core/services/showcase.service';
 import { en_US, provideNzI18n } from 'ng-zorro-antd/i18n';
 import { registerLocaleData } from '@angular/common';
@@ -93,6 +94,8 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => inject(AuthService).ready),
     // Starts the Best Sellers copy's listener, and its refresh from the live catalog in staff/admin sessions.
     provideEnvironmentInitializer(() => void inject(ShowcaseService)),
+    // Keeps the signed-in user's public profile picture (avatars/{uid}) in step, for chat.
+    provideEnvironmentInitializer(() => void inject(AvatarService)),
     provideRouter(routes, withComponentInputBinding()),
     provideAnimationsAsync(),
     provideHttpClient(),

@@ -16,13 +16,17 @@ export type RevenueChannel = 'gcash' | 'bank' | 'cash' | 'other';
  * e-wallets get no tile (`revenueChannel` still tells them apart, e.g. for the sales report's "other methods").
  */
 export const REVENUE_CHANNELS: readonly { key: RevenueChannel; label: string }[] = [
-  { key: 'gcash', label: 'GCash' },
+  { key: 'gcash', label: 'GCash / QR Ph' },
   { key: 'bank', label: 'Bank transfer' },
 ];
 
-/** `gcash` (PayMongo or transfer), `bank:<Bank>` / `bank` / online banking, `cash`; the rest is card, Maya, etc. */
+/**
+ * `gcash` (PayMongo or transfer) and PayMongo `qrph`, `bank:<Bank>` / `bank` / online banking, `cash`; the rest is
+ * card, Maya, etc. QR Ph shares the GCash channel ("GCash / QR Ph"): checkout tells customers to scan it with GCash,
+ * and PayMongo doesn't say which app paid, so it can't be split further.
+ */
 export function revenueChannel(method: string | undefined): RevenueChannel {
-  if (method === 'gcash') return 'gcash';
+  if (method === 'gcash' || method === 'qrph') return 'gcash';
   if (method === 'bank' || method?.startsWith('bank:') || method?.startsWith('dob')) return 'bank';
   if (method === 'cash') return 'cash';
   return 'other';

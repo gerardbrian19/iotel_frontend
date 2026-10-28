@@ -20,7 +20,7 @@ export const ADMIN_ROUTES: Routes = [
       { path: 'messages', loadComponent: () => import('./messages/messages.component').then(m => m.AdminMessagesComponent) },
       { path: 'activity', loadComponent: () => import('./activity/activity.component').then(m => m.AdminActivityComponent) },
       { path: 'users', loadComponent: () => import('./users/users.component').then(m => m.AdminUsersComponent) },
-      { path: 'account', loadComponent: () => import('../../shared/components/account-security/account-security.component').then(m => m.AccountSecurityComponent) },
+      { path: 'account', loadComponent: () => import('../../shared/components/staff-account/staff-account.component').then(m => m.StaffAccountComponent) },
     ],
   },
 ];

@@ -76,14 +76,53 @@
 
 .msg-row {
   display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  // Bubbles of one run sit close together; a new sender starts a little further down.
+  margin-top: -8px;
+
+  &.run-start {
+    margin-top: 0;
+  }
 
   &.mine {
     justify-content: flex-end;
   }
 }
 
-.bubble {
+// Keeps every bubble of a run lined up, whether or not it carries the picture.
+.msg-avatar {
+  flex: 0 0 32px;
+  width: 32px;
+
+  nz-avatar {
+    background: #C9A84C;
+    color: #FFFFFF;
+    font-weight: 700;
+  }
+}
+
+.msg-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   max-width: 70%;
+  min-width: 0;
+
+  .mine & {
+    align-items: flex-end;
+  }
+}
+
+.msg-sender {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888888;
+  margin: 0 0 4px 4px;
+}
+
+.bubble {
+  max-width: 100%;
   background: #FFFFFF;
   border-radius: 12px 12px 12px 4px;
   padding: 10px 14px;
@@ -95,16 +134,7 @@
   border-radius: 12px 12px 4px 12px;
   color: #FFFFFF;
 
-  .bubble-sender { display: none; }
   .bubble-time { color: rgba(255, 255, 255, 0.85); }
-}
-
-.bubble-sender {
-  font-size: 11px;
-  font-weight: 700;
-  color: #888;
-  margin-bottom: 4px;
-  display: block;
 }
 
 .bubble-text {

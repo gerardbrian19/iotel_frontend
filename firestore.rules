@@ -209,6 +209,23 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // avatars/{uid}: just the profile picture, so chat can show it (users/{uid} stays private). Each user keeps their
+    // own copy in step with their profile (AvatarService). Staff/admins see everyone's; customers see their own and
+    // those of staff/admins (by their current role), never another customer's.
+    match /avatars/{uid} {
+      allow get: if signedIn()
+        && (request.auth.uid == uid
+          || isStaffOrAdmin()
+          || get(/databases/$(database)/documents/users/$(uid)).data.role in ['staff', 'admin']);
+      allow list: if false;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['photoURL', 'updatedAt'])
+        && validPhoto(request.resource.data.get('photoURL', null))
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
     // A customer's liked products: users/{uid}/favorites/{productId}. Only the owner can see or change them.
     match /users/{uid}/favorites/{productId} {
       allow read: if signedIn() && request.auth.uid == uid;

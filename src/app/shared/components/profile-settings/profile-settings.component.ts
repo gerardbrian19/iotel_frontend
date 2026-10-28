@@ -10,20 +10,24 @@ import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
-import { fromDateKey, toDateKey } from '../../../../core/booking/schedule';
-import { BIO_MAX_LENGTH, GENDERS, Gender } from '../../../../core/models';
-import { authErrorMessage } from '../../../../core/firebase/auth-errors';
-import { AuthService } from '../../../../core/services/auth.service';
-import { avatarFileError, resizeToAvatar } from '../../../../shared/utils/avatar-image';
-import { MobileInputDirective } from '../../../../shared/directives/mobile-input.directive';
+import { fromDateKey, toDateKey } from '../../../core/booking/schedule';
+import { BIO_MAX_LENGTH, GENDERS, Gender } from '../../../core/models';
+import { authErrorMessage } from '../../../core/firebase/auth-errors';
+import { AuthService } from '../../../core/services/auth.service';
+import { avatarFileError, resizeToAvatar } from '../../utils/avatar-image';
+import { MobileInputDirective } from '../../directives/mobile-input.directive';
 import {
   mobileError,
   normalizeMobile,
   personNameError,
-} from '../../../../shared/utils/validators';
+} from '../../utils/validators';
 
+/**
+ * Your own profile: picture, name, phone, gender, date of birth and bio (the email is shown but can't be changed).
+ * Customer Settings → Profile, and the Account pages of staff and admins (`/staff/account`, `/admin/account`).
+ */
 @Component({
-  selector: 'app-settings-profile',
+  selector: 'app-profile-settings',
   standalone: true,
   imports: [
     FormsModule,
@@ -38,11 +42,11 @@ import {
     NzSelectModule,
     NzDatePickerModule,
   ],
-  templateUrl: './profile.component.html',
-  styleUrl: './profile.component.scss',
+  templateUrl: './profile-settings.component.html',
+  styleUrl: './profile-settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ProfileComponent {
+export class ProfileSettingsComponent {
   private readonly auth = inject(AuthService);
   private readonly message = inject(NzMessageService);
 

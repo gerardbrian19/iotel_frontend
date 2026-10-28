@@ -11,20 +11,35 @@
   }
 
   <div #scroller class="messages-area">
-    @for (msg of messages(); track msg.id) {
+    @for (row of rows(); track row.msg.id) {
+      @let msg = row.msg;
       @if (msg.kind === 'event') {
         <div class="event-row">
           <span class="event-note">{{ msg.content }}</span>
           <span class="event-time">{{ msg.senderName }} · {{ msg.sentAt | date: 'MMM d, h:mm a' }}</span>
         </div>
       } @else {
-        <div class="msg-row" [class.mine]="msg.senderId === currentUserId()">
-          <div class="bubble" [class.my-bubble]="msg.senderId === currentUserId()">
-            @if (msg.senderId !== currentUserId()) {
-              <span class="bubble-sender">{{ msg.senderName }}</span>
+        <div class="msg-row" [class.mine]="row.mine" [class.run-start]="row.first">
+          @if (!row.mine) {
+            <div class="msg-avatar">
+              @if (row.last) {
+                <nz-avatar
+                  [nzSize]="32"
+                  [nzSrc]="avatars.photoOf(msg.senderId) ?? undefined"
+                  [nzText]="(msg.senderName || '?').charAt(0).toUpperCase()"
+                  [attr.aria-label]="msg.senderName"
+                />
+              }
+            </div>
+          }
+          <div class="msg-body">
+            @if (!row.mine && row.first) {
+              <span class="msg-sender">{{ msg.senderName }}</span>
             }
-            <p class="bubble-text">{{ msg.content }}</p>
-            <span class="bubble-time">{{ msg.sentAt | date: 'shortTime' }}</span>
+            <div class="bubble" [class.my-bubble]="row.mine">
+              <p class="bubble-text">{{ msg.content }}</p>
+              <span class="bubble-time">{{ msg.sentAt | date: 'shortTime' }}</span>
+            </div>
           </div>
         </div>
       }

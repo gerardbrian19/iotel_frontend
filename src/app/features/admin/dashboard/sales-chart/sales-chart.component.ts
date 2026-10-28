@@ -38,7 +38,7 @@ export class SalesChartComponent {
 
   readonly isEmpty = computed(() => this.data().every((m) => m.total === 0));
 
-  /** The one bar that gets a value label: the best day, week or month. */
+  /** The one bar that gets a value label: the best day, week, month or year. */
   readonly peakIndex = computed(() => {
     const totals = this.data().map((m) => m.total);
     const peak = Math.max(0, ...totals);

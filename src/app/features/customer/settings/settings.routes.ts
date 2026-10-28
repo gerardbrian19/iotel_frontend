@@ -10,7 +10,7 @@ export const SETTINGS_ROUTES: Routes = [
       {
         path: 'profile',
         loadComponent: () =>
-          import('./profile/profile.component').then(m => m.ProfileComponent),
+          import('../../../shared/components/profile-settings/profile-settings.component').then(m => m.ProfileSettingsComponent),
       },
       {
         path: 'addresses',

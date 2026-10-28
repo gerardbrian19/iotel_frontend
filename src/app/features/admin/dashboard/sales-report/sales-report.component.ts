@@ -24,10 +24,10 @@ import { reportPrintHtml, reportWorkbook } from '../../../../core/payments/sales
 import { XLSX_MIME } from '../../../../shared/utils/xlsx-writer';
 
 /**
- * Dashboard card: sales & revenue for a chosen day, week (Mon–Sun) or month, split into GCash, bank transfer and their
- * combined total, with the transactions behind them. Downloads as Excel (.xlsx), CSV, or a printable page to save as
- * PDF, all from the same report. Built from the orders and bookings the dashboard already streams (no extra reads);
- * the rules are in `core/payments/sales-report.ts`.
+ * Dashboard card: sales & revenue for a chosen day, week (Mon–Sun), month or year, split into GCash, bank transfer
+ * and their combined total, with the transactions behind them. Downloads as Excel (.xlsx), CSV, or a printable page to
+ * save as PDF, all from the same report. Built from the orders and bookings the dashboard already streams (no extra
+ * reads); the rules are in `core/payments/sales-report.ts`.
  */
 @Component({
   selector: 'app-sales-report',
@@ -71,6 +71,13 @@ export class SalesReportComponent {
     const today = new Date();
     return d > new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
   };
+  // The month and year panels test each cell with the picked date's day (and month) carried over, so after picking
+  // Sep 30 the current month would read as Oct 30, i.e. in the future. Compare whole months / years instead.
+  readonly disabledMonth = (d: Date): boolean => {
+    const today = new Date();
+    return d.getFullYear() * 12 + d.getMonth() > today.getFullYear() * 12 + today.getMonth();
+  };
+  readonly disabledYear = (d: Date): boolean => d.getFullYear() > new Date().getFullYear();
 
   setAnchor(value: Date | null): void {
     if (value) this.anchor.set(value);

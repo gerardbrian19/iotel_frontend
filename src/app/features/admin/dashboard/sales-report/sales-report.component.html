@@ -57,7 +57,17 @@
         nzMode="month"
         nzFormat="MMMM yyyy"
         [nzAllowClear]="false"
-        [nzDisabledDate]="disabledDate"
+        [nzDisabledDate]="disabledMonth"
+        [ngModel]="anchor()"
+        (ngModelChange)="setAnchor($event)"
+        class="sr-date"
+      />
+    } @else if (period() === 'year') {
+      <nz-date-picker
+        nzMode="year"
+        nzFormat="yyyy"
+        [nzAllowClear]="false"
+        [nzDisabledDate]="disabledYear"
         [ngModel]="anchor()"
         (ngModelChange)="setAnchor($event)"
         class="sr-date"
@@ -95,7 +105,7 @@
   <div class="sr-tiles">
     @if (filter() !== 'bank') {
       <div class="sr-tile sr-gcash">
-        <span class="sr-label">GCash revenue</span>
+        <span class="sr-label">GCash / QR Ph revenue</span>
         <strong>{{ r.gcash.amount | currency: 'PHP' : 'symbol-narrow' : '1.2-2' }}</strong>
         <span class="sr-muted"
           >{{ r.gcash.count }} {{ r.gcash.count === 1 ? 'payment' : 'payments' }}</span
@@ -113,7 +123,7 @@
     }
     @if (filter() === 'all') {
       <div class="sr-tile sr-combined">
-        <span class="sr-label">Combined (GCash + Bank)</span>
+        <span class="sr-label">Combined (GCash / QR Ph + Bank)</span>
         <strong>{{ r.combined.amount | currency: 'PHP' : 'symbol-narrow' : '1.2-2' }}</strong>
         <span class="sr-muted"
           >{{ r.combined.count }} {{ r.combined.count === 1 ? 'payment' : 'payments' }}</span

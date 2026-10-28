@@ -11,22 +11,23 @@ import { MoneyCount, RevenueChannel, revenueChannel } from './payment-summary';
  *   cancelled ones are left out. Each document is counted once.
  * - **Date:** when the payment was confirmed (`payment.paidAt`), or when the order / booking was created for older
  *   records without one. Local time, start inclusive, end exclusive.
- * - **Channel:** from the recorded method (`revenueChannel`): `gcash` → GCash; `bank:<Bank>`, `bank` and online
- *   banking → Bank transfer; anything else (card, Maya, cash, …) is "other" and stays out of the combined total.
+ * - **Channel:** from the recorded method (`revenueChannel`): `gcash` and `qrph` → GCash / QR Ph; `bank:<Bank>`,
+ *   `bank` and online banking → Bank transfer; anything else (card, Maya, cash, …) is "other" and stays out of the combined total.
  */
 
-export type ReportPeriod = 'day' | 'week' | 'month';
+export type ReportPeriod = 'day' | 'week' | 'month' | 'year';
 export type ReportMethodFilter = 'all' | 'gcash' | 'bank';
 
 export const REPORT_PERIODS: readonly { value: ReportPeriod; label: string }[] = [
   { value: 'day', label: 'Daily' },
   { value: 'week', label: 'Weekly' },
   { value: 'month', label: 'Monthly' },
+  { value: 'year', label: 'Yearly' },
 ];
 
 export const REPORT_METHOD_FILTERS: readonly { value: ReportMethodFilter; label: string }[] = [
   { value: 'all', label: 'All payment methods' },
-  { value: 'gcash', label: 'GCash only' },
+  { value: 'gcash', label: 'GCash / QR Ph only' },
   { value: 'bank', label: 'Bank transfer only' },
 ];
 
@@ -39,7 +40,7 @@ export interface ReportRange {
   /** `YYYY-MM-DD` of the first and last day. */
   startKey: string;
   endKey: string;
-  /** e.g. `Oct 27, 2026`, `Oct 26 – Nov 1, 2026`, `October 2026`. */
+  /** e.g. `Oct 27, 2026`, `Oct 26 – Nov 1, 2026`, `October 2026`, `2026`. */
   label: string;
 }
 
@@ -104,7 +105,7 @@ function shortDate(d: Date, withYear = true): string {
   });
 }
 
-/** The day, Monday–Sunday week or calendar month that contains `anchor`. */
+/** The day, Monday–Sunday week, calendar month or calendar year that contains `anchor`. */
 export function reportRange(period: ReportPeriod, anchor: Date): ReportRange {
   const day = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
   let start: Date;
@@ -128,6 +129,11 @@ export function reportRange(period: ReportPeriod, anchor: Date): ReportRange {
       start = new Date(day.getFullYear(), day.getMonth(), 1);
       end = new Date(day.getFullYear(), day.getMonth() + 1, 1);
       label = `${MONTHS[start.getMonth()]} ${start.getFullYear()}`;
+      break;
+    case 'year':
+      start = new Date(day.getFullYear(), 0, 1);
+      end = new Date(day.getFullYear() + 1, 0, 1);
+      label = String(start.getFullYear());
       break;
   }
   const lastDay = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 1);
@@ -231,6 +237,7 @@ const PERIOD_TITLE: Record<ReportPeriod, string> = {
   day: 'Daily',
   week: 'Weekly',
   month: 'Monthly',
+  year: 'Yearly',
 };
 
 export function reportTitle(report: SalesReport): string {
@@ -274,9 +281,9 @@ export interface SummaryLine {
 /** GCash, bank transfer, combined, and (for "All payment methods") the other methods. */
 export function reportSummary(report: SalesReport): SummaryLine[] {
   const lines: SummaryLine[] = [
-    { label: 'GCash revenue', ...report.gcash },
+    { label: 'GCash / QR Ph revenue', ...report.gcash },
     { label: 'Bank Transfer revenue', ...report.bank },
-    { label: 'Combined revenue (GCash + Bank Transfer)', ...report.combined, total: true },
+    { label: 'Combined revenue (GCash / QR Ph + Bank Transfer)', ...report.combined, total: true },
   ];
   if (report.filter === 'all') {
     lines.push({ label: 'Other methods (not in combined)', ...report.other });
@@ -296,7 +303,10 @@ export const REPORT_COLUMNS = [
   'Amount paid (PHP)',
 ] as const;
 
-/** `IOTEL_Daily_Sales_Report_2026-10-27.csv`, `…_Weekly_…_2026-10-26_to_2026-11-01.xlsx`, `…_Monthly_…_2026-10.csv`. */
+/**
+ * `IOTEL_Daily_Sales_Report_2026-10-27.csv`, `…_Weekly_…_2026-10-26_to_2026-11-01.xlsx`, `…_Monthly_…_2026-10.csv`,
+ * `…_Yearly_…_2026.csv`.
+ */
 export function reportFilename(report: SalesReport, extension: 'csv' | 'xlsx' = 'csv'): string {
   const { period, startKey, endKey } = report.range;
   const when =
@@ -304,9 +314,11 @@ export function reportFilename(report: SalesReport, extension: 'csv' | 'xlsx' = 
       ? startKey
       : period === 'week'
         ? `${startKey}_to_${endKey}`
-        : startKey.slice(0, 7);
+        : period === 'month'
+          ? startKey.slice(0, 7)
+          : startKey.slice(0, 4);
   const method =
-    report.filter === 'all' ? '' : report.filter === 'gcash' ? '_GCash' : '_Bank_Transfer';
+    report.filter === 'all' ? '' : report.filter === 'gcash' ? '_GCash_QR_Ph' : '_Bank_Transfer';
   return `IOTEL_${PERIOD_TITLE[period]}_Sales_Report${method}_${when}.${extension}`;
 }
 
