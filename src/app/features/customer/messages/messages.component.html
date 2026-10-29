@@ -58,7 +58,7 @@
 </div>
 
 <!-- New Conversation Modal -->
-<nz-modal [(nzVisible)]="newConvVisible" nzTitle="New Conversation" [nzFooter]="null">
+<nz-modal [nzClosable]="false" [(nzVisible)]="newConvVisible" nzTitle="New Conversation" [nzFooter]="null">
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="newConvForm" nzLayout="vertical" (ngSubmit)="createConversation()">
       <nz-form-item>

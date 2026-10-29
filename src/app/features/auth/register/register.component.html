@@ -92,25 +92,33 @@
           <nz-form-control
             nzErrorTip="Please accept the Terms of Service and Privacy Policy to continue"
           >
-            <label nz-checkbox formControlName="acceptLegal">
-              I have read and agree to the
-              <button type="button" class="legal-link" (click)="showDoc('terms', $event)">
-                Terms of Service
-              </button>
-              and acknowledge the
-              <button type="button" class="legal-link" (click)="showDoc('privacy', $event)">
-                Privacy Policy</button
-              >.
-            </label>
+            <div [class.legal-locked]="!bothAgreed()" (click)="onConsentClick()">
+              <label nz-checkbox formControlName="acceptLegal">
+                I have read and agree to the
+                <button type="button" class="legal-link" (click)="showDoc('terms', $event)">
+                  Terms of Service
+                </button>
+                and acknowledge the
+                <button type="button" class="legal-link" (click)="showDoc('privacy', $event)">
+                  Privacy Policy</button
+                >.
+              </label>
+            </div>
             @if (!bothAgreed()) {
               <p class="legal-progress">
                 Open and read both documents to continue:
                 <span [class.done]="agreedDocs().has('terms')">
-                  <span nz-icon [nzType]="agreedDocs().has('terms') ? 'check-circle' : 'clock-circle'"></span>
+                  <span
+                    nz-icon
+                    [nzType]="agreedDocs().has('terms') ? 'check-circle' : 'clock-circle'"
+                  ></span>
                   Terms of Service
                 </span>
                 <span [class.done]="agreedDocs().has('privacy')">
-                  <span nz-icon [nzType]="agreedDocs().has('privacy') ? 'check-circle' : 'clock-circle'"></span>
+                  <span
+                    nz-icon
+                    [nzType]="agreedDocs().has('privacy') ? 'check-circle' : 'clock-circle'"
+                  ></span>
                   Privacy Policy
                 </span>
               </p>
@@ -179,6 +187,7 @@
 </div>
 
 <nz-modal
+  [nzClosable]="false"
   [nzVisible]="openDoc() !== null"
   [nzTitle]="modalTitle"
   [nzFooter]="modalFooter"
@@ -206,7 +215,8 @@
   <button nz-button class="legal-close-btn-plain" (click)="closeDoc()">Close</button>
   @if (openDocAgreed()) {
     <button nz-button nzType="primary" class="legal-close-btn" disabled>
-      <span nz-icon nzType="check-circle"></span> {{ openDocId() === 'privacy' ? 'Acknowledged' : 'Agreed' }}
+      <span nz-icon nzType="check-circle"></span>
+      {{ openDocId() === 'privacy' ? 'Acknowledged' : 'Agreed' }}
     </button>
   } @else {
     <button
@@ -216,7 +226,8 @@
       [disabled]="secondsLeft() > 0"
       (click)="agree()"
     >
-      {{ openDocId() === 'privacy' ? 'I acknowledge' : 'I agree' }}{{ secondsLeft() > 0 ? ' (' + secondsLeft() + 's)' : '' }}
+      {{ openDocId() === 'privacy' ? 'I acknowledge' : 'I agree'
+      }}{{ secondsLeft() > 0 ? ' (' + secondsLeft() + 's)' : '' }}
     </button>
   }
 </ng-template>

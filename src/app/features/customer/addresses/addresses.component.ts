@@ -1,13 +1,21 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { Location } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
@@ -19,11 +27,15 @@ import { AddressService } from '../../../core/services/address.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { MobileInputDirective } from '../../../shared/directives/mobile-input.directive';
 import {
+  PhAddressFieldsComponent,
+  phAddressGroup,
+  phAddressValue,
+} from '../../../shared/components/ph-address-fields/ph-address-fields.component';
+import {
   normalizeMobile,
   personName,
   phMobile,
   requiredTrimmed,
-  zipCode,
 } from '../../../shared/utils/validators';
 
 @Component({
@@ -32,6 +44,8 @@ import {
   imports: [
     ReactiveFormsModule,
     MobileInputDirective,
+    PhAddressFieldsComponent,
+    NzAlertModule,
     NzCardModule,
     NzButtonModule,
     NzModalModule,
@@ -55,6 +69,7 @@ export class AddressesComponent {
   private readonly auth = inject(AuthService);
   private readonly location = inject(Location);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly addresses = this.addressService.addresses;
   readonly loading = this.addressService.loading;
@@ -67,29 +82,50 @@ export class AddressesComponent {
   readonly editingId = signal<string | null>(null);
   /** The address being edited is already the default, so the default checkbox is locked on. */
   readonly editingDefault = computed(
-    () => this.addresses().find(a => a.id === this.editingId())?.isDefault ?? false,
+    () => this.addresses().find((a) => a.id === this.editingId())?.isDefault ?? false,
   );
+  /** The free-text address of one saved before the structured form, shown while it is re-entered. */
+  readonly legacyAddress = signal<string | null>(null);
+
+  private readonly addressFields = viewChild(PhAddressFieldsComponent);
 
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [requiredTrimmed, personName]],
     mobile: ['', [requiredTrimmed, phMobile]],
-    addressLine: ['', [requiredTrimmed, Validators.maxLength(200)]],
-    city: ['', [requiredTrimmed, Validators.maxLength(80)]],
-    province: ['', [requiredTrimmed, Validators.maxLength(80)]],
-    zip: ['', [requiredTrimmed, zipCode]],
+    address: phAddressGroup(this.fb.nonNullable),
     makeDefault: false,
   });
 
+  /** Sent here from checkout (`?add=1&from=checkout`): open the form at once and go back to checkout after saving. */
+  private readonly fromCheckout = this.route.snapshot.queryParamMap.get('from') === 'checkout';
+
+  constructor() {
+    if (this.route.snapshot.queryParamMap.get('add') === '1') this.openAdd();
+  }
+
   openAdd(): void {
     this.editingId.set(null);
-    this.form.reset({ fullName: this.auth.currentUser()?.name ?? '', makeDefault: false });
+    this.legacyAddress.set(null);
+    this.form.reset({
+      fullName: this.auth.currentUser()?.name ?? '',
+      address: phAddressValue(undefined, ''),
+      makeDefault: false,
+    });
     this.modalVisible.set(true);
   }
 
   openEdit(addr: Address): void {
     this.editingId.set(addr.id);
+    this.legacyAddress.set(
+      addr.details ? null : `${addr.addressLine}, ${addr.city}, ${addr.province} ${addr.zip}`,
+    );
     // An address saved before the 11-digit rule (`+639…`, spaces) opens already converted, so it can be saved as is.
-    this.form.reset({ ...addr, mobile: normalizeMobile(addr.mobile), makeDefault: addr.isDefault });
+    this.form.reset({
+      fullName: addr.fullName,
+      mobile: normalizeMobile(addr.mobile),
+      address: phAddressValue(addr.details, addr.zip),
+      makeDefault: addr.isDefault,
+    });
     this.modalVisible.set(true);
   }
 
@@ -99,20 +135,27 @@ export class AddressesComponent {
       this.form.markAllAsTouched();
       return;
     }
-    const { makeDefault, ...details } = this.form.getRawValue();
+    const parts = this.addressFields()?.toShippingParts();
+    if (!parts) {
+      this.message.error('Please wait for the address lists to load, then try again.');
+      return;
+    }
+    const { fullName, mobile, makeDefault } = this.form.getRawValue();
+    const input = { fullName, mobile, ...parts };
     const id = this.editingId();
 
     this.saving.set(true);
     const write = id
-      ? this.addressService.update(id, details, makeDefault)
-      : this.addressService.add(details, makeDefault);
+      ? this.addressService.update(id, input, makeDefault)
+      : this.addressService.add(input, makeDefault);
     write.subscribe({
       next: () => {
         this.saving.set(false);
         this.modalVisible.set(false);
         this.message.success(id ? 'Address updated' : 'Address added');
+        if (this.fromCheckout) void this.router.navigateByUrl('/customer/checkout');
       },
-      error: err => {
+      error: (err) => {
         this.saving.set(false);
         this.message.error(authErrorMessage(err));
       },
@@ -130,13 +173,13 @@ export class AddressesComponent {
       nzCancelText: 'Cancel',
       // Returning the promise keeps the dialog open with a spinner on the OK button until the delete finishes.
       nzOnOk: () =>
-        new Promise<void>(resolve => {
+        new Promise<void>((resolve) => {
           this.addressService.remove(addr.id).subscribe({
             next: () => {
               this.message.success('Address removed');
               resolve();
             },
-            error: err => {
+            error: (err) => {
               this.message.error(authErrorMessage(err));
               resolve();
             },
@@ -148,17 +191,16 @@ export class AddressesComponent {
   setDefault(addr: Address): void {
     this.addressService.setDefault(addr.id).subscribe({
       next: () => this.message.success('Default address updated'),
-      error: err => this.message.error(authErrorMessage(err)),
+      error: (err) => this.message.error(authErrorMessage(err)),
     });
   }
 
   /** Shows the validation message for a control once it has been touched. */
-  errorTip(name: 'fullName' | 'mobile' | 'addressLine' | 'city' | 'province' | 'zip'): string {
+  errorTip(name: 'fullName' | 'mobile'): string {
     const errors = this.form.controls[name].errors;
     if (!errors) return '';
     if (errors['required']) return 'This field is required.';
     if (errors['mobile']) return errors['mobile'];
-    if (errors['zip']) return 'ZIP code must be 4 digits.';
     if (errors['name']) return 'Use letters, spaces, dots, apostrophes and hyphens only.';
     if (errors['minlength']) return 'Too short.';
     if (errors['maxlength']) return 'Too long.';

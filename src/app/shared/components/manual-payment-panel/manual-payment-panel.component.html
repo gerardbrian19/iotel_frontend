@@ -127,26 +127,46 @@
             </nz-form-control>
           </nz-form-item>
           <nz-form-item>
-            <nz-form-label nzRequired>Amount sent (₱)</nz-form-label>
-            <nz-form-control nzErrorTip="Enter the amount you sent.">
-              <nz-input-number
-                formControlName="amountSent"
-                [nzMin]="1"
-                [nzPrecision]="2"
-                class="w-full"
+            <nz-form-label>Amount to send</nz-form-label>
+            <nz-form-control>
+              <input
+                nz-input
+                class="mp-amount"
+                [value]="amount() | currency: 'PHP' : 'symbol-narrow' : '1.2-2'"
+                readonly
+                aria-readonly="true"
               />
             </nz-form-control>
           </nz-form-item>
           <nz-form-item>
             <nz-form-label nzRequired>Date and time sent</nz-form-label>
-            <nz-form-control nzErrorTip="Enter when you sent it.">
-              <input nz-input type="datetime-local" formControlName="sentAt" [max]="maxSentAt" />
+            <nz-form-control [nzErrorTip]="sentAtError">
+              <input
+                nz-input
+                type="datetime-local"
+                formControlName="sentAt"
+                [min]="minSentAt()"
+                [max]="maxSentAt()"
+              />
             </nz-form-control>
+            <ng-template #sentAtError let-control>
+              @if (control.hasError('window')) {
+                Pick a time between {{ window().from | date: 'MMM d, h:mm a' }} and
+                {{ window().to | date: 'MMM d, h:mm a' }}.
+              } @else {
+                Enter when you sent it.
+              }
+            </ng-template>
           </nz-form-item>
         </div>
-        @if (amountDiffers()) {
+        <p class="mp-hint mp-window">
+          Send exactly the amount due. Transfers sent
+          {{ window().from | date: 'MMM d, h:mm a' }} to {{ window().to | date: 'MMM d, h:mm a' }} are accepted.
+        </p>
+        @if (windowEnded()) {
           <p class="mp-warn">
-            This is different from the amount due. Our team may ask you to send the difference.
+            The {{ windowDays }}-day payment window has ended. If you sent the money in time, enter
+            when you sent it; otherwise please message us.
           </p>
         }
 

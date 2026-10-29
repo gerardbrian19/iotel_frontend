@@ -32,6 +32,9 @@ export interface OrderItem {
   imageUrl: string;
 }
 
+/** Where an order is delivered, for its delivery estimate (`core/orders/delivery-estimate.ts`). */
+export type DeliveryZone = 'metro-manila' | 'luzon' | 'visayas' | 'mindanao';
+
 export interface ShippingAddress {
   fullName: string;
   addressLine: string;
@@ -99,8 +102,11 @@ export interface Order {
   invoice?: InvoiceInfo;
   address: ShippingAddress;
   shipment?: OrderShipment;
-  /** Local calendar date, `YYYY-MM-DD`. */
+  /** Latest expected delivery, Manila calendar date `YYYY-MM-DD`. */
   estimatedDelivery?: string;
+  /** Earliest expected delivery (`YYYY-MM-DD`); missing on orders placed before delivery zones. */
+  estimatedDeliveryFrom?: string;
+  deliveryZone?: DeliveryZone;
   /** `system`: cancelled automatically because it wasn't paid in time. */
   cancelledBy?: 'customer' | 'staff' | 'system';
   cancelReason?: string;

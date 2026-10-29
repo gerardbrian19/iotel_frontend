@@ -8,6 +8,20 @@
   }
 }
 
+// Browsers don't fire clicks on a disabled input, so let them reach the wrapper (`onConsentClick`).
+.legal-locked {
+  cursor: pointer;
+
+  ::ng-deep .ant-checkbox-wrapper-disabled,
+  ::ng-deep .ant-checkbox-disabled .ant-checkbox-inner {
+    cursor: pointer;
+  }
+
+  ::ng-deep .ant-checkbox-input {
+    pointer-events: none;
+  }
+}
+
 .legal-link {
   padding: 0;
   border: 0;

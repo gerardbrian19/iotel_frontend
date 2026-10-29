@@ -6,7 +6,13 @@
     <div class="page-header">
       <h1 class="page-title">My Addresses</h1>
       @if (isCustomer()) {
-        <button nz-button nzType="primary" class="add-btn" [disabled]="loading() || loadFailed()" (click)="openAdd()">
+        <button
+          nz-button
+          nzType="primary"
+          class="add-btn"
+          [disabled]="loading() || loadFailed()"
+          (click)="openAdd()"
+        >
           <span nz-icon nzType="plus"></span> Add Address
         </button>
       }
@@ -17,7 +23,9 @@
     } @else if (loading()) {
       <div class="state-box"><nz-spin nzSimple nzSize="large" /></div>
     } @else if (loadFailed()) {
-      <nz-empty nzNotFoundContent="We couldn't load your addresses. Check your connection and reload the page." />
+      <nz-empty
+        nzNotFoundContent="We couldn't load your addresses. Check your connection and reload the page."
+      />
     } @else {
       <div class="addr-grid">
         @for (addr of addresses(); track addr.id) {
@@ -34,9 +42,18 @@
                 <span nz-icon nzType="edit"></span> Edit
               </button>
               @if (!addr.isDefault) {
-                <button nz-button nzSize="small" nzType="link" (click)="setDefault(addr)">Set as Default</button>
+                <button nz-button nzSize="small" nzType="link" (click)="setDefault(addr)">
+                  Set as Default
+                </button>
               }
-              <button nz-button nzSize="small" nzDanger class="delete-btn" aria-label="Delete address" (click)="confirmDelete(addr)">
+              <button
+                nz-button
+                nzSize="small"
+                nzDanger
+                class="delete-btn"
+                aria-label="Delete address"
+                (click)="confirmDelete(addr)"
+              >
                 <span nz-icon nzType="delete"></span>
               </button>
             </div>
@@ -61,9 +78,9 @@
   [(nzVisible)]="modalVisible"
   [nzTitle]="editingId() ? 'Edit Address' : 'Add New Address'"
   [nzFooter]="null"
-  [nzClosable]="!saving()"
+  [nzClosable]="false"
   [nzMaskClosable]="!saving()"
-  nzWidth="560px"
+  nzWidth="720px"
 >
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="saveAddress()">
@@ -77,42 +94,37 @@
         <nz-form-item class="flex-1">
           <nz-form-label nzRequired>Mobile</nz-form-label>
           <nz-form-control [nzErrorTip]="errorTip('mobile')">
-            <input nz-input appMobileInput formControlName="mobile" placeholder="09171234567" autocomplete="tel" />
+            <input
+              nz-input
+              appMobileInput
+              formControlName="mobile"
+              placeholder="09171234567"
+              autocomplete="tel"
+            />
           </nz-form-control>
         </nz-form-item>
       </div>
-      <nz-form-item>
-        <nz-form-label nzRequired>Address Line</nz-form-label>
-        <nz-form-control [nzErrorTip]="errorTip('addressLine')">
-          <input nz-input formControlName="addressLine" placeholder="House/unit no., street, barangay" autocomplete="street-address" />
-        </nz-form-control>
-      </nz-form-item>
-      <div class="form-row">
-        <nz-form-item class="flex-1">
-          <nz-form-label nzRequired>City</nz-form-label>
-          <nz-form-control [nzErrorTip]="errorTip('city')">
-            <input nz-input formControlName="city" autocomplete="address-level2" />
-          </nz-form-control>
-        </nz-form-item>
-        <nz-form-item class="flex-1">
-          <nz-form-label nzRequired>Province</nz-form-label>
-          <nz-form-control [nzErrorTip]="errorTip('province')">
-            <input nz-input formControlName="province" autocomplete="address-level1" />
-          </nz-form-control>
-        </nz-form-item>
-        <nz-form-item class="zip-field">
-          <nz-form-label nzRequired>ZIP</nz-form-label>
-          <nz-form-control [nzErrorTip]="errorTip('zip')">
-            <input nz-input formControlName="zip" inputmode="numeric" maxlength="4" autocomplete="postal-code" />
-          </nz-form-control>
-        </nz-form-item>
-      </div>
+      <p class="address-heading"><span class="required-mark">*</span> Address</p>
+      @if (legacyAddress(); as legacy) {
+        <nz-alert
+          class="legacy-alert"
+          nzType="info"
+          nzShowIcon
+          nzMessage="Please re-enter this address using the fields below."
+          [nzDescription]="'Saved as: ' + legacy"
+        />
+      }
+      <app-ph-address-fields [group]="form.controls.address" />
       <label nz-checkbox formControlName="makeDefault" [nzDisabled]="editingDefault()">
         Set as my default address
       </label>
       <div class="modal-footer">
-        <button nz-button type="button" [disabled]="saving()" (click)="modalVisible.set(false)">Cancel</button>
-        <button nz-button nzType="primary" type="submit" class="save-btn" [nzLoading]="saving()">Save Address</button>
+        <button nz-button type="button" [disabled]="saving()" (click)="modalVisible.set(false)">
+          Cancel
+        </button>
+        <button nz-button nzType="primary" type="submit" class="save-btn" [nzLoading]="saving()">
+          Save Address
+        </button>
       </div>
     </form>
   </ng-container>

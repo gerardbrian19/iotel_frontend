@@ -6,6 +6,7 @@ import {
   answer,
   welcomeReply,
 } from '../assistant/assistant-engine';
+import { AddressService } from './address.service';
 import { AuthService } from './auth.service';
 import { BookingService } from './booking.service';
 import { CartService, SHIPPING_FEE } from './cart.service';
@@ -26,6 +27,7 @@ export class AssistantService {
   private readonly orders = inject(OrderService);
   private readonly cart = inject(CartService);
   private readonly favorites = inject(FavoritesService);
+  private readonly addresses = inject(AddressService);
 
   /** What the welcome screen offers: topics with the questions the assistant answers well. */
   readonly topics: readonly AssistantTopic[] = ASSISTANT_TOPICS;
@@ -55,6 +57,7 @@ export class AssistantService {
         total: this.cart.total,
       },
       flatShippingFee: SHIPPING_FEE,
+      deliveryAddress: this.addresses.defaultAddress(),
       favoritesCount: this.favorites.count(),
       now: new Date(),
     });

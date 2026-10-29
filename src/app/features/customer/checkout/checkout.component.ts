@@ -8,6 +8,7 @@ import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import {
   ACCEPTED_PAYMENT_METHODS,
   UNPAID_ORDER_MINUTES,
@@ -31,6 +32,7 @@ import { PLACEHOLDER_IMAGE, onImageError } from '../../../shared/utils/product-i
     NzDividerModule,
     NzEmptyModule,
     NzIconModule,
+    NzModalModule,
   ],
   templateUrl: './checkout.component.html',
   styleUrl: './checkout.component.scss',
@@ -41,6 +43,7 @@ export class CheckoutComponent {
   private readonly orders = inject(OrderService);
   private readonly addresses = inject(AddressService);
   private readonly msg = inject(NzMessageService);
+  private readonly modal = inject(NzModalService);
   private readonly router = inject(Router);
   private readonly receivers = inject(PaymentReceiverService);
 
@@ -72,17 +75,32 @@ export class CheckoutComponent {
   readonly address = this.addresses.defaultAddress;
   readonly addressLoading = this.addresses.loading;
 
-  readonly canPlace = computed(
+  /** Everything but the address is ready. The Pay button stays clickable then, to explain the missing address. */
+  readonly readyButAddress = computed(
     () =>
       !this.placing() &&
       this.items().length > 0 &&
       this.problems().length === 0 &&
-      !!this.address() &&
       (this.provider() === 'paymongo' || this.transferReceivers().length > 0),
   );
+  readonly canPlace = computed(() => this.readyButAddress() && !!this.address());
 
   readonly placeholder = PLACEHOLDER_IMAGE;
   readonly onImageError = onImageError;
+
+  private askForAddress(): void {
+    this.modal.confirm({
+      nzTitle: 'Please add your shipping address',
+      nzContent:
+        'We need to know where to deliver your order before you can pay. Add an address, then come back to checkout.',
+      nzOkText: 'Add address',
+      nzCancelText: 'Not now',
+      nzOnOk: () =>
+        void this.router.navigate(['/customer/addresses'], {
+          queryParams: { add: 1, from: 'checkout' },
+        }),
+    });
+  }
 
   fixCart(): void {
     this.cart.fitToStock();
@@ -94,6 +112,10 @@ export class CheckoutComponent {
    */
   placeOrder(): void {
     const saved = this.address();
+    if (!saved && !this.addressLoading()) {
+      this.askForAddress();
+      return;
+    }
     if (!this.canPlace() || !saved) return;
     this.placing.set(true);
     // The order keeps a snapshot of the shipping details only, so later edits to the saved address don't alter it.

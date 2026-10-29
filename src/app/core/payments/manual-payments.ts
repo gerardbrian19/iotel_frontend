@@ -9,6 +9,31 @@ export const MAX_QR_BYTES = 2 * 1024 * 1024;
 export const PROOF_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 /** How a reference number must look (functions/src/manual-payments.ts). */
 export const REFERENCE_PATTERN = /^[A-Za-z0-9-]{4,40}$/;
+/**
+ * A transfer can be dated from the start (midnight, Philippine time) of the day `TRANSFER_DAYS_BEFORE` days before
+ * the order was placed (or the booking quoted), up to `TRANSFER_WINDOW_DAYS` days after it, and never in the future.
+ * Mirrored in functions/src/manual-payments.ts.
+ */
+export const TRANSFER_WINDOW_DAYS = 3;
+export const TRANSFER_DAYS_BEFORE = 2;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Philippine time is UTC+8 all year (no daylight saving). */
+const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+/** The earliest and latest "date and time sent" accepted for a transfer, from when the payment became due. */
+export function transferWindow(
+  dueSince: string | undefined,
+  now = new Date(),
+): { from: Date; to: Date } {
+  const start = dueSince ? new Date(dueSince).getTime() : now.getTime();
+  const startOfDay = Math.floor((start + MANILA_OFFSET_MS) / DAY_MS) * DAY_MS - MANILA_OFFSET_MS;
+  const end = start + TRANSFER_WINDOW_DAYS * DAY_MS;
+  return {
+    from: new Date(startOfDay - TRANSFER_DAYS_BEFORE * DAY_MS),
+    to: new Date(Math.min(end, now.getTime())),
+  };
+}
+
 /** Account / mobile numbers of a receiver (`validReceiver` in firestore.rules). */
 export const ACCOUNT_NUMBER_PATTERN = /^[0-9][0-9 -]{3,39}$/;
 

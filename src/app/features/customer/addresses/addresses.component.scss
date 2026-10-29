@@ -1,21 +1,111 @@
-.addr-page { padding: 32px 24px; }
-.addr-container { max-width: 900px; margin: 0 auto; }
-.back-btn { padding: 4px 0; margin-bottom: 8px; color: #555; &:hover { color: #CC2020; background: transparent; } }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.page-title { font-size: 28px; font-weight: 800; color: #1A1A1A; margin: 0; }
-.add-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
-.addr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-.addr-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); position: relative; }
-.default-card { border: 2px solid #C9A84C !important; }
-.default-tag { position: absolute; top: 12px; right: 12px; }
-.addr-name { font-size: 15px; font-weight: 700; color: #1A1A1A; margin-bottom: 4px; }
-.addr-line { font-size: 13px; color: #555; margin-bottom: 2px; }
-.addr-actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
-.delete-btn { margin-left: auto; }
-.state-box { display: flex; justify-content: center; padding: 64px 0; }
-.empty-box { grid-column: 1 / -1; padding: 48px 0; background: #FFFFFF; border-radius: 10px; }
-.form-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.flex-1 { flex: 1 1 160px; }
-.zip-field { flex: 0 0 100px; }
-.modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.save-btn { background: #CC2020 !important; border-color: #CC2020 !important; }
+.addr-page {
+  padding: 32px 24px;
+}
+.addr-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.back-btn {
+  padding: 4px 0;
+  margin-bottom: 8px;
+  color: #555;
+  &:hover {
+    color: #cc2020;
+    background: transparent;
+  }
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.page-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0;
+}
+.add-btn {
+  background: #cc2020 !important;
+  border-color: #cc2020 !important;
+}
+.addr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.addr-card {
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: relative;
+}
+.default-card {
+  border: 2px solid #c9a84c !important;
+}
+.default-tag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.addr-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+.addr-line {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 2px;
+}
+.addr-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+}
+.delete-btn {
+  margin-left: auto;
+}
+.state-box {
+  display: flex;
+  justify-content: center;
+  padding: 64px 0;
+}
+.empty-box {
+  grid-column: 1 / -1;
+  padding: 48px 0;
+  background: #ffffff;
+  border-radius: 10px;
+}
+.form-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.flex-1 {
+  flex: 1 1 160px;
+}
+.address-heading {
+  margin: 4px 0 8px;
+  font-size: 14px;
+  color: #1a1a1a;
+}
+.required-mark {
+  color: #ff4d4f;
+  font-family: SimSun, sans-serif;
+}
+.legacy-alert {
+  margin-bottom: 12px;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.save-btn {
+  background: #cc2020 !important;
+  border-color: #cc2020 !important;
+}

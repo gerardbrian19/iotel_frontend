@@ -11,23 +11,30 @@ import {
   untracked,
 } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { finalize } from 'rxjs';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { Payment, PaymentReceiver } from '../../../core/models';
 import {
   REFERENCE_PATTERN,
+  TRANSFER_WINDOW_DAYS,
   canSendProof,
   proofUnderReview,
   receiverLabel,
   receiverTitle,
+  transferWindow,
 } from '../../../core/payments/manual-payments';
 import { ManualPaymentService, PaymentKind } from '../../../core/services/manual-payment.service';
 import { orderErrorMessage } from '../../../core/services/order.service';
@@ -59,7 +66,6 @@ function localInputValue(date: Date): string {
     NzFormModule,
     NzIconModule,
     NzInputModule,
-    NzInputNumberModule,
     NzSpinModule,
     StorageImageComponent,
   ],
@@ -78,6 +84,8 @@ export class ManualPaymentPanelComponent {
   readonly targetId = input.required<string>();
   /** Amount due in PHP. */
   readonly amount = input.required<number>();
+  /** When the payment became due (order placed, booking quoted): the transfer window starts here. */
+  readonly dueSince = input<string>();
   /** What to write in the transfer's notes, e.g. the order number. */
   readonly reference = input('');
   /** The current payment; missing for a booking that hasn't chosen how to pay yet. */
@@ -112,35 +120,33 @@ export class ManualPaymentPanelComponent {
   readonly file = signal<File | null>(null);
   readonly preview = signal<string | null>(null);
   readonly fileError = signal<string | null>(null);
-  readonly maxSentAt = localInputValue(new Date());
+  readonly windowDays = TRANSFER_WINDOW_DAYS;
+  /** Re-read on submit, so a page left open doesn't keep an old "latest" time. */
+  private readonly now = signal(new Date());
+  readonly window = computed(() => transferWindow(this.dueSince(), this.now()));
+  readonly minSentAt = computed(() => localInputValue(this.window().from));
+  readonly maxSentAt = computed(() => localInputValue(this.window().to));
+  /** The window ended before the customer came back to fill this in. */
+  readonly windowEnded = computed(() => this.window().to < this.now());
 
   readonly form = this.fb.nonNullable.group({
     referenceNumber: ['', [Validators.required, Validators.pattern(REFERENCE_PATTERN)]],
-    amountSent: [0, [Validators.required, Validators.min(1)]],
-    sentAt: [localInputValue(new Date()), Validators.required],
-  });
-  private readonly amountSent = signal(0);
-  readonly amountDiffers = computed(() => {
-    const sent = this.amountSent();
-    return sent > 0 && Math.abs(sent - this.amount()) > 0.009;
+    sentAt: ['', [Validators.required, (c: AbstractControl) => this.sentAtInWindow(c)]],
   });
 
   readonly receiverLabel = receiverLabel;
   readonly receiverTitle = receiverTitle;
 
   constructor() {
-    // Prefill the amount due until the customer types their own.
+    // Start at the latest allowed time (now, or the end of the window) and re-check when the window moves.
     effect(() => {
-      const due = this.amount();
+      const latest = this.maxSentAt();
       untracked(() => {
-        const control = this.form.controls.amountSent;
-        if (!control.dirty) control.setValue(due);
+        const control = this.form.controls.sentAt;
+        if (!control.dirty) control.setValue(latest);
+        else control.updateValueAndValidity();
       });
     });
-    this.form.controls.amountSent.valueChanges.subscribe((v) =>
-      this.amountSent.set(Number(v) || 0),
-    );
-    this.amountSent.set(this.form.controls.amountSent.value);
     inject(DestroyRef).onDestroy(() => this.revokePreview());
   }
 
@@ -170,6 +176,7 @@ export class ManualPaymentPanelComponent {
   }
 
   submit(): void {
+    this.now.set(new Date());
     const receiver = this.selected();
     const file = this.file();
     if (this.form.invalid || !receiver || !file) {
@@ -179,7 +186,7 @@ export class ManualPaymentPanelComponent {
       if (!file) this.fileError.set('Attach a screenshot of the transfer.');
       return;
     }
-    const { referenceNumber, amountSent, sentAt } = this.form.getRawValue();
+    const { referenceNumber, sentAt } = this.form.getRawValue();
     this.busy.set(true);
     this.manual
       .submit({
@@ -187,7 +194,8 @@ export class ManualPaymentPanelComponent {
         id: this.targetId(),
         receiverId: receiver.id,
         referenceNumber,
-        amountSent,
+        // Always the amount due: customers can't change it.
+        amountSent: this.amount(),
         sentAt: new Date(sentAt).toISOString(),
         screenshot: file,
       })
@@ -196,14 +204,17 @@ export class ManualPaymentPanelComponent {
         next: () => {
           this.msg.success('Thank you! We will check your payment shortly.');
           this.clearFile();
-          this.form.reset({
-            referenceNumber: '',
-            amountSent: this.amount(),
-            sentAt: localInputValue(new Date()),
-          });
+          this.form.reset({ referenceNumber: '', sentAt: this.maxSentAt() });
         },
         error: (err) => this.msg.error(orderErrorMessage(err)),
       });
+  }
+
+  /** `datetime-local` values compare correctly as strings (same fixed format). */
+  private sentAtInWindow(c: AbstractControl): ValidationErrors | null {
+    const value = String(c.value ?? '');
+    if (!value) return null;
+    return value < this.minSentAt() || value > this.maxSentAt() ? { window: true } : null;
   }
 
   private revokePreview(): void {

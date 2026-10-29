@@ -16,6 +16,7 @@
     [targetId]="order().id"
     [amount]="order().payment.amount || order().total"
     [reference]="order().code"
+    [dueSince]="order().createdAt"
     [payment]="order().payment"
   />
 }
@@ -165,7 +166,7 @@
 </div>
 
 <!-- Staff: ship -->
-<nz-modal [(nzVisible)]="shipVisible" nzTitle="Mark as shipped" [nzFooter]="null" nzWidth="440px">
+<nz-modal [nzClosable]="false" [(nzVisible)]="shipVisible" nzTitle="Mark as shipped" [nzFooter]="null" nzWidth="440px">
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="shipForm" nzLayout="vertical" (ngSubmit)="ship()">
       <p class="modal-copy">
@@ -201,7 +202,7 @@
 </nz-modal>
 
 <!-- Cancel (customer and staff) -->
-<nz-modal
+<nz-modal [nzClosable]="false"
   [(nzVisible)]="cancelVisible"
   nzTitle="Cancel this order?"
   [nzFooter]="null"
@@ -243,7 +244,7 @@
 </nz-modal>
 
 <!-- Customer: ask to cancel a paid order -->
-<nz-modal
+<nz-modal [nzClosable]="false"
   [(nzVisible)]="requestVisible"
   nzTitle="Request to cancel this order"
   [nzFooter]="null"
@@ -346,7 +347,7 @@
 </nz-modal>
 
 <!-- Staff: reject a cancellation request -->
-<nz-modal
+<nz-modal [nzClosable]="false"
   [(nzVisible)]="rejectVisible"
   nzTitle="Reject the cancellation request?"
   [nzFooter]="null"
@@ -382,7 +383,7 @@
 </nz-modal>
 
 <!-- Staff: refund (and cancel) -->
-<nz-modal
+<nz-modal [nzClosable]="false"
   [(nzVisible)]="refundVisible"
   [nzTitle]="refundCancels() ? 'Cancel and refund this order?' : 'Refund this payment?'"
   [nzFooter]="null"

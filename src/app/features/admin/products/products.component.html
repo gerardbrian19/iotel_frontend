@@ -103,7 +103,7 @@
   </nz-table>
 </div>
 
-<nz-modal
+<nz-modal [nzClosable]="false"
   [(nzVisible)]="modalVisible"
   [nzTitle]="editingId() ? 'Edit Product' : 'Add Product'"
   [nzFooter]="null"

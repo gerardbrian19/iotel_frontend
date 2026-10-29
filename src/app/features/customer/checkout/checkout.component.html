@@ -166,7 +166,9 @@
               nzType="primary"
               nzBlock
               class="confirm-btn"
-              [disabled]="!canPlace()"
+              [class.needs-address]="!address()"
+              [attr.aria-disabled]="!address() || null"
+              [disabled]="!readyButAddress() || addressLoading()"
               [nzLoading]="placing()"
               (click)="placeOrder()"
             >
@@ -183,6 +185,9 @@
               <p class="confirm-hint">
                 @if (!address()) {
                   Add a shipping address to continue.
+                  <a routerLink="/customer/addresses" [queryParams]="{ add: 1, from: 'checkout' }"
+                    >Add one now</a
+                  >
                 } @else if (problems().length) {
                   Update your cart to continue.
                 }

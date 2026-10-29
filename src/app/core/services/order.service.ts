@@ -18,6 +18,7 @@ import { Observable, defer } from 'rxjs';
 import { FIREBASE_STORAGE, FIRESTORE, FUNCTIONS } from '../firebase/firebase';
 import { functionErrorMessage } from '../firebase/auth-errors';
 import { dataOf, isoOf } from '../firebase/timestamps';
+import { DELIVERY_ZONES } from '../orders/delivery-estimate';
 import { customerCanCancel, hasOpenCancelRequest, isPaymentSettled } from '../orders/order-view';
 import { toInvoice, toPayment, toRefundAccount } from '../payments/payment-methods';
 import { uploadRefundProof } from '../payments/refund-proof';
@@ -122,6 +123,10 @@ function toOrder(snap: QueryDocumentSnapshot<DocumentData>): Order {
         }
       : undefined,
     estimatedDelivery: data['estimatedDelivery'] ? String(data['estimatedDelivery']) : undefined,
+    estimatedDeliveryFrom: data['estimatedDeliveryFrom']
+      ? String(data['estimatedDeliveryFrom'])
+      : undefined,
+    deliveryZone: data['deliveryZone'] in DELIVERY_ZONES ? data['deliveryZone'] : undefined,
     cancelledBy: ['customer', 'staff', 'system'].includes(data['cancelledBy'])
       ? data['cancelledBy']
       : undefined,

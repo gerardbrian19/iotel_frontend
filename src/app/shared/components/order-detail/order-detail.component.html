@@ -59,13 +59,13 @@
           </li>
         }
       </ol>
-      @if (
-        order().estimatedDelivery &&
-        order().status !== 'Delivered' &&
-        order().status !== 'Cancelled'
-      ) {
+      @if (order().status !== 'Delivered' && order().status !== 'Cancelled') {
+        @let eta = delivery();
         <p class="od-note">
-          Estimated delivery: {{ order().estimatedDelivery | date: 'mediumDate' }}
+          Estimated delivery: {{ eta.fromDate | date: 'MMM d' }} –
+          {{ eta.toDate | date: 'mediumDate' }}
+          <br />
+          {{ eta.area }} · usually {{ eta.days }} from the order date
         </p>
       }
     </section>

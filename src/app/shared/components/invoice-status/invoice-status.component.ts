@@ -4,7 +4,7 @@ import { finalize } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { InvoiceInfo, Payment } from '../../../core/models';
 import { AuthService } from '../../../core/services/auth.service';
 import { ManualPaymentService, PaymentKind } from '../../../core/services/manual-payment.service';
@@ -18,7 +18,7 @@ import { orderErrorMessage } from '../../../core/services/order.service';
 @Component({
   selector: 'app-invoice-status',
   standalone: true,
-  imports: [DatePipe, NzButtonModule, NzIconModule],
+  imports: [DatePipe, NzButtonModule, NzIconModule, NzModalModule],
   templateUrl: './invoice-status.component.html',
   styleUrl: './invoice-status.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

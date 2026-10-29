@@ -103,6 +103,7 @@
       [targetId]="booking().id"
       [amount]="booking().quote?.amount ?? 0"
       [reference]="booking().serviceName"
+      [dueSince]="booking().quote?.quotedAt"
       [payment]="booking().payment"
     />
   }
@@ -156,7 +157,7 @@
 </section>
 
 <!-- Staff: quotation -->
-<nz-modal [(nzVisible)]="quoteVisible" nzTitle="Send quotation" [nzFooter]="null" nzWidth="440px">
+<nz-modal [nzClosable]="false" [(nzVisible)]="quoteVisible" nzTitle="Send quotation" [nzFooter]="null" nzWidth="440px">
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="quoteForm" nzLayout="vertical" (ngSubmit)="saveQuote()">
       <p class="modal-copy">
@@ -187,7 +188,7 @@
 </nz-modal>
 
 <!-- Staff: reschedule -->
-<nz-modal [(nzVisible)]="rescheduleVisible" nzTitle="Reschedule appointment" [nzFooter]="null" nzWidth="520px">
+<nz-modal [nzClosable]="false" [(nzVisible)]="rescheduleVisible" nzTitle="Reschedule appointment" [nzFooter]="null" nzWidth="520px">
   <ng-container *nzModalContent>
     <p class="modal-copy">Currently {{ when() }}. The customer is told about the change in chat.</p>
     <app-slot-picker [(date)]="newDate" [(time)]="newTime" />
@@ -209,7 +210,7 @@
 </nz-modal>
 
 <!-- Staff: refund (and cancel) -->
-<nz-modal
+<nz-modal [nzClosable]="false"
   [(nzVisible)]="refundVisible"
   [nzTitle]="booking().status === 'Cancelled' ? 'Refund this payment?' : 'Cancel and refund this booking?'"
   [nzFooter]="null"
@@ -269,7 +270,7 @@
 </nz-modal>
 
 <!-- Staff: record a payment received on site -->
-<nz-modal [(nzVisible)]="recordVisible" nzTitle="Record payment" [nzFooter]="null" nzWidth="440px">
+<nz-modal [nzClosable]="false" [(nzVisible)]="recordVisible" nzTitle="Record payment" [nzFooter]="null" nzWidth="440px">
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="recordForm" nzLayout="vertical" (ngSubmit)="saveRecord()">
       <p class="modal-copy">For money {{ booking().customerName }} paid at the shop. They are told in chat.</p>

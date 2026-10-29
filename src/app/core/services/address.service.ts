@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { Observable, from } from 'rxjs';
 import { FIRESTORE } from '../firebase/firebase';
-import { Address, ShippingAddress } from '../models';
+import { Address, AddressDetails, AddressInput } from '../models';
 import { normalizeMobile } from '../../shared/utils/validators';
 import { AuthService } from './auth.service';
 
@@ -29,12 +29,32 @@ function toAddress(snap: QueryDocumentSnapshot<DocumentData>): Address {
     zip: data['zip'] ?? '',
     mobile: data['mobile'] ?? '',
     isDefault: data['isDefault'] === true,
+    details: toDetails(data['details']),
     createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : undefined,
   };
 }
 
+function toDetails(value: unknown): AddressDetails | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const d = value as Record<string, unknown>;
+  const text = (key: string) => (typeof d[key] === 'string' ? (d[key] as string) : '');
+  if (d['area'] !== 'ncr' && d['area'] !== 'province') return undefined;
+  return {
+    unit: text('unit'),
+    house: text('house'),
+    street: text('street'),
+    subdivision: text('subdivision'),
+    area: d['area'],
+    provinceCode: text('provinceCode'),
+    cityCode: text('cityCode'),
+    barangayCode: text('barangayCode'),
+    barangay: text('barangay'),
+  };
+}
+
 /** Trims every field and puts the mobile number in the `09XXXXXXXXX` form so stored values are uniform. */
-function normalize(input: ShippingAddress): ShippingAddress {
+function normalize(input: AddressInput): AddressInput {
+  const d = input.details;
   return {
     fullName: input.fullName.trim(),
     addressLine: input.addressLine.trim(),
@@ -42,6 +62,13 @@ function normalize(input: ShippingAddress): ShippingAddress {
     province: input.province.trim(),
     zip: input.zip.trim(),
     mobile: normalizeMobile(input.mobile),
+    details: {
+      ...d,
+      unit: d.unit.trim(),
+      house: d.house.trim(),
+      street: d.street.trim(),
+      subdivision: d.subdivision.trim(),
+    },
   };
 }
 
@@ -68,7 +95,7 @@ export class AddressService {
   readonly loading = this._loading.asReadonly();
   /** True when the list could not be loaded. */
   readonly error = this._error.asReadonly();
-  readonly defaultAddress = computed(() => this._addresses().find(a => a.isDefault) ?? null);
+  readonly defaultAddress = computed(() => this._addresses().find((a) => a.isDefault) ?? null);
 
   private readonly uid = computed(() => {
     const user = this.auth.currentUser();
@@ -76,7 +103,7 @@ export class AddressService {
   });
 
   constructor() {
-    effect(onCleanup => {
+    effect((onCleanup) => {
       const uid = this.uid();
       untracked(() => {
         this._addresses.set([]);
@@ -87,7 +114,7 @@ export class AddressService {
 
       const unsubscribe = onSnapshot(
         collection(this.db, 'users', uid, 'addresses'),
-        snapshot => {
+        (snapshot) => {
           const list = snapshot.docs
             .map(toAddress)
             .sort(
@@ -99,7 +126,7 @@ export class AddressService {
           this._error.set(false);
           this._loading.set(false);
         },
-        err => {
+        (err) => {
           console.error('Could not load addresses', err);
           this._error.set(true);
           this._loading.set(false);
@@ -110,8 +137,8 @@ export class AddressService {
   }
 
   /** Saves a new address. It becomes the default if `makeDefault` is set or it is the customer's first. */
-  add(input: ShippingAddress, makeDefault: boolean): Observable<void> {
-    return this.commit(batch => {
+  add(input: AddressInput, makeDefault: boolean): Observable<void> {
+    return this.commit((batch) => {
       const uid = this.requireUid();
       const ref = doc(collection(this.db, 'users', uid, 'addresses'));
       const isDefault = makeDefault || this._addresses().length === 0;
@@ -121,8 +148,8 @@ export class AddressService {
   }
 
   /** Updates an address's details. `makeDefault` can promote it but never demotes it: pick another as default for that. */
-  update(id: string, input: ShippingAddress, makeDefault: boolean): Observable<void> {
-    return this.commit(batch => {
+  update(id: string, input: AddressInput, makeDefault: boolean): Observable<void> {
+    return this.commit((batch) => {
       const uid = this.requireUid();
       batch.update(doc(this.db, 'users', uid, 'addresses', id), {
         ...normalize(input),
@@ -133,7 +160,7 @@ export class AddressService {
   }
 
   setDefault(id: string): Observable<void> {
-    return this.commit(batch => {
+    return this.commit((batch) => {
       const uid = this.requireUid();
       batch.update(doc(this.db, 'users', uid, 'addresses', id), { isDefault: true });
       this.demoteOthers(batch, uid, id);
@@ -142,12 +169,12 @@ export class AddressService {
 
   /** Deletes an address. If it was the default, the oldest remaining address takes over. */
   remove(id: string): Observable<void> {
-    return this.commit(batch => {
+    return this.commit((batch) => {
       const uid = this.requireUid();
       const list = this._addresses();
       batch.delete(doc(this.db, 'users', uid, 'addresses', id));
-      if (list.find(a => a.id === id)?.isDefault) {
-        const next = list.find(a => a.id !== id);
+      if (list.find((a) => a.id === id)?.isDefault) {
+        const next = list.find((a) => a.id !== id);
         if (next)
           batch.update(doc(this.db, 'users', uid, 'addresses', next.id), { isDefault: true });
       }

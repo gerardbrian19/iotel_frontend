@@ -2,7 +2,9 @@ import {
   BOOKING_HORIZON_DAYS,
   BOOKING_LEAD_DAYS,
   BOOKING_SLOTS,
+  CLOSED_HOLIDAYS,
   CLOSED_WEEKDAYS,
+  closedHoliday,
   addDays,
   firstBookableDate,
   formatSlot,
@@ -16,10 +18,18 @@ import {
 } from '../booking/schedule';
 import { servicePriceLabel, serviceShortPrice } from '../booking/service-view';
 import {
+  DELIVERY_ZONES,
+  deliveryDaysLabel,
+  deliveryEstimate,
+  deliveryZoneOf,
+  findPlaceIn,
+} from '../orders/delivery-estimate';
+import {
   ACTIVE_BOOKING_STATUSES,
   Booking,
   BookingStatus,
   CartItem,
+  DeliveryZone,
   Order,
   PRODUCT_CATEGORIES,
   Product,
@@ -66,6 +76,8 @@ export interface AssistantContext {
   cart: { items: readonly CartItem[]; subtotal: number; shippingFee: number; total: number };
   /** The flat shipping fee per order, shown even when the cart is empty. */
   flatShippingFee: number;
+  /** The customer's default saved address, for delivery times. */
+  deliveryAddress: { city: string; province: string } | null;
   favoritesCount: number;
   now: Date;
 }
@@ -130,6 +142,7 @@ export const ASSISTANT_TOPICS: readonly AssistantTopic[] = [
     label: 'Orders & delivery',
     questions: [
       'Where is my order?',
+      'How long does delivery take?',
       'How much is shipping?',
       'What payment methods do you accept?',
     ],
@@ -274,8 +287,8 @@ function hoursText(): string {
   const first = BOOKING_SLOTS[0];
   const last = BOOKING_SLOTS[BOOKING_SLOTS.length - 1];
   return (
-    `Service appointments are every day except ${closed}, from ${formatTime(first)} to ${formatTime(slotEnd(last))} ` +
-    `in 1-hour slots.\n\n${slotsText(BOOKING_SLOTS)}\n\nEach slot takes one booking, and you can book from ` +
+    `Service appointments are every day except ${closed} and ${CLOSED_HOLIDAYS.map((h) => h.name).join(', ')}, ` +
+    `from ${formatTime(first)} to ${formatTime(slotEnd(last))} in 1-hour slots.\n\n${slotsText(BOOKING_SLOTS)}\n\nEach slot takes one booking, and you can book from ` +
     `${plural(BOOKING_LEAD_DAYS, 'day')} ahead up to ${BOOKING_HORIZON_DAYS} days out.`
   );
 }
@@ -323,6 +336,14 @@ function availabilityReply(q: string, ctx: AssistantContext): AssistantReply {
     if (CLOSED_WEEKDAYS.includes(requested.getDay())) {
       return {
         text: `We don't take service appointments on ${weekdayName(requested.getDay())}s.${nextText}`,
+        links,
+        followUps: SCHEDULE_FOLLOW_UPS,
+      };
+    }
+    const holiday = closedHoliday(requested);
+    if (holiday) {
+      return {
+        text: `We're closed on ${label} for ${holiday}, so it can't be booked.${nextText}`,
         links,
         followUps: SCHEDULE_FOLLOW_UPS,
       };
@@ -1018,9 +1039,7 @@ function ordersReply(ctx: AssistantContext): AssistantReply {
   }
   const lines = orders.slice(0, 3).map((o) => {
     const eta =
-      o.estimatedDelivery && o.status !== 'Delivered' && o.status !== 'Cancelled'
-        ? ` · est. delivery ${new Date(`${o.estimatedDelivery}T00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}`
-        : '';
+      o.status !== 'Delivered' && o.status !== 'Cancelled' ? ` · est. delivery ${etaRange(o)}` : '';
     return `${o.code} · ${o.status} · ${peso(o.total)}${eta}`;
   });
   const more = orders.length - 3;
@@ -1030,11 +1049,85 @@ function ordersReply(ctx: AssistantContext): AssistantReply {
       'Orders go Pending → Processing → Shipped → Out for Delivery → Delivered.',
     links: [MY_ORDERS],
     followUps: [
-      'How much is shipping?',
+      'How long does delivery take?',
       'What payment methods do you accept?',
       'What is your return policy?',
     ],
   };
+}
+
+/** "Nov 2–4" or "Oct 30 – Nov 4". */
+function etaRange(order: Order): string {
+  const { from, to } = deliveryEstimate(order);
+  const day = (key: string, withMonth: boolean) =>
+    new Date(`${key}T00:00`).toLocaleDateString(
+      'en-PH',
+      withMonth ? { month: 'short', day: 'numeric' } : { day: 'numeric' },
+    );
+  return from.slice(0, 7) === to.slice(0, 7)
+    ? `${day(from, true)}–${day(to, false)}`
+    : `${day(from, true)} – ${day(to, true)}`;
+}
+
+const ZONE_ORDER: DeliveryZone[] = ['metro-manila', 'luzon', 'visayas', 'mindanao'];
+
+/** How long delivery takes: to a place named in the question, else to the default address, plus every zone. */
+function deliveryTimeReply(q: string, ctx: AssistantContext): AssistantReply {
+  const named = findPlaceIn(q);
+  const table = bullets(
+    ZONE_ORDER.map((z) => `${DELIVERY_ZONES[z].label}: ${deliveryDaysLabel(z)}`),
+  );
+  const note =
+    'Days are counted from the day you order. Remote islands, bad weather and holidays can add a few days, and each order shows its own estimate in My Orders.';
+  const followUps = ['Where is my order?', 'How much is shipping?', 'How do I update my address?'];
+
+  if (named) {
+    const zone = DELIVERY_ZONES[named.zone];
+    const place = ['ncr', 'barmm'].includes(named.place)
+      ? named.place.toUpperCase()
+      : titleCase(named.place);
+    const where = sameName(place, zone.short) ? zone.short : `${place} (${zone.short})`;
+    return {
+      text: `Delivery to ${where} usually takes ${deliveryDaysLabel(named.zone)}.\n\n${note}\n\nAll areas:\n${table}`,
+      links: [MY_ORDERS],
+      followUps,
+    };
+  }
+  // "…to Tagum": a place we don't know; ask for the province rather than answer for somewhere else.
+  const asked = /.*\b(?:to|in|sa)\s+([a-z][a-z .'-]{2,30}?)\s*\??$/.exec(q)?.[1]?.trim();
+  if (asked && !/^(my|our|me|us|the|your|you|here|there|home|house)\b/.test(asked)) {
+    return {
+      text:
+        `I'm not sure which area "${titleCase(asked)}" is in. Tell me its province (for example "How long is delivery to Davao del Norte?") and I'll check.\n\n` +
+        `Delivery times:\n${table}\n\n${note}`,
+      followUps: ['How long does delivery take?', ...followUps],
+    };
+  }
+  const address = ctx.deliveryAddress;
+  if (address) {
+    const zone = DELIVERY_ZONES[deliveryZoneOf(address)];
+    const area = sameName(address.province, zone.short) ? '' : ` (${zone.short})`;
+    return {
+      text:
+        `To your default address in ${address.city}, ${address.province}${area}, delivery usually takes ${deliveryDaysLabel(deliveryZoneOf(address))}.\n\n` +
+        `${note}\n\nAll areas:\n${table}`,
+      links: [MY_ORDERS, { label: 'My Addresses', url: '/customer/addresses' }],
+      followUps: ['How long is delivery to Cebu?', ...followUps],
+    };
+  }
+  return {
+    text: `How long delivery takes depends on where you are:\n${table}\n\n${note} Ask me about your city or province, e.g. "How long is delivery to Davao?"`,
+    links: [{ label: 'Add an address', url: '/customer/addresses' }],
+    followUps: ['How long is delivery to Cebu?', 'How long is delivery to Davao?', ...followUps],
+  };
+}
+
+function sameName(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function titleCase(text: string): string {
+  return text.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function shippingReply(ctx: AssistantContext): AssistantReply {
@@ -1043,9 +1136,13 @@ function shippingReply(ctx: AssistantContext): AssistantReply {
       (ctx.flatShippingFee
         ? `We ship across the Philippines for a flat ${peso(ctx.flatShippingFee)} per order, no matter how many items. `
         : 'There is no shipping fee at checkout: you pay only for the products. ') +
-      'Each order shows an estimated delivery date once it is placed.',
+      'Delivery usually takes 3–5 days in Metro Manila, 5–7 days elsewhere in Luzon and 7–10 days to the Visayas and Mindanao. Each order shows its estimated delivery dates once it is placed.',
     links: [MY_ORDERS],
-    followUps: ['What payment methods do you accept?', 'Where is my order?'],
+    followUps: [
+      'How long does delivery take?',
+      'What payment methods do you accept?',
+      'Where is my order?',
+    ],
   };
 }
 
@@ -1354,9 +1451,24 @@ export function answer(input: string, ctx: AssistantContext): AssistantReply {
   if (
     test(
       q,
-      /\b(shipping|delivery (fee|charge|cost|time)|free (shipping|delivery)|how long.*(deliver|ship|arrive)|do you ship)\b/,
-    )
-  )
+      /\b(how (long|many days)|when will|delivery (time|days?)|lead time|eta|arrive|transit|days? (to )?(deliver|ship))\b/,
+    ) &&
+    test(q, /\b(deliver\w*|ship\w*|arrive|arrival|transit|eta|lead time|get here|receive)\b/) &&
+    !test(q, /\b(ord-\d+|my order|my orders)\b/) &&
+    // "When will the technician arrive?" is about a booking, not a parcel.
+    !bookingCue &&
+    !test(q, /\b(technician|repair|install\w*|on-?site|visit)\b/)
+  ) {
+    return deliveryTimeReply(q, ctx);
+  }
+  if (
+    findPlaceIn(q) &&
+    test(q, /\b(deliver\w*|ship\w*)\b/) &&
+    !test(q, /\b(fee|cost|charge|free)\b/)
+  ) {
+    return deliveryTimeReply(q, ctx);
+  }
+  if (test(q, /\b(shipping|delivery (fee|charge|cost)|free (shipping|delivery)|do you ship)\b/))
     return shippingReply(ctx);
   if (test(q, /\bhow\b.*\b(order|buy|purchase)\b/)) return checkoutReply(ctx);
   if (

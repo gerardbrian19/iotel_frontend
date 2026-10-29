@@ -42,7 +42,7 @@
   flex-shrink: 0;
   object-fit: cover;
   border-radius: 4px;
-  background: #F5F5F5;
+  background: #f5f5f5;
 }
 
 .od-item-info {
@@ -54,7 +54,7 @@
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #1A1A1A;
+  color: #1a1a1a;
   overflow-wrap: anywhere;
 }
 
@@ -67,7 +67,7 @@
 .od-item-total {
   flex-shrink: 0;
   font-size: 14px;
-  color: #CC2020;
+  color: #cc2020;
 }
 
 .od-sum {
@@ -88,7 +88,7 @@
   border-top: 1px solid #f0f0f0;
   font-size: 16px;
   font-weight: 800;
-  color: #1A1A1A;
+  color: #1a1a1a;
 }
 
 .od-line {
@@ -140,19 +140,19 @@
   }
 
   &.done strong {
-    color: #1A1A1A;
+    color: #1a1a1a;
   }
 
   &.current strong {
-    color: #C9A84C;
+    color: #c9a84c;
   }
 
   &.error strong {
-    color: #CC2020;
+    color: #cc2020;
   }
 
   &.done:not(:last-child)::before {
-    background: #C9A84C;
+    background: #c9a84c;
   }
 }
 
@@ -165,20 +165,20 @@
   margin-top: 3px;
   border-radius: 50%;
   border: 2px solid #d9d9d9;
-  background: #FFFFFF;
+  background: #ffffff;
 
   .done > & {
-    border-color: #C9A84C;
-    background: #C9A84C;
+    border-color: #c9a84c;
+    background: #c9a84c;
   }
 
   .current > & {
-    border-color: #C9A84C;
+    border-color: #c9a84c;
   }
 
   .error > & {
-    border-color: #CC2020;
-    background: #CC2020;
+    border-color: #cc2020;
+    background: #cc2020;
   }
 }
 

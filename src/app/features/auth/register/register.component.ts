@@ -16,6 +16,7 @@ import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzMessageService } from 'ng-zorro-antd/message';
 import { AuthService } from '../../../core/services/auth.service';
 import { authErrorMessage } from '../../../core/firebase/auth-errors';
 import { LEGAL_DOCUMENTS, LegalDocumentId } from '../../../core/legal/legal-documents';
@@ -60,6 +61,7 @@ export class RegisterComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly message = inject(NzMessageService);
 
   readonly passwordVisible = signal(false);
   readonly error = signal<string | null>(null);
@@ -111,6 +113,21 @@ export class RegisterComponent {
   showDoc(id: LegalDocumentId, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
+    this.openLegalDoc(id);
+  }
+
+  /** A click on the still-locked checkbox explains why and opens the next document left to read. */
+  onConsentClick(): void {
+    if (this.bothAgreed()) return;
+    const next = LEGAL_DOC_IDS.find((id) => !this.agreedDocs().has(id));
+    if (!next) return;
+    this.message.warning(
+      'Please read and agree to the Terms of Service and Privacy Policy before ticking this box.',
+    );
+    this.openLegalDoc(next);
+  }
+
+  private openLegalDoc(id: LegalDocumentId): void {
     this.openDocId.set(id);
     // Every opening of a document not agreed to yet starts the full wait again.
     this.stopCountdown();

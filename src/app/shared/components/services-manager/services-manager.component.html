@@ -66,7 +66,7 @@
   </nz-table>
 </div>
 
-<nz-modal [(nzVisible)]="modalVisible" [nzTitle]="editingId() ? 'Edit Service' : 'Add Service'" [nzFooter]="null" nzWidth="600px">
+<nz-modal [nzClosable]="false" [(nzVisible)]="modalVisible" [nzTitle]="editingId() ? 'Edit Service' : 'Add Service'" [nzFooter]="null" nzWidth="600px">
   <ng-container *nzModalContent>
     <form nz-form [formGroup]="form" nzLayout="vertical" (ngSubmit)="save()">
       <nz-form-item>

@@ -77,6 +77,11 @@ service cloud.firestore {
       return time in ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
     }
 
+    // Holidays the shop is closed every year (`YYYY-MM-DD` dates). Mirrors CLOSED_HOLIDAYS in schedule.ts.
+    function closedDate(date) {
+      return date.matches('^\\d{4}-12-25$');
+    }
+
     function bookingPath(bookingId) {
       return /databases/$(database)/documents/bookings/$(bookingId);
     }
@@ -106,8 +111,30 @@ service cloud.firestore {
       return value is string && value.matches('^09[0-9]{9}$');
     }
 
+    // The structured parts behind addressLine/city/province (PSGC codes; see AddressDetails). Optional: addresses
+    // saved before the structured form don't have them.
+    function optionalText(value, max) {
+      return value is string && value.size() <= max;
+    }
+
+    function validAddressDetails(d) {
+      return d is map
+        && d.keys().hasOnly(['unit', 'house', 'street', 'subdivision', 'area', 'provinceCode', 'cityCode', 'barangayCode', 'barangay'])
+        && d.keys().hasAll(['unit', 'house', 'street', 'subdivision', 'area', 'provinceCode', 'cityCode', 'barangayCode', 'barangay'])
+        && optionalText(d.unit, 35)
+        && optionalText(d.house, 30)
+        && optionalText(d.street, 50)
+        && optionalText(d.subdivision, 30)
+        && d.area in ['ncr', 'province']
+        && (d.area == 'ncr' ? d.provinceCode == '' : shortText(d.provinceCode, 10))
+        && shortText(d.cityCode, 10)
+        && shortText(d.barangayCode, 10)
+        && shortText(d.barangay, 60);
+    }
+
     function validAddress(address) {
-      return address.keys().hasOnly(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile', 'isDefault', 'createdAt'])
+      return address.keys().hasOnly(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile', 'isDefault', 'createdAt', 'details'])
+        && (!('details' in address) || validAddressDetails(address.details))
         && address.keys().hasAll(['fullName', 'addressLine', 'city', 'province', 'zip', 'mobile', 'isDefault', 'createdAt'])
         && shortText(address.fullName, 60)
         && shortText(address.addressLine, 200)
@@ -411,6 +438,7 @@ service cloud.firestore {
         && shortText(booking.customerEmail, 100)
         && validMobile(booking.customerMobile)
         && booking.preferredDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && !closedDate(booking.preferredDate)
         && bookingTime(booking.preferredTime)
         // What needs doing, at least 10 characters (BOOKING_NOTES_MIN in booking.service.ts).
         && booking.notes is string && booking.notes.trim().size() >= 10 && booking.notes.size() <= 1000
@@ -460,6 +488,7 @@ service cloud.firestore {
           // (A slot doc that already belongs to another booking can't be overwritten: its update is denied.)
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preferredDate', 'preferredTime'])
             || (bookingTime(request.resource.data.preferredTime)
+              && !closedDate(request.resource.data.preferredDate)
               && getAfter(/databases/$(database)/documents/bookingSlots/$(request.resource.data.preferredDate + 'T' + request.resource.data.preferredTime)).data.bookingId == bookingId))
           && request.resource.data.updatedAt == request.time)
       );

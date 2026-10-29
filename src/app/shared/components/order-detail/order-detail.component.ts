@@ -1,6 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { NzTagModule } from 'ng-zorro-antd/tag';
+import {
+  DELIVERY_ZONES,
+  deliveryDaysLabel,
+  deliveryEstimate,
+} from '../../../core/orders/delivery-estimate';
 import { orderTimeline, paymentBadge } from '../../../core/orders/order-view';
 import { Order } from '../../../core/models';
 import {
@@ -31,6 +36,17 @@ export class OrderDetailComponent {
   readonly onImageError = onImageError;
   readonly timeline = computed(() => orderTimeline(this.order()));
   readonly payment = computed(() => paymentBadge(this.order()));
+  readonly delivery = computed(() => {
+    const estimate = deliveryEstimate(this.order());
+    return {
+      ...estimate,
+      // Parsed as local dates so the date pipe doesn't shift them across midnight.
+      fromDate: new Date(`${estimate.from}T00:00`),
+      toDate: new Date(`${estimate.to}T00:00`),
+      area: DELIVERY_ZONES[estimate.zone].label,
+      days: deliveryDaysLabel(estimate.zone),
+    };
+  });
   readonly method = computed(() => paymentMethodLabel(this.order().payment.method));
   readonly provider = computed(() => PAYMENT_PROVIDER_LABELS[this.order().payment.provider]);
   /** What staff look the payment up by: PayMongo's payment id, or the transfer's reference number. */

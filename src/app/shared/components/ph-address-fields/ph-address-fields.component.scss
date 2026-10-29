@@ -1,0 +1,113 @@
+// Styled after government address forms (SSS): tall boxes, labels inside the dropdowns, round radio buttons.
+:host {
+  display: block;
+}
+
+.line-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ph-address {
+  nz-form-item {
+    margin-bottom: 12px;
+  }
+
+  input[nz-input] {
+    height: 52px;
+    border-radius: 6px;
+  }
+}
+
+.line-invalid:not(:focus) {
+  border-color: #ff4d4f;
+}
+
+.group-error {
+  margin: -4px 0 12px;
+  font-size: 13px;
+  color: #ff4d4f;
+}
+
+.retry-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: #cc2020;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.area-item {
+  margin-bottom: 8px;
+}
+
+.area-radios label {
+  font-size: 15px;
+  margin-right: 20px;
+}
+
+// A small label inside the top of the box, the value below it.
+.float-field {
+  position: relative;
+  width: 100%;
+
+  .float-label {
+    position: absolute;
+    top: 7px;
+    left: 12px;
+    z-index: 2;
+    font-size: 12px;
+    line-height: 16px;
+    color: #8c8c8c;
+    pointer-events: none;
+  }
+
+  input[nz-input] {
+    height: 60px;
+    padding-top: 22px;
+  }
+
+  nz-select {
+    width: 100%;
+  }
+
+  ::ng-deep .ant-select-selector {
+    height: 60px !important;
+    padding-top: 20px !important;
+    border-radius: 6px !important;
+  }
+
+  ::ng-deep .ant-select-selection-search {
+    top: 20px !important;
+    bottom: 0 !important;
+  }
+
+  ::ng-deep .ant-select-selection-search-input {
+    height: 36px !important;
+  }
+
+  ::ng-deep .ant-select-selection-item,
+  ::ng-deep .ant-select-selection-placeholder {
+    line-height: 36px !important;
+  }
+}
+
+.zip-item {
+  max-width: 220px;
+}
+
+// Green only for a complete, valid field (ng-zorro adds `has-success` with nzHasFeedback).
+:host ::ng-deep .ant-form-item-has-success .float-field {
+  .ant-select-selector,
+  input[nz-input] {
+    border-color: #52c41a !important;
+  }
+}

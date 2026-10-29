@@ -32,6 +32,17 @@ export const BOOKING_HORIZON_DAYS = 60;
 /** Sunday (0) is closed. */
 export const CLOSED_WEEKDAYS: readonly number[] = [0];
 
+/** Holidays closed every year, as `MM-DD`. Mirrored in `closedDate()` in firestore.rules. */
+export const CLOSED_HOLIDAYS: readonly { date: string; name: string }[] = [
+  { date: '12-25', name: 'Christmas Day' },
+];
+
+/** The holiday a day falls on, if the shop is closed for one. */
+export function closedHoliday(date: Date): string | null {
+  const key = toDateKey(date).slice(5);
+  return CLOSED_HOLIDAYS.find((h) => h.date === key)?.name ?? null;
+}
+
 /** `YYYY-MM-DD` in the viewer's local time zone (never `toISOString`, which shifts the date across midnight). */
 export function toDateKey(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -69,6 +80,7 @@ export function isOpenDate(date: Date, now = new Date()): boolean {
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   return (
     !CLOSED_WEEKDAYS.includes(day.getDay()) &&
+    !closedHoliday(day) &&
     day >= firstBookableDate(now) &&
     day <= lastBookableDate(now)
   );

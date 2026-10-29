@@ -17,19 +17,27 @@
   margin-bottom: 16px;
 
   a {
-    color: #CC2020;
+    color: #cc2020;
     text-decoration: none;
-    &:hover { text-decoration: underline; }
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
-  .bc-sep { font-size: 10px; color: #ccc; }
-  .bc-current { color: #1A1A1A; font-weight: 600; }
+  .bc-sep {
+    font-size: 10px;
+    color: #ccc;
+  }
+  .bc-current {
+    color: #1a1a1a;
+    font-weight: 600;
+  }
 }
 
 .page-title {
   font-size: 28px;
   font-weight: 800;
-  color: #1A1A1A;
+  color: #1a1a1a;
   margin-bottom: 24px;
 }
 
@@ -75,7 +83,9 @@
   padding: 8px 0;
   border-bottom: 1px solid #f5f5f5;
 
-  &:last-child { border-bottom: none; }
+  &:last-child {
+    border-bottom: none;
+  }
 }
 
 .order-item-img {
@@ -93,7 +103,7 @@
 .order-item-name {
   font-size: 14px;
   font-weight: 600;
-  color: #1A1A1A;
+  color: #1a1a1a;
   margin: 0;
 }
 
@@ -105,7 +115,7 @@
 
 .order-item-total {
   font-size: 14px;
-  color: #CC2020;
+  color: #cc2020;
   flex-shrink: 0;
 }
 
@@ -122,20 +132,25 @@
   margin-bottom: 12px;
 }
 
-
 .total-row {
   font-size: 18px;
   font-weight: 800;
-  color: #1A1A1A;
+  color: #1a1a1a;
   margin-bottom: 20px;
 }
 
 .confirm-btn {
-  background: #CC2020 !important;
-  border-color: #CC2020 !important;
+  background: #cc2020 !important;
+  border-color: #cc2020 !important;
   height: 44px;
   font-size: 15px;
   font-weight: 700;
+}
+
+// No address yet: looks disabled, but stays clickable so the click can explain why (`askForAddress`).
+.confirm-btn.needs-address {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .pay-options {
@@ -150,22 +165,35 @@
   align-items: flex-start;
   width: 100%;
   padding: 14px;
-  border: 1px solid #E8E8E8;
+  border: 1px solid #e8e8e8;
   border-radius: 10px;
-  background: #FFFFFF;
+  background: #ffffff;
   text-align: left;
   cursor: pointer;
 
-  &.selected { border-color: #CC2020; box-shadow: 0 0 0 1px #CC2020; }
-  &:focus-visible { outline: 2px solid #CC2020; outline-offset: 2px; }
+  &.selected {
+    border-color: #cc2020;
+    box-shadow: 0 0 0 1px #cc2020;
+  }
+  &:focus-visible {
+    outline: 2px solid #cc2020;
+    outline-offset: 2px;
+  }
 
-  strong { font-size: 15px; color: #1A1A1A; }
-  p { font-size: 13px; color: #666666; margin: 4px 0 0; }
+  strong {
+    font-size: 15px;
+    color: #1a1a1a;
+  }
+  p {
+    font-size: 13px;
+    color: #666666;
+    margin: 4px 0 0;
+  }
 }
 
 .paymongo-icon {
   font-size: 28px;
-  color: #CC2020;
+  color: #cc2020;
 }
 
 .method-chips {
@@ -178,11 +206,11 @@
 
   li {
     padding: 4px 12px;
-    border: 1px solid #E8E8E8;
+    border: 1px solid #e8e8e8;
     border-radius: 999px;
-    background: #F5F5F5;
+    background: #f5f5f5;
     font-size: 13px;
-    color: #1A1A1A;
+    color: #1a1a1a;
   }
 }
 
@@ -193,7 +221,7 @@
 
 .order-item-problem {
   font-size: 12px;
-  color: #CC2020;
+  color: #cc2020;
   margin: 2px 0 0;
 }
 
@@ -203,4 +231,3 @@
   text-align: center;
   margin: 10px 0 0;
 }
-

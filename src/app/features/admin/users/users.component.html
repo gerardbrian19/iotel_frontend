@@ -92,7 +92,7 @@
   </nz-table>
 </div>
 
-<nz-modal [(nzVisible)]="modalVisible" nzTitle="Add Account" [nzFooter]="null" nzWidth="480px">
+<nz-modal [nzClosable]="false" [(nzVisible)]="modalVisible" nzTitle="Add Account" [nzFooter]="null" nzWidth="480px">
   <ng-container *nzModalContent>
     @if (formError()) {
       <nz-alert nzType="error" [nzMessage]="formError()!" nzShowIcon class="mb-4" />

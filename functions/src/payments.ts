@@ -26,6 +26,7 @@ import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { db } from './app.js';
 import { CANCEL_REQUEST_REASONS } from './cancellations.js';
+import { DELIVERY_ZONES, deliveryZoneOf } from './delivery.js';
 import {
   CheckoutSessionAttributes,
   Kind,
@@ -58,7 +59,6 @@ const APP_ORIGINS = defineString('APP_ORIGINS', {
 
 /** Mirrors SHIPPING_FEE in src/app/core/services/cart.service.ts. 0: no shipping fee is charged. */
 const SHIPPING_FEE = 0;
-const ESTIMATED_DELIVERY_DAYS = 5;
 /** Unpaid PayMongo orders are cancelled after this long (mirrored in the app's order hints). */
 const UNPAID_ORDER_TTL_MS = 60 * 60 * 1000;
 const MAX_ORDER_LINES = 50;
@@ -184,6 +184,7 @@ export const createOrderCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
   }
   const lines = cartLines(req.data?.items);
   const address = shippingAddress(req.data?.address);
+  const deliveryZone = deliveryZoneOf(address);
   const origin = provider === 'paymongo' ? appOrigin(req.data?.origin) : '';
   if (provider === 'manual') {
     const receivers = await db
@@ -244,7 +245,9 @@ export const createOrderCheckout = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
           ? { provider: 'manual', status: 'Unpaid', amount: total, manual: { state: 'awaiting' } }
           : { provider: 'paymongo', status: 'Unpaid', amount: total },
       status: 'Pending',
-      estimatedDelivery: manilaDateKey(ESTIMATED_DELIVERY_DAYS),
+      deliveryZone,
+      estimatedDeliveryFrom: manilaDateKey(DELIVERY_ZONES[deliveryZone].minDays),
+      estimatedDelivery: manilaDateKey(DELIVERY_ZONES[deliveryZone].maxDays),
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });

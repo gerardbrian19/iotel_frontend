@@ -123,7 +123,7 @@ export class HelpComponent {
         },
         {
           question: 'When can I book, and how far ahead?',
-          answer: `We are open Monday to Saturday with one-hour slots in the morning and afternoon (closed for lunch, and on Sundays). Each slot takes one booking, so a taken slot will not be offered again. You can book from ${BOOKING_LEAD_DAYS} day from today and up to ${BOOKING_HORIZON_DAYS} days ahead.`,
+          answer: `We are open Monday to Saturday with one-hour slots in the morning and afternoon (closed for lunch, on Sundays and on Christmas Day). Each slot takes one booking, so a taken slot will not be offered again. You can book from ${BOOKING_LEAD_DAYS} day from today and up to ${BOOKING_HORIZON_DAYS} days ahead.`,
         },
         {
           question: 'Can I cancel or reschedule a booking?',

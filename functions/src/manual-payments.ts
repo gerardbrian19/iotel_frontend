@@ -38,6 +38,17 @@ const MAX_ATTEMPTS = 5;
 const MAX_AMOUNT = 10_000_000;
 const REFERENCE = /^[A-Za-z0-9-]{4,40}$/;
 const ONSITE_METHODS = ['cash', 'gcash', 'bank', 'card'] as const;
+/**
+ * A transfer can be dated from midnight (Philippine time) `TRANSFER_DAYS_BEFORE` days before the payment became due,
+ * up to `TRANSFER_WINDOW_DAYS` days after it. Mirrored in core/payments/manual-payments.ts.
+ */
+const TRANSFER_WINDOW_DAYS = 3;
+const TRANSFER_DAYS_BEFORE = 2;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Philippine time is UTC+8 all year. */
+const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
+/** Slack for clock differences and the minute the app's date picker rounds to. */
+const CLOCK_GRACE_MS = 10 * 60 * 1000;
 
 function text(value: unknown, max: number): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -51,18 +62,35 @@ function amountOf(value: unknown): number {
   return Math.round(amount * 100) / 100;
 }
 
-/** When the customer says they sent it: not in the future, not older than 30 days. */
+/** When the customer says they sent it, as a time; checked against the payment's window in `checkSentAt`. */
 function sentAtOf(value: unknown): Timestamp {
   const time = typeof value === 'string' ? Date.parse(value) : NaN;
-  const now = Date.now();
-  if (
-    !Number.isFinite(time) ||
-    time > now + 10 * 60 * 1000 ||
-    time < now - 30 * 24 * 60 * 60 * 1000
-  ) {
+  if (!Number.isFinite(time)) {
     throw new HttpsError('invalid-argument', 'Enter when you sent the payment.');
   }
   return Timestamp.fromMillis(time);
+}
+
+/** Not in the future, and inside the transfer window around when the payment became due (if known). */
+function checkSentAt(sentAt: Timestamp, dueSince: Timestamp | undefined): void {
+  const time = sentAt.toMillis();
+  const start = dueSince?.toMillis();
+  const earliest =
+    start === undefined
+      ? undefined
+      : Math.floor((start + MANILA_OFFSET_MS) / DAY_MS) * DAY_MS -
+        MANILA_OFFSET_MS -
+        TRANSFER_DAYS_BEFORE * DAY_MS;
+  const tooEarly = earliest !== undefined && time < earliest - CLOCK_GRACE_MS;
+  const tooLate =
+    time > Date.now() + CLOCK_GRACE_MS ||
+    (start !== undefined && time > start + TRANSFER_WINDOW_DAYS * DAY_MS + CLOCK_GRACE_MS);
+  if (tooEarly || tooLate) {
+    throw new HttpsError(
+      'invalid-argument',
+      'That date is outside the payment window. Please check the date and time you sent it, or message us.',
+    );
+  }
 }
 
 /** `manualReferences` id: one per receiver and reference number, so the same transfer can't pay twice. */
@@ -143,6 +171,7 @@ export const submitManualPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
         throw new HttpsError('failed-precondition', 'This order is not waiting for a transfer.');
       }
       due = Number(payment['amount']) || 0;
+      checkSentAt(sentAt, snap.get('createdAt') as Timestamp | undefined);
     } else {
       if (
         snap.get('status') !== 'Confirmed' ||
@@ -152,8 +181,13 @@ export const submitManualPayment = onCall({ secrets: [PAYMONGO_SECRET_KEY] }, as
         throw new HttpsError('failed-precondition', 'This booking is not waiting for payment.');
       }
       due = Number(snap.get('quote.amount')) || 0;
+      checkSentAt(sentAt, snap.get('quote.quotedAt') as Timestamp | undefined);
     }
     if (!(due > 0)) throw new HttpsError('failed-precondition', 'There is no amount to pay yet.');
+    // The amount is fixed in the app; a different one means an old app or a tampered request.
+    if (Math.abs(amountSent - due) > 0.009) {
+      throw new HttpsError('invalid-argument', `Please send exactly ${peso(due)}.`);
+    }
     if (manual?.['state'] === 'submitted') {
       throw new HttpsError('failed-precondition', 'Your payment is already being checked.');
     }

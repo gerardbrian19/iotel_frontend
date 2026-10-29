@@ -1,0 +1,155 @@
+<div class="ph-address" [formGroup]="group()">
+  <div class="line-grid">
+    <nz-form-item>
+      <nz-form-control [nzErrorTip]="'Up to ' + limits.unit + ' characters.'">
+        <input
+          nz-input
+          nzSize="large"
+          formControlName="unit"
+          placeholder="Room/Floor/Unit No. & Building Name"
+          [maxlength]="limits.unit"
+          autocomplete="address-line1"
+          [class.line-invalid]="lineError()"
+        />
+      </nz-form-control>
+    </nz-form-item>
+    <nz-form-item>
+      <nz-form-control [nzErrorTip]="'Up to ' + limits.house + ' characters.'">
+        <input
+          nz-input
+          nzSize="large"
+          formControlName="house"
+          placeholder="House / Lot & Block No."
+          [maxlength]="limits.house"
+          autocomplete="address-line2"
+          [class.line-invalid]="lineError()"
+        />
+      </nz-form-control>
+    </nz-form-item>
+    <nz-form-item>
+      <nz-form-control [nzErrorTip]="'Up to ' + limits.street + ' characters.'">
+        <input
+          nz-input
+          nzSize="large"
+          formControlName="street"
+          placeholder="Street"
+          [maxlength]="limits.street"
+          [class.line-invalid]="lineError()"
+        />
+      </nz-form-control>
+    </nz-form-item>
+    <nz-form-item>
+      <nz-form-control [nzErrorTip]="'Up to ' + limits.subdivision + ' characters.'">
+        <input
+          nz-input
+          nzSize="large"
+          formControlName="subdivision"
+          placeholder="Subdivision"
+          [maxlength]="limits.subdivision"
+          [class.line-invalid]="lineError()"
+        />
+      </nz-form-control>
+    </nz-form-item>
+  </div>
+  @if (lineError()) {
+    <p class="group-error" role="alert">
+      Enter at least one of: unit/building, house/lot no., street or subdivision.
+    </p>
+  }
+
+  <nz-form-item class="area-item">
+    <nz-form-control nzErrorTip="Choose Metro Manila or Province.">
+      <nz-radio-group formControlName="area" class="area-radios">
+        <label nz-radio nzValue="ncr">Metro Manila</label>
+        <label nz-radio nzValue="province">Province</label>
+      </nz-radio-group>
+    </nz-form-control>
+  </nz-form-item>
+
+  @if (indexError()) {
+    <p class="group-error" role="alert">
+      We couldn't load the list of places.
+      <button type="button" class="retry-link" (click)="retryIndex()">Try again</button>
+    </p>
+  }
+
+  @if (area() === 'province') {
+    <nz-form-item>
+      <nz-form-control nzHasFeedback nzErrorTip="Select your province.">
+        <div class="float-field">
+          <span class="float-label">Province</span>
+          <nz-select
+            formControlName="provinceCode"
+            nzSize="large"
+            nzShowSearch
+            nzPlaceHolder="Select Province"
+            nzNotFoundContent="No matching province"
+            [nzOptions]="provinceOptions()"
+            [nzLoading]="!index()"
+          />
+        </div>
+      </nz-form-control>
+    </nz-form-item>
+  }
+
+  <nz-form-item>
+    <nz-form-control nzHasFeedback nzErrorTip="Select your city or municipality.">
+      <div class="float-field">
+        <span class="float-label">City/Municipality</span>
+        <nz-select
+          formControlName="cityCode"
+          nzSize="large"
+          nzShowSearch
+          nzNotFoundContent="No matching city or municipality"
+          [nzPlaceHolder]="cityPlaceholder()"
+          [nzOptions]="cityOptions()"
+          [nzDisabled]="cityDisabled()"
+          [nzLoading]="!index() && !indexError()"
+        />
+      </div>
+    </nz-form-control>
+  </nz-form-item>
+
+  <nz-form-item>
+    <nz-form-control nzHasFeedback nzErrorTip="Select your barangay.">
+      <div class="float-field">
+        <span class="float-label">Barangay</span>
+        <nz-select
+          formControlName="barangayCode"
+          nzSize="large"
+          nzShowSearch
+          nzNotFoundContent="No matching barangay"
+          [nzPlaceHolder]="
+            barangayDisabled() ? 'Select a city/municipality first' : 'Select Barangay'
+          "
+          [nzOptions]="barangayOptions()"
+          [nzDisabled]="barangayDisabled()"
+          [nzLoading]="barangaysLoading()"
+        />
+      </div>
+    </nz-form-control>
+  </nz-form-item>
+  @if (barangaysFailed() && !barangayDisabled()) {
+    <p class="group-error" role="alert">
+      We couldn't load the barangays.
+      <button type="button" class="retry-link" (click)="retryBarangays()">Try again</button>
+    </p>
+  }
+
+  <nz-form-item class="zip-item">
+    <nz-form-control nzHasFeedback nzErrorTip="Enter the 4-digit ZIP code.">
+      <div class="float-field">
+        <span class="float-label">Postal Code</span>
+        <input
+          nz-input
+          nzSize="large"
+          formControlName="zip"
+          inputmode="numeric"
+          maxlength="4"
+          placeholder="4-digit ZIP code"
+          autocomplete="postal-code"
+        />
+      </div>
+    </nz-form-control>
+  </nz-form-item>
+</div>

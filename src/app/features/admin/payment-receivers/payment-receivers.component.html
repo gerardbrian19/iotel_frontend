@@ -98,7 +98,7 @@
   </nz-table>
 </div>
 
-<nz-modal
+<nz-modal [nzClosable]="false"
   [(nzVisible)]="modalVisible"
   [nzTitle]="editingId() ? 'Edit account' : 'Add account'"
   [nzFooter]="null"

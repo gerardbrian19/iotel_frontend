@@ -78,7 +78,7 @@
   }
 }
 
-<nz-modal
+<nz-modal [nzClosable]="false"
   [(nzVisible)]="approveVisible"
   nzTitle="Approve this payment?"
   [nzFooter]="null"
@@ -116,7 +116,7 @@
   </ng-container>
 </nz-modal>
 
-<nz-modal
+<nz-modal [nzClosable]="false"
   [(nzVisible)]="rejectVisible"
   nzTitle="Reject this payment?"
   [nzFooter]="null"
